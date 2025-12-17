@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken } from '@/lib/utils'
 import { sendEmail, emailTemplates } from '@/lib/email'
 
@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/?error=invalid_params', request.url))
     }
 
-    const supabase = await createClient()
+    // Utiliser le client admin pour bypass RLS dans les opérations serveur
+    const supabase = createAdminClient()
 
     // Récupérer tous les tokens non utilisés et non expirés
     const { data: tokens, error: tokensError } = await supabase

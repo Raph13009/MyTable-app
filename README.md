@@ -40,6 +40,7 @@ Créer un fichier `.env.local` à la racine :
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -53,6 +54,8 @@ EMAIL_PROVIDER=resend
 # EMAIL_PROVIDER=make
 # MAKE_WEBHOOK_URL=your_make_webhook_url
 ```
+
+**Important** : La `SUPABASE_SERVICE_ROLE_KEY` est nécessaire pour les opérations serveur (création de bookings, conversations, etc.). Vous la trouvez dans Supabase Dashboard > Settings > API > service_role key (⚠️ gardez-la secrète, ne la commitez jamais !)
 
 ### 4. Configuration Supabase Auth
 

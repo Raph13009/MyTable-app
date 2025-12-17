@@ -69,7 +69,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
     if (!formData.firstName.trim()) newErrors.firstName = 'Le prénom est requis'
     if (!formData.lastName.trim()) newErrors.lastName = 'Le nom est requis'
-    if (!formData.email.trim()) newErrors.email = 'L\'email est requis'
+    if (!formData.email.trim()) newErrors.email = 'L&apos;email est requis'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email invalide'
     }
@@ -84,7 +84,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       selectedDate.setHours(0, 0, 0, 0)
       
       if (selectedDate < minDate) {
-        newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l\'évènement'
+        newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
       }
     }
     if (!formData.city.trim()) newErrors.city = 'La ville est requise'
@@ -128,7 +128,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       }
 
       // Rediriger vers une page de confirmation
-      router.push(`/booking-confirmation?email=${encodeURIComponent(formData.email)}`)
+      router.push('/booking-confirmation')
     } catch (error) {
       console.error('Error submitting booking:', error)
       setErrors({ submit: error instanceof Error ? error.message : 'Une erreur est survenue' })
@@ -209,7 +209,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               required
             />
             <p className="mt-1 text-xs text-gray-500">
-              Vous devez réserver au moins 3 jours avant la date de l'évènement
+              Vous devez réserver au moins 3 jours avant la date de l&apos;évènement
             </p>
           </div>
           <Select

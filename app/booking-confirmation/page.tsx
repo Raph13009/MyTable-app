@@ -1,12 +1,8 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 
 export default function BookingConfirmationPage() {
-  const searchParams = useSearchParams()
-  const email = searchParams.get('email')
-
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
@@ -30,18 +26,14 @@ export default function BookingConfirmationPage() {
         </h1>
         <p className="text-gray-600 mb-6">
           Votre demande de réservation a été envoyée avec succès.
-          {email && (
-            <>
-              <br />
-              Un email de confirmation a été envoyé à <strong>{email}</strong>
-            </>
-          )}
+          <br />
+          Un email de confirmation vous a été envoyé.
         </p>
         <p className="text-gray-600 mb-8">
           Le chef va examiner votre demande et vous recevrez une réponse par email sous peu.
         </p>
         <Button onClick={() => window.location.href = '/'}>
-          Retour à l'accueil
+          Retour à l&apos;accueil
         </Button>
       </div>
     </div>

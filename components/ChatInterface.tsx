@@ -4,8 +4,6 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -30,30 +28,70 @@ export default function ChatInterface({
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [authLoading, setAuthLoading] = useState(!currentUser)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
+  const getParticipantRole = (email: string): 'chef' | 'client' | null => {
+    if (!email) return null
+    const normalizedEmail = email?.toLowerCase().trim()
+    const participant = participants.find(p => {
+      const participantEmail = p.email?.toLowerCase().trim()
+      return participantEmail === normalizedEmail
+    })
+    
+    console.log('[ChatInterface] getParticipantRole:', {
+      searchEmail: normalizedEmail,
+      participantFound: !!participant,
+      participantRole: participant?.role,
+      allParticipants: participants.map(p => ({
+        email: p.email?.toLowerCase().trim(),
+        role: p.role,
+      })),
+    })
+    
+    return participant?.role || null
+  }
+
+  const getCurrentUserRole = (): 'chef' | 'client' | null => {
+    if (!currentUser?.email) return null
+    const role = getParticipantRole(currentUser.email)
+    console.log('[ChatInterface] getCurrentUserRole:', {
+      userEmail: currentUser.email,
+      role,
+    })
+    return role
+  }
+
+  // Logs au montage du composant
+  useEffect(() => {
+    console.log('[ChatInterface] ========== COMPONENT MOUNTED ==========')
+    console.log('[ChatInterface] Current user:', {
+      email: currentUser?.email,
+      id: currentUser?.id,
+    })
+    console.log('[ChatInterface] Participants:', participants.map(p => ({
+      email: p.email,
+      role: p.role,
+      user_id: p.user_id,
+    })))
+    console.log('[ChatInterface] Initial messages count:', initialMessages.length)
+    console.log('[ChatInterface] Current user role:', getCurrentUserRole())
+    console.log('[ChatInterface] ======================================')
+  }, [])
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef.current && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
+    }
   }
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  useEffect(() => {
-    if (!currentUser) {
-      // Si l'utilisateur n'est pas connecté, essayer de récupérer l'email depuis les participants
-      const userEmail = participants.find(p => p.role === 'client')?.email || 
-                       participants.find(p => p.role === 'chef')?.email
-
-      if (userEmail) {
-        // Envoyer un magic link
-        handleMagicLink(userEmail)
-      }
-    }
-  }, [currentUser, participants])
 
   useEffect(() => {
     // Abonnement aux nouveaux messages en temps réel
@@ -78,29 +116,6 @@ export default function ChatInterface({
     }
   }, [conversationId, supabase])
 
-  const handleMagicLink = async (email: string) => {
-    setAuthLoading(true)
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/chat/${conversationId}`,
-        },
-      })
-
-      if (error) {
-        console.error('Error sending magic link:', error)
-        alert('Erreur lors de l\'envoi du lien de connexion')
-      } else {
-        alert('Un lien de connexion a été envoyé à votre email')
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -111,6 +126,13 @@ export default function ChatInterface({
     setLoading(true)
 
     try {
+      const currentUserRole = getCurrentUserRole()
+      console.log('[ChatInterface] Sending message:', {
+        currentUserEmail: currentUser.email,
+        currentUserRole,
+        messageContent: newMessage.trim(),
+      })
+
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -123,9 +145,10 @@ export default function ChatInterface({
         throw error
       }
 
+      console.log('[ChatInterface] Message sent successfully')
       setNewMessage('')
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error('[ChatInterface] Error sending message:', error)
       alert('Erreur lors de l\'envoi du message')
     } finally {
       setLoading(false)
@@ -133,12 +156,16 @@ export default function ChatInterface({
   }
 
   const getParticipantName = (email: string) => {
-    const participant = participants.find(p => p.email === email)
+    const normalizedEmail = email?.toLowerCase().trim()
+    const participant = participants.find(p => {
+      const participantEmail = p.email?.toLowerCase().trim()
+      return participantEmail === normalizedEmail
+    })
+    
     if (participant?.role === 'client' && bookingRequest) {
       return `${bookingRequest.first_name} ${bookingRequest.last_name}`
     }
     if (participant?.role === 'chef' && bookingRequest) {
-      // On pourrait récupérer le nom du chef depuis la DB, pour l'instant on utilise l'email
       return 'Chef'
     }
     return email.split('@')[0]
@@ -148,103 +175,184 @@ export default function ChatInterface({
     return currentUser?.email === message.sender_email
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Envoi du lien de connexion...</p>
-        </div>
-      </div>
-    )
+  if (!currentUser) {
+    return null
   }
 
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-black mb-4">Connexion requise</h1>
-          <p className="text-gray-600 mb-6">
-            Un lien de connexion a été envoyé à votre email. Vérifiez votre boîte de réception.
-          </p>
-        </div>
-      </div>
-    )
+  const handleSignOut = async () => {
+    console.log('[ChatInterface] Signing out...')
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('[ChatInterface] Error signing out:', error)
+      alert('Erreur lors de la déconnexion')
+    } else {
+      console.log('[ChatInterface] Signed out successfully')
+      // Rediriger vers la page de login
+      window.location.href = `/chat/${conversationId}/login`
+    }
   }
+
+  const currentUserRole = getCurrentUserRole()
+  const currentUserName = currentUserRole === 'chef' 
+    ? 'Chef' 
+    : bookingRequest 
+      ? `${bookingRequest.first_name} ${bookingRequest.last_name}`
+      : currentUser?.email?.split('@')[0] || 'Utilisateur'
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="bg-[#FBCF03] px-6 py-4 border-b-2 border-black">
-        <h1 className="text-xl font-bold text-black">
-          Chat - {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR')}` : 'Conversation'}
-        </h1>
-        {bookingRequest && (
-          <p className="text-sm text-gray-700 mt-1">
-            {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'} - {bookingRequest.city}
-          </p>
-        )}
+    <div className="fixed inset-0 flex flex-col bg-white">
+      {/* Header - Fixe en haut */}
+      <div className="flex-shrink-0 bg-[#FBCF03] border-b-2 border-black">
+        <div className="px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h1 className="text-lg sm:text-xl font-bold text-black">
+                {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR')}` : 'Conversation'}
+              </h1>
+              {bookingRequest && (
+                <p className="text-xs sm:text-sm text-gray-700 mt-1">
+                  {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'} • {bookingRequest.city}
+                </p>
+              )}
+              <p className="text-xs text-gray-600 mt-1">
+                Connecté en tant que : <span className="font-semibold">{currentUserName}</span> ({currentUserRole || 'inconnu'})
+              </p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="ml-4 px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              title="Se déconnecter"
+            >
+              Déconnexion
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Accepted message banner */}
+      {/* Accepted message banner - Fixe sous le header */}
       {showAcceptedMessage && (
-        <div className="bg-green-50 border-b-2 border-green-500 px-6 py-3">
-          <p className="text-green-700 font-medium">
-            ✓ Réservation acceptée ! Vous pouvez maintenant échanger avec le chef.
+        <div className="flex-shrink-0 bg-green-50 border-b-2 border-green-500 px-4 py-2 sm:px-6 sm:py-3">
+          <p className="text-sm sm:text-base text-green-700 font-medium">
+            ✓ Réservation acceptée ! Vous pouvez maintenant échanger.
           </p>
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50">
-        {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-8">
-            Aucun message pour le moment. Commencez la conversation !
-          </div>
-        ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${isOwnMessage(message) ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                  isOwnMessage(message)
-                    ? 'bg-black text-white'
-                    : 'bg-white border-2 border-gray-300 text-black'
-                }`}
-              >
-                <div className="text-xs opacity-70 mb-1">
-                  {getParticipantName(message.sender_email)}
-                </div>
-                <div className="whitespace-pre-wrap">{message.content}</div>
-                <div className="text-xs opacity-70 mt-1">
-                  {new Date(message.created_at).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </div>
-              </div>
+      {/* Messages - Scrollable au milieu */}
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto overscroll-contain"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-3 sm:space-y-4 min-h-full flex flex-col justify-end">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-500 py-12">
+              <p className="text-sm sm:text-base">Aucun message pour le moment.</p>
+              <p className="text-xs sm:text-sm mt-1">Commencez la conversation !</p>
             </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
+          ) : (
+            <>
+              {messages.map((message) => {
+                const senderRole = getParticipantRole(message.sender_email)
+                const isChefMessage = senderRole === 'chef'
+                const isClientMessage = senderRole === 'client'
+                
+                // Logs pour chaque message
+                console.log('[ChatInterface] Rendering message:', {
+                  messageId: message.id,
+                  senderEmail: message.sender_email,
+                  senderRole,
+                  isChefMessage,
+                  isClientMessage,
+                  currentUserEmail: currentUser?.email,
+                  isOwn: isOwnMessage(message),
+                })
+                
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isChefMessage ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 ${
+                        isChefMessage
+                          ? 'bg-black text-white rounded-br-sm'
+                          : 'bg-[#FBCF03] text-black rounded-bl-sm border-2 border-black'
+                      }`}
+                    >
+                      {/* Nom de l'expéditeur */}
+                      <div className={`text-xs font-medium mb-1 opacity-80 ${
+                        isChefMessage ? 'text-white' : 'text-black'
+                      }`}>
+                        {getParticipantName(message.sender_email)}
+                      </div>
+                      
+                      {/* Contenu du message */}
+                      <div className={`text-sm sm:text-base whitespace-pre-wrap break-words leading-relaxed ${
+                        isChefMessage ? 'text-white' : 'text-black'
+                      }`}>
+                        {message.content}
+                      </div>
+                      
+                      {/* Heure */}
+                      <div className={`text-xs opacity-60 mt-1 ${
+                        isChefMessage ? 'text-white' : 'text-black'
+                      }`}>
+                        {new Date(message.created_at).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Input */}
-      <form onSubmit={handleSendMessage} className="border-t-2 border-gray-300 bg-white p-4">
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Tapez votre message..."
-            disabled={loading}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={loading || !newMessage.trim()}>
-            Envoyer
-          </Button>
-        </div>
-      </form>
+      {/* Input - Fixe en bas */}
+      <div className="flex-shrink-0 border-t-2 border-gray-200 bg-white safe-area-inset-bottom">
+        <form onSubmit={handleSendMessage} className="p-3 sm:p-4">
+          <div className="flex gap-2 sm:gap-3 items-end">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Tapez votre message..."
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 sm:py-3 text-base sm:text-base border-2 border-gray-300 rounded-full focus:outline-none focus:border-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              style={{
+                minHeight: '44px',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={loading || !newMessage.trim()}
+              className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              style={{
+                minHeight: '44px',
+                minWidth: '44px',
+              }}
+            >
+              {loading ? (
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

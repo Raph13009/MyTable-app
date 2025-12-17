@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import ChatInterface from '@/components/ChatInterface'
 
@@ -12,49 +13,164 @@ interface PageProps {
 }
 
 export default async function ChatPage({ params, searchParams }: PageProps) {
-  const supabase = await createClient()
-  const { conversationId } = params
-
-  // Vérifier que la conversation existe
-  const { data: conversation, error: conversationError } = await supabase
-    .from('conversations')
-    .select('*, booking_requests(*)')
-    .eq('id', conversationId)
-    .single()
-
-  if (conversationError || !conversation) {
-    redirect('/')
-  }
-
-  // Récupérer les participants
-  const { data: participants } = await supabase
-    .from('participants')
-    .select('*')
-    .eq('conversation_id', conversationId)
-
-  // Récupérer les messages
-  const { data: messages } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-
-  // Récupérer l'utilisateur actuel
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Vérifier l'accès (l'utilisateur doit être un participant)
-  const hasAccess = user && participants?.some(
-    p => p.email === user.email || p.user_id === user.id
-  )
-
-  if (!hasAccess && user) {
-    redirect('/')
-  }
-
-  const bookingRequest = conversation.booking_requests as any
-
-  return (
-    <div className="min-h-screen bg-white">
+  try {
+    console.log('[ChatPage] ========== START ==========')
+    console.log('[ChatPage] Conversation ID:', params.conversationId)
+    
+    const supabase = await createClient()
+    const supabaseAdmin = createAdminClient()
+    const conversationId = params.conversationId.trim()
+    
+    // 1. Vérifier l'authentification
+    console.log('[ChatPage] Step 1: Checking auth...')
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (!user) {
+      console.log('[ChatPage] ❌ No user, redirecting to login')
+      redirect(`/chat/${conversationId}/login`)
+    }
+    
+    console.log('[ChatPage] ✅ User authenticated:', user.email)
+    
+    // 2. Récupérer la conversation (SANS jointure pour éviter les erreurs)
+    console.log('[ChatPage] Step 2: Fetching conversation...')
+    const { data: conversation, error: conversationError } = await supabaseAdmin
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .maybeSingle()
+    
+    if (conversationError) {
+      console.error('[ChatPage] ❌ Conversation error:', conversationError)
+      // Essayer sans .maybeSingle() comme fallback
+      const { data: conversations, error: listError } = await supabaseAdmin
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+      
+      if (listError || !conversations || conversations.length === 0) {
+        console.error('[ChatPage] ❌ Conversation not found in DB')
+        redirect(`/chat/${conversationId}/login?error=conversation_not_found`)
+      }
+      
+      // Utiliser le premier résultat
+      const conv = conversations[0] as any
+      console.log('[ChatPage] ✅ Found conversation with fallback method')
+      
+      // Récupérer les participants
+      const { data: participants } = await supabaseAdmin
+        .from('participants')
+        .select('*')
+        .eq('conversation_id', conversationId)
+      
+      // Récupérer les messages
+      const { data: messages } = await supabaseAdmin
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+      
+      // Récupérer le booking_request séparément
+      let bookingRequest = null
+      if (conv.booking_request_id) {
+        const { data: booking } = await supabaseAdmin
+          .from('booking_requests')
+          .select('*')
+          .eq('id', conv.booking_request_id)
+          .maybeSingle()
+        bookingRequest = booking
+      }
+      
+      // Vérifier l'accès
+      const hasAccess = participants?.some(
+        p => p.email === user.email || p.user_id === user.id
+      )
+      
+      if (!hasAccess) {
+        redirect(`/chat/${conversationId}/login?error=unauthorized`)
+      }
+      
+      return (
+        <ChatInterface
+          conversationId={conversationId}
+          initialMessages={messages || []}
+          participants={participants || []}
+          currentUser={user}
+          bookingRequest={bookingRequest}
+          showAcceptedMessage={searchParams.accepted === 'true'}
+        />
+      )
+    }
+    
+    if (!conversation) {
+      console.error('[ChatPage] ❌ Conversation is null')
+      redirect(`/chat/${conversationId}/login?error=conversation_not_found`)
+    }
+    
+    console.log('[ChatPage] ✅ Conversation found:', conversation.id)
+    
+    // 3. Récupérer les participants
+    console.log('[ChatPage] Step 3: Fetching participants...')
+    const { data: participants, error: participantsError } = await supabaseAdmin
+      .from('participants')
+      .select('*')
+      .eq('conversation_id', conversationId)
+    
+    console.log('[ChatPage] Participants:', participants?.length || 0)
+    if (participantsError) {
+      console.error('[ChatPage] Participants error:', participantsError)
+    }
+    
+    // 4. Récupérer les messages
+    console.log('[ChatPage] Step 4: Fetching messages...')
+    const { data: messages, error: messagesError } = await supabaseAdmin
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+    
+    console.log('[ChatPage] Messages:', messages?.length || 0)
+    if (messagesError) {
+      console.error('[ChatPage] Messages error:', messagesError)
+    }
+    
+    // 5. Récupérer le booking_request séparément
+    console.log('[ChatPage] Step 5: Fetching booking request...')
+    let bookingRequest = null
+    if ((conversation as any).booking_request_id) {
+      const { data: booking, error: bookingError } = await supabaseAdmin
+        .from('booking_requests')
+        .select('*')
+        .eq('id', (conversation as any).booking_request_id)
+        .maybeSingle()
+      
+      if (!bookingError && booking) {
+        bookingRequest = booking
+        console.log('[ChatPage] ✅ Booking request found')
+      } else {
+        console.log('[ChatPage] ⚠️  Booking request not found or error:', bookingError)
+      }
+    }
+    
+    // 6. Vérifier l'accès
+    console.log('[ChatPage] Step 6: Checking access...')
+    const hasAccess = participants?.some(
+      p => p.email === user.email || p.user_id === user.id
+    )
+    
+    console.log('[ChatPage] Has access:', hasAccess)
+    console.log('[ChatPage] User email:', user.email)
+    console.log('[ChatPage] Participants emails:', participants?.map(p => p.email))
+    
+    if (!hasAccess) {
+      console.log('[ChatPage] ❌ No access, redirecting to login')
+      redirect(`/chat/${conversationId}/login?error=unauthorized`)
+    }
+    
+    console.log('[ChatPage] ✅✅✅ ALL CHECKS PASSED - RENDERING CHAT ✅✅✅')
+    console.log('[ChatPage] ========== END ==========')
+    
+    return (
       <ChatInterface
         conversationId={conversationId}
         initialMessages={messages || []}
@@ -63,7 +179,11 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         bookingRequest={bookingRequest}
         showAcceptedMessage={searchParams.accepted === 'true'}
       />
-    </div>
-  )
+    )
+  } catch (error: any) {
+    console.error('[ChatPage] ❌❌❌ FATAL ERROR ❌❌❌')
+    console.error('[ChatPage] Error:', error)
+    console.error('[ChatPage] Stack:', error.stack)
+    throw error
+  }
 }
-

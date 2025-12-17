@@ -56,6 +56,35 @@ export async function sendEmail({ to, subject, html }: EmailOptions): Promise<vo
  * Templates d'emails
  */
 export const emailTemplates = {
+  bookingConfirmationToClient: (clientName: string, chefName: string) => `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #FBCF03; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #fff; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="color: #000; margin: 0;">Demande de réservation reçue</h1>
+          </div>
+          <div class="content">
+            <p>Bonjour ${clientName},</p>
+            <p>Votre demande de réservation a bien été prise en compte.</p>
+            <p>Le chef <strong>${chefName}</strong> va examiner votre demande et vous répondra prochainement.</p>
+            <p>Vous recevrez un email dès qu'une décision aura été prise.</p>
+            <p>Merci de votre confiance !</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `,
+
   bookingRequestToChef: (chefName: string, bookingDetails: any, acceptUrl: string, refuseUrl: string) => `
     <!DOCTYPE html>
     <html>
@@ -82,7 +111,6 @@ export const emailTemplates = {
             <p>Vous avez reçu une nouvelle demande de réservation :</p>
             <div class="details">
               <p><strong>Client:</strong> ${bookingDetails.firstName} ${bookingDetails.lastName}</p>
-              <p><strong>Email:</strong> ${bookingDetails.email}</p>
               <p><strong>Téléphone:</strong> ${bookingDetails.phone}</p>
               <p><strong>Date:</strong> ${bookingDetails.bookingDate}</p>
               <p><strong>Ville:</strong> ${bookingDetails.city} (${bookingDetails.postalCode})</p>
@@ -93,7 +121,7 @@ export const emailTemplates = {
             </div>
             <p>Veuillez accepter ou refuser cette demande :</p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${acceptUrl}" class="button button-accept">Accepter</a>
+              <a href="${acceptUrl}" class="button button-accept">Accepter et accéder au chat</a>
               <a href="${refuseUrl}" class="button button-refuse">Refuser</a>
             </div>
           </div>
