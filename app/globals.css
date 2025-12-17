@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-yellow: #FBCF03;
+  --primary-black: #000000;
+  --primary-white: #FFFFFF;
+}
+
+body {
+  color: var(--primary-black);
+  background: var(--primary-white);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  /* Prevent font size adjustment on iOS */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Mobile-first optimizations for form elements */
+select {
+  /* Prevent zoom on iOS when focusing */
+  font-size: 16px;
+}
+
+input[type="date"],
+input[type="email"],
+input[type="tel"],
+input[type="text"],
+textarea,
+select {
+  /* Ensure minimum touch target size on mobile */
+  min-height: 44px;
+  /* Prevent zoom on iOS when focusing */
+  font-size: 16px;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  button,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+}
+
