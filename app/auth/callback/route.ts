@@ -5,7 +5,7 @@ import { Database } from '@/types/database'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') || '/'
+  const next = requestUrl.searchParams.get('next') || '/dashboard'
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
 
@@ -78,6 +78,8 @@ export async function GET(request: NextRequest) {
   // IMPORTANT: Il faut créer la réponse AVANT de créer le client Supabase
   // pour que les cookies puissent être set correctement
   const redirectUrl = new URL(next, request.url)
+  
+  // Créer une réponse de redirection qui sera mise à jour avec les cookies
   let response = NextResponse.redirect(redirectUrl)
 
   if (code) {
@@ -92,16 +94,29 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            // Mettre à jour la réponse avec les nouveaux cookies
+            // Créer une nouvelle réponse de redirection
+            const newResponse = NextResponse.redirect(redirectUrl)
+            
+            // Mettre à jour tous les cookies dans la nouvelle réponse
             cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value)
-              response.cookies.set(name, value, options)
+              // S'assurer que les options sont correctes pour les cookies de session
+              const cookieOptions = {
+                path: options?.path || '/',
+                sameSite: (options?.sameSite || 'lax') as 'lax' | 'strict' | 'none',
+                httpOnly: options?.httpOnly !== undefined ? options.httpOnly : false,
+                secure: options?.secure !== undefined ? options.secure : process.env.NODE_ENV === 'production',
+                maxAge: options?.maxAge,
+                expires: options?.expires,
+              }
+              
+              // Set le cookie dans la réponse
+              newResponse.cookies.set(name, value, cookieOptions)
+              
+              console.log('[auth/callback] Setting cookie:', name, cookieOptions)
             })
-            // Recréer la réponse pour inclure les nouveaux cookies
-            response = NextResponse.redirect(redirectUrl)
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
+            
+            // Mettre à jour la réponse
+            response = newResponse
           },
         },
       }
@@ -143,6 +158,19 @@ export async function GET(request: NextRequest) {
       const cookiesAfter = request.cookies.getAll()
       console.log('[auth/callback] Cookies after error:', cookiesAfter.map(c => c.name))
       
+      // Si l'erreur est liée au code verifier PKCE, rediriger vers login avec un message clair
+      if (error.message?.includes('code verifier') || error.message?.includes('PKCE')) {
+        console.error('[auth/callback] PKCE code verifier error - redirecting to login')
+        const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('error', 'auth_failed')
+        loginUrl.searchParams.set('details', 'Le lien de connexion a expiré ou est invalide. Veuillez demander un nouveau lien.')
+        if (next) {
+          loginUrl.searchParams.set('next', next)
+        }
+        console.log('[auth/callback] Redirecting to login:', loginUrl.toString())
+        return NextResponse.redirect(loginUrl)
+      }
+      
       // Extraire le conversationId
       let conversationId = null
       if (next && next.includes('/chat/')) {
@@ -162,10 +190,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
       }
       
-      const homeUrl = new URL('/', request.url)
-      homeUrl.searchParams.set('error', 'auth_failed')
-      console.log('[auth/callback] Redirecting to home with error:', homeUrl.toString())
-      return NextResponse.redirect(homeUrl)
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('error', 'auth_failed')
+      loginUrl.searchParams.set('details', error.message || 'Erreur lors de l\'échange du code')
+      if (next) {
+        loginUrl.searchParams.set('next', next)
+      }
+      console.log('[auth/callback] Redirecting to login with error:', loginUrl.toString())
+      return NextResponse.redirect(loginUrl)
     }
 
     console.log('[auth/callback] ========== SESSION CREATED ==========')
@@ -209,36 +241,18 @@ export async function GET(request: NextRequest) {
     console.log('[auth/callback] User email:', user.email)
     console.log('[auth/callback] Redirecting to:', next)
     
-    // Vérifier les cookies dans la réponse avant de rediriger
+    // La réponse devrait déjà contenir tous les cookies de session grâce à setAll
+    // Vérifier les cookies dans la réponse
     const responseCookies = response.cookies.getAll()
     console.log('[auth/callback] Cookies in response:', responseCookies.map(c => c.name))
-    
-    // Mettre à jour la réponse avec les nouveaux cookies
-    response = NextResponse.redirect(new URL(next, request.url))
-    
-    // S'assurer que tous les cookies de session sont dans la réponse
-    const allRequestCookies = request.cookies.getAll()
-    allRequestCookies.forEach(cookie => {
-      if (cookie.name.includes('sb-') || cookie.name.includes('auth')) {
-        response.cookies.set(cookie.name, cookie.value, {
-          path: '/',
-          sameSite: 'lax',
-          httpOnly: false,
-        })
-      }
-    })
-    
-    const finalCookies = response.cookies.getAll()
-    console.log('[auth/callback] Final cookies in response:', finalCookies.map(c => c.name))
+    console.log('[auth/callback] Session access token present:', !!data.session?.access_token)
     console.log('[auth/callback] ========== CALLBACK SUCCESS ==========')
+    
+    // La réponse est déjà une redirection avec les cookies, on la retourne directement
+    return response
   } else {
     console.log('[auth/callback] ⚠️ No code provided, redirecting to next')
+    return NextResponse.redirect(new URL(next, request.url))
   }
-
-  // Rediriger vers la page demandée ou vers la home
-  console.log('[auth/callback] Final redirect URL:', response.url)
-  console.log('[auth/callback] ========== CALLBACK DONE ==========')
-  
-  return response
 }
 

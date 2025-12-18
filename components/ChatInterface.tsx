@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
@@ -31,6 +32,7 @@ export default function ChatInterface({
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   const getParticipantRole = (email: string): 'chef' | 'client' | null => {
     if (!email) return null
@@ -76,6 +78,12 @@ export default function ChatInterface({
       user_id: p.user_id,
     })))
     console.log('[ChatInterface] Initial messages count:', initialMessages.length)
+    console.log('[ChatInterface] Initial messages:', initialMessages.map(m => ({
+      id: m.id,
+      sender_email: m.sender_email,
+      content: m.content?.substring(0, 50),
+      created_at: m.created_at,
+    })))
     console.log('[ChatInterface] Current user role:', getCurrentUserRole())
     console.log('[ChatInterface] ======================================')
   }, [])
@@ -204,27 +212,36 @@ export default function ChatInterface({
       {/* Header - Fixe en haut */}
       <div className="flex-shrink-0 bg-[#FBCF03] border-b-2 border-black">
         <div className="px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h1 className="text-lg sm:text-xl font-bold text-black">
-                {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR')}` : 'Conversation'}
-              </h1>
-              {bookingRequest && (
-                <p className="text-xs sm:text-sm text-gray-700 mt-1">
-                  {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'} • {bookingRequest.city}
-                </p>
-              )}
-              <p className="text-xs text-gray-600 mt-1">
-                Connecté en tant que : <span className="font-semibold">{currentUserName}</span> ({currentUserRole || 'inconnu'})
-              </p>
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center gap-2 text-black hover:opacity-70 transition-opacity"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm font-medium">Retour</span>
+            </button>
             <button
               onClick={handleSignOut}
-              className="ml-4 px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              className="px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
               title="Se déconnecter"
             >
               Déconnexion
             </button>
+          </div>
+          <div className="flex-1">
+            <h1 className="text-lg sm:text-xl font-bold text-black">
+              {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR')}` : 'Conversation'}
+            </h1>
+            {bookingRequest && (
+              <p className="text-xs sm:text-sm text-gray-700 mt-1">
+                {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'} • {bookingRequest.city}
+              </p>
+            )}
+            <p className="text-xs text-gray-600 mt-1">
+              Connecté en tant que : <span className="font-semibold">{currentUserName}</span> ({currentUserRole || 'inconnu'})
+            </p>
           </div>
         </div>
       </div>

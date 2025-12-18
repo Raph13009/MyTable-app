@@ -27,7 +27,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     
     if (!user) {
       console.log('[ChatPage] ❌ No user, redirecting to login')
-      redirect(`/chat/${conversationId}/login`)
+      redirect(`/login?next=/chat/${conversationId}`)
     }
     
     console.log('[ChatPage] ✅ User authenticated:', user.email)
@@ -50,7 +50,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       
       if (listError || !conversations || conversations.length === 0) {
         console.error('[ChatPage] ❌ Conversation not found in DB')
-        redirect(`/chat/${conversationId}/login?error=conversation_not_found`)
+        redirect(`/login?next=/chat/${conversationId}&error=conversation_not_found`)
       }
       
       // Utiliser le premier résultat
@@ -87,7 +87,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       )
       
       if (!hasAccess) {
-        redirect(`/chat/${conversationId}/login?error=unauthorized`)
+        redirect(`/login?next=/chat/${conversationId}&error=unauthorized`)
       }
       
       return (
@@ -104,7 +104,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     
     if (!conversation) {
       console.error('[ChatPage] ❌ Conversation is null')
-      redirect(`/chat/${conversationId}/login?error=conversation_not_found`)
+      redirect(`/login?next=/chat/${conversationId}&error=conversation_not_found`)
     }
     
     console.log('[ChatPage] ✅ Conversation found:', conversation.id)
@@ -123,13 +123,20 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     
     // 4. Récupérer les messages
     console.log('[ChatPage] Step 4: Fetching messages...')
+    console.log('[ChatPage] Conversation ID for messages:', conversationId)
     const { data: messages, error: messagesError } = await supabaseAdmin
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
     
-    console.log('[ChatPage] Messages:', messages?.length || 0)
+    console.log('[ChatPage] Messages count:', messages?.length || 0)
+    console.log('[ChatPage] Messages details:', messages?.map(m => ({
+      id: m.id,
+      sender_email: m.sender_email,
+      content: m.content?.substring(0, 50),
+      created_at: m.created_at,
+    })))
     if (messagesError) {
       console.error('[ChatPage] Messages error:', messagesError)
     }
@@ -164,7 +171,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     
     if (!hasAccess) {
       console.log('[ChatPage] ❌ No access, redirecting to login')
-      redirect(`/chat/${conversationId}/login?error=unauthorized`)
+      redirect(`/login?next=/chat/${conversationId}&error=unauthorized`)
     }
     
     console.log('[ChatPage] ✅✅✅ ALL CHECKS PASSED - RENDERING CHAT ✅✅✅')

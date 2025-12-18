@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDecisionToken, hashToken } from '@/lib/utils'
-import { sendEmail, emailTemplates } from '@/lib/email'
+import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -158,11 +158,21 @@ export async function POST(request: NextRequest) {
     const normalizedChefEmail = chef.email.toLowerCase().trim()
     
     console.log('[bookings] ========== CREATING PARTICIPANTS ==========')
+    console.log('[bookings] Original client email from form:', email)
+    console.log('[bookings] Normalized client email:', normalizedClientEmail)
+    console.log('[bookings] Original chef email from DB:', chef.email)
+    console.log('[bookings] Normalized chef email:', normalizedChefEmail)
     console.log('[bookings] Conversation ID:', conversationId)
-    console.log('[bookings] Client email:', normalizedClientEmail)
     console.log('[bookings] Client user_id:', clientUserId)
-    console.log('[bookings] Chef email:', normalizedChefEmail)
     console.log('[bookings] Chef user_id:', chefUserId)
+    console.log('[bookings] Email comparison:', {
+      originalClient: email,
+      normalizedClient: normalizedClientEmail,
+      originalChef: chef.email,
+      normalizedChef: normalizedChefEmail,
+      clientLength: normalizedClientEmail.length,
+      chefLength: normalizedChefEmail.length,
+    })
     
     const participantsToInsert = [
       {
@@ -180,14 +190,37 @@ export async function POST(request: NextRequest) {
     ]
     
     console.log('[bookings] Participants to insert:', JSON.stringify(participantsToInsert, null, 2))
+    console.log('[bookings] Participants to insert (detailed):', participantsToInsert.map(p => ({
+      ...p,
+      emailLength: p.email.length,
+      emailChars: p.email.split('').map(c => `${c}(${c.charCodeAt(0)})`).join(''),
+    })))
     
     const { data: participants, error: participantsError } = await supabase
       .from('participants')
-      .insert(participantsToInsert)
+      .insert(participantsToInsert as any)
       .select()
     
+    console.log('[bookings] ========== PARTICIPANTS INSERT RESULT ==========')
     console.log('[bookings] Insert result - data:', participants)
+    console.log('[bookings] Insert result - data count:', participants?.length || 0)
     console.log('[bookings] Insert result - error:', participantsError)
+    if (participantsError) {
+      console.error('[bookings] ❌❌❌ ERROR INSERTING PARTICIPANTS ❌❌❌')
+      console.error('[bookings] Error message:', participantsError.message)
+      console.error('[bookings] Error code:', participantsError.code)
+      console.error('[bookings] Error details:', participantsError.details)
+      console.error('[bookings] Error hint:', participantsError.hint)
+    }
+    if (participants && participants.length > 0) {
+      console.log('[bookings] ✅ Participants created successfully:')
+      participants.forEach((p, i) => {
+        console.log(`[bookings]   ${i + 1}. Email: "${p.email}" (normalized: "${(p.email || '').toLowerCase().trim()}")`)
+        console.log(`[bookings]      Role: ${p.role}`)
+        console.log(`[bookings]      User ID: ${p.user_id || 'null'}`)
+        console.log(`[bookings]      Conversation ID: ${p.conversation_id}`)
+      })
+    }
     
     if (participantsError) {
       console.error('[bookings] ❌ ERROR creating participants:', participantsError)
@@ -268,22 +301,24 @@ export async function POST(request: NextRequest) {
     // Envoyer l'email de confirmation au client
     await sendEmail({
       to: email,
-      subject: 'Votre demande de réservation a été reçue',
+      subject: emailSubjects.bookingConfirmationToClient,
       html: emailTemplates.bookingConfirmationToClient(
         `${firstName} ${lastName}`,
-        chef.name
+        chef.name,
+        baseUrl
       ),
     })
 
     // Envoyer l'email au chef
     await sendEmail({
       to: chef.email,
-      subject: `Nouvelle demande de réservation de ${firstName} ${lastName}`,
+      subject: emailSubjects.bookingRequestToChef,
       html: emailTemplates.bookingRequestToChef(
         chef.name,
         bookingDetails,
         acceptUrl,
-        refuseUrl
+        refuseUrl,
+        baseUrl
       ),
     })
 

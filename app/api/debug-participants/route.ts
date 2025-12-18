@@ -1,72 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const conversationId = searchParams.get('conversationId')
-
-    if (!conversationId) {
-      return NextResponse.json(
-        { error: 'conversationId is required' },
-        { status: 400 }
-      )
+    const supabase = await createClient()
+    const supabaseAdmin = createAdminClient()
+    
+    // Vérifier l'authentification
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const supabase = createAdminClient()
-
-    console.log('[debug-participants] Checking conversation:', conversationId)
-
-    // Vérifier que la conversation existe
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', conversationId)
-      .single()
-
-    console.log('[debug-participants] Conversation:', conversation)
-    console.log('[debug-participants] Conversation error:', convError)
+    const normalizedUserEmail = user.email?.toLowerCase().trim() || ''
 
     // Récupérer tous les participants
-    const { data: participants, error: participantsError } = await supabase
+    const { data: allParticipants, error: participantsError } = await supabaseAdmin
       .from('participants')
-      .select('*')
-      .eq('conversation_id', conversationId)
+      .select('conversation_id, role, email, user_id')
 
-    console.log('[debug-participants] Participants:', participants)
-    console.log('[debug-participants] Participants error:', participantsError)
+    // Récupérer toutes les booking_requests
+    const { data: bookingRequests, error: bookingRequestsError } = await supabaseAdmin
+      .from('booking_requests')
+      .select('id, email, status, conversation_id')
 
-    // Récupérer le booking request associé
-    let bookingRequest = null
-    if (conversation?.booking_request_id) {
-      const { data: booking, error: bookingError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('id', conversation.booking_request_id)
-        .single()
-      
-      bookingRequest = booking
-      console.log('[debug-participants] Booking request:', booking)
-      console.log('[debug-participants] Booking request error:', bookingError)
-    }
+    // Filtrer les participants correspondant à l'utilisateur
+    const userParticipants = (allParticipants || []).filter(p => {
+      const participantEmail = p.email?.toLowerCase().trim() || ''
+      return participantEmail === normalizedUserEmail || p.user_id === user.id
+    })
+
+    // Trouver les booking_requests correspondant à l'utilisateur
+    const userBookingRequests = (bookingRequests || []).filter(br => {
+      const bookingEmail = br.email?.toLowerCase().trim() || ''
+      return bookingEmail === normalizedUserEmail
+    })
 
     return NextResponse.json({
-      conversationId,
-      conversation,
-      participants: participants || [],
-      participantsCount: participants?.length || 0,
-      bookingRequest,
+      user: {
+        email: user.email,
+        normalizedEmail: normalizedUserEmail,
+        id: user.id,
+      },
+      allParticipants: {
+        total: allParticipants?.length || 0,
+        participants: allParticipants?.map(p => ({
+          email: p.email,
+          normalizedEmail: p.email?.toLowerCase().trim(),
+          role: p.role,
+          user_id: p.user_id,
+          conversation_id: p.conversation_id,
+          matchesUser: p.email?.toLowerCase().trim() === normalizedUserEmail || p.user_id === user.id,
+        })),
+      },
+      userParticipants: {
+        count: userParticipants.length,
+        participants: userParticipants.map(p => ({
+          email: p.email,
+          role: p.role,
+          user_id: p.user_id,
+          conversation_id: p.conversation_id,
+        })),
+      },
+      bookingRequests: {
+        total: bookingRequests?.length || 0,
+        userBookingRequests: userBookingRequests.map(br => ({
+          id: br.id,
+          email: br.email,
+          normalizedEmail: br.email?.toLowerCase().trim(),
+          status: br.status,
+          conversation_id: br.conversation_id,
+        })),
+      },
       errors: {
-        conversation: convError,
-        participants: participantsError,
+        participantsError: participantsError?.message,
+        bookingRequestsError: bookingRequestsError?.message,
       },
     })
   } catch (error: any) {
-    console.error('[debug-participants] Fatal error:', error)
+    console.error('[debug-participants] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error', stack: error.stack },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
 }
-

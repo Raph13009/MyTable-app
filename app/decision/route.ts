@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken } from '@/lib/utils'
-import { sendEmail, emailTemplates } from '@/lib/email'
+import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Trouver le token correspondant
-    let matchingToken = null
-    for (const dbToken of tokens) {
+    let matchingToken: any = null
+    for (const dbToken of tokens as any[]) {
       const isValid = await verifyToken(token, dbToken.token_hash)
       if (isValid && dbToken.action === action) {
         matchingToken = dbToken
@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Marquer le token comme utilisé
-    await supabase
-      .from('decision_tokens')
+    await (supabase
+      .from('decision_tokens') as any)
       .update({ used: true })
       .eq('id', matchingToken.id)
 
     // Marquer l'autre token comme utilisé aussi (pour éviter les doubles clics)
-    await supabase
-      .from('decision_tokens')
+    await (supabase
+      .from('decision_tokens') as any)
       .update({ used: true })
       .eq('booking_request_id', bookingRequest.id)
       .neq('id', matchingToken.id)
@@ -66,26 +66,27 @@ export async function GET(request: NextRequest) {
 
     if (action === 'refuse') {
       // Mettre à jour le statut
-      await supabase
-        .from('booking_requests')
+      await (supabase
+        .from('booking_requests') as any)
         .update({ status: 'refused' })
         .eq('id', bookingRequest.id)
 
       // Envoyer email au client
       await sendEmail({
         to: bookingRequest.email,
-        subject: 'Votre demande de réservation',
+        subject: emailSubjects.bookingRefusedToClient,
         html: emailTemplates.bookingRefusedToClient(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,
-          siteUrl
+          siteUrl,
+          baseUrl
         ),
       })
 
       return NextResponse.redirect(new URL('/?message=booking_refused', request.url))
     } else if (action === 'accept') {
       // Mettre à jour le statut
-      const { data: updatedBooking } = await supabase
-        .from('booking_requests')
+      const { data: updatedBooking } = await (supabase
+        .from('booking_requests') as any)
         .update({ status: 'accepted' })
         .eq('id', bookingRequest.id)
         .select('conversation_id')
@@ -95,7 +96,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/?error=update_failed', request.url))
       }
 
-      const chatUrl = `${baseUrl}/chat/${updatedBooking.conversation_id}`
+      const conversationId = (updatedBooking as any).conversation_id
+      if (!conversationId) {
+        return NextResponse.redirect(new URL('/?error=no_conversation_id', request.url))
+      }
+      const chatUrl = `${baseUrl}/chat/${conversationId}`
+      const chatLoginUrl = `${baseUrl}/chat/${conversationId}/login`
 
       // Envoyer emails au client et au chef
       const { data: chef } = await supabase
@@ -106,21 +112,48 @@ export async function GET(request: NextRequest) {
 
       await sendEmail({
         to: bookingRequest.email,
-        subject: 'Votre réservation a été acceptée !',
+        subject: emailSubjects.bookingAcceptedToClient,
         html: emailTemplates.bookingAcceptedToClient(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,
-          chatUrl
+          chatUrl,
+          baseUrl
         ),
       })
 
       if (chef) {
-        await sendEmail({
-          to: chef.email,
-          subject: 'Réservation acceptée - Accès au chat',
-          html: emailTemplates.bookingAcceptedToChef(chef.name, chatUrl),
+        // Envoyer un magic link Supabase directement au chef
+        const redirectUrl = `${baseUrl}/auth/callback?next=/dashboard`
+        
+        console.log('[decision] Sending magic link to chef:', (chef as any).email)
+        console.log('[decision] Redirect URL:', redirectUrl)
+        
+        const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
+          email: (chef as any).email.toLowerCase().trim(),
+          options: {
+            emailRedirectTo: redirectUrl,
+            shouldCreateUser: true,
+          },
         })
+        
+        if (otpError) {
+          console.error('[decision] Error sending magic link to chef:', otpError)
+          // En cas d'erreur, envoyer un email avec un lien vers la page de login
+          const chefLoginUrl = `${chatLoginUrl}?email=${encodeURIComponent((chef as any).email)}`
+          await sendEmail({
+            to: (chef as any).email,
+            subject: emailSubjects.bookingAcceptedToChef,
+            html: emailTemplates.bookingAcceptedToChef((chef as any).name, chefLoginUrl, baseUrl),
+          })
+        } else {
+          console.log('[decision] Magic link sent successfully to chef via Supabase')
+          // Le magic link est envoyé par Supabase, pas besoin d'email supplémentaire
+        }
       }
 
+      // Rediriger vers la page de confirmation
+      return NextResponse.redirect(new URL('/booking-accepted', request.url))
+
+      // Fallback si pas de chef (ne devrait pas arriver)
       return NextResponse.redirect(new URL(`/chat/${updatedBooking.conversation_id}?accepted=true`, request.url))
     }
 

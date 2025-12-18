@@ -17,6 +17,104 @@ export default function ChatLoginPage() {
   const [sending, setSending] = useState(false)
   const supabase = createClient()
 
+  // Fonction pour envoyer automatiquement le magic link
+  const handleSubmitAuto = async (emailToUse: string) => {
+    setError('')
+    setLoading(true)
+
+    try {
+      console.log('[ChatLogin] ========== AUTO SENDING MAGIC LINK ==========')
+      console.log('[ChatLogin] Email:', emailToUse)
+      
+      // IMPORTANT : Se déconnecter d'abord si un autre compte est connecté
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (currentUser) {
+        const normalizedCurrentEmail = currentUser.email?.toLowerCase().trim()
+        const normalizedNewEmail = emailToUse.toLowerCase().trim()
+        
+        if (normalizedCurrentEmail !== normalizedNewEmail) {
+          console.log('[ChatLogin] ⚠️  Different email detected - signing out current user first...')
+          await supabase.auth.signOut()
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+      
+      // Vérifier que l'email est un participant
+      const response = await fetch(`/api/check-participant?conversationId=${conversationId}&email=${encodeURIComponent(emailToUse.toLowerCase().trim())}`)
+      const data = await response.json()
+
+      if (!response.ok || !data.isParticipant) {
+        setError(`Cet email n'est pas autorisé.`)
+        setLoading(false)
+        return
+      }
+
+      // Envoyer le magic link
+      const normalizedEmail = emailToUse.toLowerCase().trim()
+      const redirectUrl = `${window.location.origin}/auth/callback?next=/chat/${conversationId}`
+      
+      console.log('[ChatLogin] Sending magic link to:', normalizedEmail)
+      console.log('[ChatLogin] Redirect URL:', redirectUrl)
+      
+      setSending(true)
+      
+      // Vérifier les cookies avant l'appel
+      console.log('[ChatLogin] Cookies before signInWithOtp:', document.cookie)
+      
+      const { data: otpData, error: authError } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+          shouldCreateUser: true,
+        },
+      })
+
+      console.log('[ChatLogin] Magic link sent:', !authError)
+      console.log('[ChatLogin] Cookies after signInWithOtp:', document.cookie)
+
+      if (authError) {
+        throw authError
+      }
+
+      setSending(false)
+      setLoading(false)
+      // Ne pas afficher d'alert, juste un message dans l'UI
+    } catch (err: any) {
+      console.error('[ChatLogin] Error:', err)
+      setError(err.message || 'Une erreur est survenue')
+      setLoading(false)
+      setSending(false)
+    }
+  }
+
+  // Pré-remplir l'email depuis l'URL si présent (pour le chef uniquement)
+  useEffect(() => {
+    const emailParam = searchParams.get('email')
+    if (emailParam && email !== emailParam) {
+      setEmail(emailParam)
+      console.log('[ChatLogin] Email pré-rempli depuis URL:', emailParam)
+      // Pour le chef, envoyer automatiquement le magic link
+      // Pour le client, il doit cliquer sur le bouton
+      const timer = setTimeout(async () => {
+        try {
+          const normalizedEmail = emailParam.toLowerCase().trim()
+          const response = await fetch(`/api/check-participant?conversationId=${conversationId}&email=${encodeURIComponent(normalizedEmail)}`)
+          const data = await response.json()
+          
+          if (data.isParticipant) {
+            console.log('[ChatLogin] ✅ Email is participant, sending magic link automatically')
+            await new Promise(resolve => setTimeout(resolve, 100))
+            handleSubmitAuto(normalizedEmail)
+          }
+        } catch (error) {
+          console.error('[ChatLogin] Error checking participant:', error)
+        }
+      }, 800)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams, conversationId])
+
   // Vérifier les erreurs dans l'URL
   useEffect(() => {
     const urlError = searchParams.get('error')
@@ -137,14 +235,13 @@ export default function ChatLoginPage() {
       console.log('[ChatLogin] Redirect URL:', redirectUrl)
       console.log('[ChatLogin] Conversation ID:', conversationId)
       
-      setSending(true)
-      
-      console.log('[ChatLogin] ========== CALLING signInWithOtp ==========')
-      console.log('[ChatLogin] Email:', normalizedEmail)
-      console.log('[ChatLogin] Redirect URL:', redirectUrl)
-      
       // Vérifier les cookies avant l'appel
       console.log('[ChatLogin] Cookies before signInWithOtp:', document.cookie)
+      
+      setSending(true)
+      setLoading(false) // Passer loading à false car on passe en mode "sending"
+      
+      console.log('[ChatLogin] ========== CALLING signInWithOtp ==========')
       
       const { data: otpData, error: authError } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
@@ -162,26 +259,19 @@ export default function ChatLoginPage() {
       // Vérifier les cookies après l'appel
       console.log('[ChatLogin] Cookies after signInWithOtp:', document.cookie)
       console.log('[ChatLogin] ==========================================')
-      
+
       if (authError) {
         console.error('[ChatLogin] ❌ Error sending magic link:', authError.message)
         console.error('[ChatLogin] Error code:', authError.status)
         console.error('[ChatLogin] Full error:', authError)
-      } else {
-        console.log('[ChatLogin] ✅ Magic link sent successfully')
-      }
-      console.log('[ChatLogin] ========== MAGIC LINK SENT ==========')
-
-      if (authError) {
-        console.error('[ChatLogin] Auth error:', authError)
+        setSending(false)
+        setLoading(false)
         throw authError
       }
 
       // Afficher un message de succès
-      console.log('[ChatLogin] Magic link sent successfully')
-      setSending(false)
-      setLoading(false)
-      alert('Un lien de connexion a été envoyé à votre email. Vérifiez votre boîte de réception.')
+      console.log('[ChatLogin] ✅ Magic link sent successfully')
+      // Ne pas changer les states ici, on garde sending=true pour afficher le message de succès
     } catch (err: any) {
       console.error('[ChatLogin] Error:', err)
       setError(err.message || 'Une erreur est survenue')
