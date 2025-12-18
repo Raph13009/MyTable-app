@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail, emailTemplates, emailLayout } from '@/lib/email'
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { conversationId, senderEmail, messageContent } = body
+
+    if (!conversationId || !senderEmail || !messageContent) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    const supabaseAdmin = createAdminClient()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+    // 1. Récupérer les participants de la conversation
+    const { data: participants, error: participantsError } = await supabaseAdmin
+      .from('participants')
+      .select('email, role')
+      .eq('conversation_id', conversationId)
+
+    if (participantsError || !participants) {
+      console.error('[send-message-notification] Error fetching participants:', participantsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch participants' },
+        { status: 500 }
+      )
+    }
+
+    // 2. Trouver le destinataire (celui qui n'a pas envoyé le message)
+    const normalizedSenderEmail = senderEmail.toLowerCase().trim()
+    const recipient = participants.find(
+      p => p.email.toLowerCase().trim() !== normalizedSenderEmail
+    )
+
+    if (!recipient) {
+      console.error('[send-message-notification] No recipient found')
+      return NextResponse.json(
+        { error: 'No recipient found' },
+        { status: 404 }
+      )
+    }
+
+    // 3. Récupérer les infos du booking_request pour avoir le nom du client/chef
+    const { data: conversation } = await supabaseAdmin
+      .from('conversations')
+      .select('booking_request_id')
+      .eq('id', conversationId)
+      .single()
+
+    let senderName = 'Quelqu\'un'
+    let recipientName = 'vous'
+
+    if (conversation?.booking_request_id) {
+      const { data: bookingRequest } = await supabaseAdmin
+        .from('booking_requests')
+        .select('first_name, last_name, chef_id, email')
+        .eq('id', conversation.booking_request_id)
+        .single()
+
+      if (bookingRequest) {
+        // Si l'expéditeur est le client
+        if (normalizedSenderEmail === bookingRequest.email?.toLowerCase().trim()) {
+          senderName = `${bookingRequest.first_name} ${bookingRequest.last_name}`
+          
+          // Récupérer le nom du chef
+          if (bookingRequest.chef_id) {
+            const { data: chef } = await supabaseAdmin
+              .from('chefs')
+              .select('name')
+              .eq('id', bookingRequest.chef_id)
+              .single()
+            
+            if (chef) {
+              recipientName = (chef as any).name
+            }
+          }
+        } else {
+          // Si l'expéditeur est le chef
+          if (bookingRequest.chef_id) {
+            const { data: chef } = await supabaseAdmin
+              .from('chefs')
+              .select('name')
+              .eq('id', bookingRequest.chef_id)
+              .single()
+            
+            if (chef) {
+              senderName = (chef as any).name
+            }
+          }
+          recipientName = `${bookingRequest.first_name} ${bookingRequest.last_name}`
+        }
+      }
+    }
+
+    // 4. Créer le magic link pour le destinataire
+    const loginUrl = `${baseUrl}/login?next=/chat/${conversationId}`
+    const redirectUrl = `${baseUrl}/auth/callback?next=/chat/${conversationId}`
+    
+    // Envoyer un magic link Supabase au destinataire
+    const { data: otpData, error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+      email: recipient.email.toLowerCase().trim(),
+      options: {
+        emailRedirectTo: redirectUrl,
+        shouldCreateUser: true,
+      },
+    })
+
+    // 5. Créer le contenu de l'email
+    const emailContent = `
+      <p>Bonjour ${recipientName},</p>
+      <p><strong>${senderName}</strong> vous a envoyé un nouveau message :</p>
+      <div style="background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #FBCF03;">
+        <p style="margin: 0; font-style: italic;">"${messageContent}"</p>
+      </div>
+      <p>Cliquez sur le bouton ci-dessous pour vous connecter et répondre :</p>
+    `
+
+    const emailHtml = emailLayout({
+      title: 'Nouveau message reçu',
+      content: emailContent,
+      cta: {
+        text: 'Accéder au chat',
+        url: loginUrl,
+        variant: 'yellow',
+      },
+      baseUrl,
+    })
+
+    // 6. Envoyer l'email
+    await sendEmail({
+      to: recipient.email,
+      subject: `Nouveau message de ${senderName}`,
+      html: emailHtml,
+    })
+
+    console.log('[send-message-notification] ✅ Email sent to:', recipient.email)
+    console.log('[send-message-notification] Magic link sent:', !otpError)
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('[send-message-notification] Error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+

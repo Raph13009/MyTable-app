@@ -154,6 +154,26 @@ export default function ChatInterface({
       }
 
       console.log('[ChatInterface] Message sent successfully')
+      
+      // Envoyer une notification email au destinataire
+      try {
+        await fetch('/api/send-message-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversationId,
+            senderEmail: currentUser.email,
+            messageContent: newMessage.trim(),
+          }),
+        })
+        console.log('[ChatInterface] Notification email sent')
+      } catch (emailError) {
+        console.error('[ChatInterface] Error sending notification email:', emailError)
+        // Ne pas bloquer l'envoi du message si l'email échoue
+      }
+      
       setNewMessage('')
     } catch (error) {
       console.error('[ChatInterface] Error sending message:', error)

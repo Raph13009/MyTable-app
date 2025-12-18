@@ -10,7 +10,17 @@ type ConversationStatus = 'ongoing' | 'pending' | 'closed'
 interface Conversation {
   id: string
   status: ConversationStatus
-  bookingRequest: any
+  bookingRequest: {
+    id?: string
+    status?: string
+    first_name?: string
+    last_name?: string
+    booking_date?: string
+    city?: string
+    guests_count?: number
+    chef_id?: string
+    chefName?: string | null
+  } | null
   participants: Array<{ email: string; role: string }>
   lastMessage: { content: string; created_at: string; sender_email: string } | null
   updatedAt: string
@@ -84,18 +94,47 @@ export default function ConversationsList({ conversations, currentUser, particip
     }
   }
 
-  const getOtherParticipantName = (conversation: Conversation) => {
+  const getOtherParticipantInfo = (conversation: Conversation) => {
     const otherParticipant = conversation.participants.find(
       p => p.email.toLowerCase() !== currentUser.email?.toLowerCase()
     )
     
-    if (otherParticipant?.role === 'client' && conversation.bookingRequest) {
-      return `${conversation.bookingRequest.first_name} ${conversation.bookingRequest.last_name}`
+    if (!otherParticipant) {
+      return { name: 'Utilisateur', role: 'unknown', isChef: false }
     }
-    if (otherParticipant?.role === 'chef') {
-      return 'Chef'
+    
+    const isChef = otherParticipant.role === 'chef'
+    const isClient = otherParticipant.role === 'client'
+    
+    if (isClient && conversation.bookingRequest) {
+      return {
+        name: `${conversation.bookingRequest.first_name} ${conversation.bookingRequest.last_name}`,
+        role: 'client',
+        isChef: false,
+      }
     }
-    return otherParticipant?.email.split('@')[0] || 'Utilisateur'
+    
+    if (isChef) {
+      // Récupérer le nom du chef depuis bookingRequest.chefName
+      const chefName = conversation.bookingRequest?.chefName || 'Chef'
+      console.log('[ConversationsList] Chef name for conversation:', {
+        conversationId: conversation.id,
+        chefName,
+        hasBookingRequest: !!conversation.bookingRequest,
+        bookingRequestChefName: conversation.bookingRequest?.chefName,
+      })
+      return {
+        name: chefName,
+        role: 'chef',
+        isChef: true,
+      }
+    }
+    
+    return {
+      name: otherParticipant.email.split('@')[0] || 'Utilisateur',
+      role: otherParticipant.role,
+      isChef: false,
+    }
   }
 
   const handleSignOut = async () => {
@@ -171,47 +210,106 @@ export default function ConversationsList({ conversations, currentUser, particip
             <p className="text-gray-600">Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredConversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                onClick={() => router.push(`/chat/${conversation.id}`)}
-                className="w-full text-left bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-black transition-colors"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-black">
-                        {getOtherParticipantName(conversation)}
-                      </h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(conversation.status)}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredConversations.map((conversation) => {
+              const otherParticipant = getOtherParticipantInfo(conversation)
+              const isCurrentUserChef = conversation.participants.find(
+                p => p.email.toLowerCase() === currentUser.email?.toLowerCase()
+              )?.role === 'chef'
+              
+              return (
+                <button
+                  key={conversation.id}
+                  onClick={() => router.push(`/chat/${conversation.id}`)}
+                  className="group relative w-full bg-white rounded-2xl overflow-hidden border-2 border-gray-100 hover:border-black transition-all duration-300 hover:shadow-xl"
+                >
+                  {/* Header avec gradient */}
+                  <div className={`relative h-32 ${otherParticipant.isChef ? 'bg-gradient-to-br from-black to-gray-800' : 'bg-gradient-to-br from-[#FBCF03] to-yellow-400'}`}>
+                    {/* Badge de statut en haut à droite */}
+                    <div className="absolute top-3 right-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
+                        conversation.status === 'ongoing' 
+                          ? 'bg-[#FBCF03]/90 text-black' 
+                          : conversation.status === 'pending'
+                          ? 'bg-white/90 text-gray-700'
+                          : 'bg-gray-100/90 text-gray-500'
+                      }`}>
                         {getStatusLabel(conversation.status)}
                       </span>
                     </div>
+                    
+                    {/* Nom de l'autre participant en gros */}
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          otherParticipant.isChef 
+                            ? 'bg-white/20 text-white backdrop-blur-sm' 
+                            : 'bg-black/20 text-black backdrop-blur-sm'
+                        }`}>
+                          {otherParticipant.isChef ? '👨‍🍳 Chef' : '👤 Client'}
+                        </span>
+                      </div>
+                      <h3 className={`text-2xl sm:text-3xl font-bold ${
+                        otherParticipant.isChef ? 'text-white' : 'text-black'
+                      }`}>
+                        {otherParticipant.name}
+                      </h3>
+                    </div>
+                  </div>
+                  
+                  {/* Contenu de la carte */}
+                  <div className="p-4">
                     {conversation.bookingRequest && (
-                      <p className="text-sm text-gray-600">
-                        {new Date(conversation.bookingRequest.booking_date).toLocaleDateString('fr-FR')} • {conversation.bookingRequest.city} • {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                      </p>
+                      <div className="mb-3 space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span>📅</span>
+                          <span className="font-medium">
+                            {new Date(conversation.bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <span>📍</span>
+                            <span>{conversation.bookingRequest.city}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>👥</span>
+                            <span>{conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {conversation.lastMessage ? (
+                      <div className="pt-3 border-t border-gray-100">
+                        <p className="text-sm text-gray-700 line-clamp-2 mb-2">
+                          {conversation.lastMessage.content}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(conversation.lastMessage.created_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="pt-3 border-t border-gray-100">
+                        <p className="text-sm text-gray-400 italic">Aucun message pour le moment</p>
+                      </div>
                     )}
                   </div>
-                </div>
-                {conversation.lastMessage && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <p className="text-sm text-gray-600 truncate">
-                      {conversation.lastMessage.content}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(conversation.lastMessage.created_at).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                )}
-              </button>
-            ))}
+                  
+                  {/* Effet hover */}
+                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none" />
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

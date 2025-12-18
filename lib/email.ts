@@ -62,7 +62,7 @@ interface EmailLayoutOptions {
   cta?: {
     text: string
     url: string
-    variant?: 'primary' | 'secondary'
+    variant?: 'primary' | 'secondary' | 'yellow'
   }
   baseUrl?: string
 }
@@ -72,13 +72,13 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
   const logoBannerUrl = `${appUrl}/logo-banner.jpeg`
   const logoCercleUrl = `${appUrl}/logo-cercle.jpeg`
   
-  const ctaButtonClass = cta?.variant === 'secondary' 
-    ? 'background-color: #FBCF03; color: #000;'
-    : 'background-color: #000; color: #fff;'
+  let ctaButtonClass = 'background-color: #000; color: #fff;'
+  let ctaButtonHover = 'background-color: #333;'
   
-  const ctaButtonHover = cta?.variant === 'secondary'
-    ? 'background-color: #E6BA00;'
-    : 'background-color: #333;'
+  if (cta?.variant === 'secondary' || cta?.variant === 'yellow') {
+    ctaButtonClass = 'background-color: #FBCF03; color: #000;'
+    ctaButtonHover = 'background-color: #E6BA00;'
+  }
 
   return `
     <!DOCTYPE html>
@@ -282,7 +282,7 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
               </div>
               ${cta ? `
                 <div class="email-cta">
-                  <a href="${cta.url}" class="email-button">${cta.text}</a>
+                  <a href="${cta.url}" class="${cta.variant === 'yellow' ? 'email-button-yellow' : 'email-button'}">${cta.text}</a>
                 </div>
               ` : ''}
             </div>

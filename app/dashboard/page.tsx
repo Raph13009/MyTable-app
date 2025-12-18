@@ -385,6 +385,30 @@ export default async function DashboardPage() {
         id: bookingRequest?.id || 'none',
       })
       
+      // Récupérer le nom du chef si booking_request existe
+      let chefName: string | null = null
+      if (bookingRequest?.chef_id) {
+        console.log(`[Dashboard] Fetching chef name for chef_id: ${bookingRequest.chef_id}`)
+        const { data: chef, error: chefError } = await supabaseAdmin
+          .from('chefs')
+          .select('name')
+          .eq('id', bookingRequest.chef_id)
+          .maybeSingle()
+        
+        if (chefError) {
+          console.error(`[Dashboard] Error fetching chef:`, chefError)
+        }
+        
+        if (chef) {
+          chefName = (chef as any).name
+          console.log(`[Dashboard] Chef name found: ${chefName}`)
+        } else {
+          console.warn(`[Dashboard] No chef found for chef_id: ${bookingRequest.chef_id}`)
+        }
+      } else {
+        console.log(`[Dashboard] No chef_id in booking_request for conversation ${conv.id}`)
+      }
+      
       let status: 'ongoing' | 'pending' | 'closed' = 'ongoing'
       
       if (bookingRequest) {
@@ -413,7 +437,10 @@ export default async function DashboardPage() {
       const enrichedConv = {
         id: conv.id,
         status,
-        bookingRequest,
+        bookingRequest: bookingRequest ? {
+          ...bookingRequest,
+          chefName,
+        } : null,
         participants: convParticipants || [],
         lastMessage: lastMessage || null,
         updatedAt: conv.updated_at,
@@ -424,6 +451,7 @@ export default async function DashboardPage() {
         status: enrichedConv.status,
         bookingRequestStatus: bookingRequest?.status || 'none',
         hasBookingRequest: !!bookingRequest,
+        chefName: enrichedConv.bookingRequest?.chefName || 'not set',
         participantsCount: enrichedConv.participants.length,
         hasLastMessage: !!enrichedConv.lastMessage,
         updatedAt: enrichedConv.updatedAt,
