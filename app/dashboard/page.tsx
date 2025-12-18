@@ -253,7 +253,7 @@ export default async function DashboardPage() {
           conversations.map(async (conv: any) => {
             const { data: bookingReqs } = await supabaseAdmin
               .from('booking_requests')
-              .select('id, status, first_name, last_name, booking_date, city, guests_count')
+              .select('id, status, first_name, last_name, booking_date, city, guests_count, menu_id, chef_id, extras')
               .eq('conversation_id', conv.id)
             
             return {
@@ -387,6 +387,9 @@ export default async function DashboardPage() {
       
       // Récupérer le nom du chef si booking_request existe
       let chefName: string | null = null
+      let menuPrice: number | null = null
+      let extras: any[] = []
+      
       if (bookingRequest?.chef_id) {
         console.log(`[Dashboard] Fetching chef name for chef_id: ${bookingRequest.chef_id}`)
         const { data: chef, error: chefError } = await supabaseAdmin
@@ -407,6 +410,36 @@ export default async function DashboardPage() {
         }
       } else {
         console.log(`[Dashboard] No chef_id in booking_request for conversation ${conv.id}`)
+      }
+      
+      // Récupérer le prix du menu si menu_id existe
+      if (bookingRequest?.menu_id) {
+        const { data: menu } = await supabaseAdmin
+          .from('menus')
+          .select('price')
+          .eq('id', bookingRequest.menu_id)
+          .maybeSingle()
+        
+        if (menu) {
+          menuPrice = (menu as any).price || 0
+        }
+      }
+      
+      // Récupérer les extras depuis booking_requests.extras (JSONB)
+      if ((bookingRequest as any)?.extras) {
+        try {
+          const extrasData = (bookingRequest as any).extras
+          if (Array.isArray(extrasData)) {
+            extras = extrasData
+          } else if (typeof extrasData === 'string') {
+            const parsed = JSON.parse(extrasData)
+            if (Array.isArray(parsed)) {
+              extras = parsed
+            }
+          }
+        } catch (e) {
+          console.error(`[Dashboard] Error parsing extras:`, e)
+        }
       }
       
       let status: 'ongoing' | 'pending' | 'closed' = 'ongoing'
@@ -434,12 +467,21 @@ export default async function DashboardPage() {
         status = 'ongoing'
       }
 
+      // Calculer le prix total
+      const guestsCount = bookingRequest?.guests_count || 0
+      const menuTotal = (menuPrice || 0) * guestsCount
+      const extrasTotal = extras.reduce((sum: number, extra: any) => sum + (extra.price || 0), 0)
+      const totalPrice = menuTotal + extrasTotal
+
       const enrichedConv = {
         id: conv.id,
         status,
         bookingRequest: bookingRequest ? {
           ...bookingRequest,
           chefName,
+          menuPrice,
+          extras,
+          totalPrice,
         } : null,
         participants: convParticipants || [],
         lastMessage: lastMessage || null,

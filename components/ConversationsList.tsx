@@ -20,6 +20,9 @@ interface Conversation {
     guests_count?: number
     chef_id?: string
     chefName?: string | null
+    menuPrice?: number | null
+    extras?: Array<{ name: string; price: number }>
+    totalPrice?: number
   } | null
   participants: Array<{ email: string; role: string }>
   lastMessage: { content: string; created_at: string; sender_email: string } | null
@@ -144,57 +147,73 @@ export default function ConversationsList({ conversations, currentUser, particip
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Bannière jaune avec logo */}
+      <div className="bg-[#FBCF03] border-b-2 border-black">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
+          <div className="flex items-center justify-center">
+            <img 
+              src="/logo-banner.jpeg" 
+              alt="MyTable" 
+              className="h-12 sm:h-14 w-auto object-contain"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Header fixe */}
-      <div className="sticky top-0 z-10 bg-white border-b-2 border-black">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-black">Mes conversations</h1>
+      <div className="sticky top-0 z-10 bg-white/98 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-xl font-semibold text-black">Messages</h1>
             <button
               onClick={handleSignOut}
-              className="px-3 py-1.5 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/60 rounded-lg transition-all"
+              title="Se déconnecter"
             >
-              Déconnexion
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
 
-          {/* Filtres mobile-first */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+          {/* Filtres subtils */}
+          <div className="flex gap-2 pb-4">
             <button
               onClick={() => setFilter('all')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
                 filter === 'all'
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'text-black bg-gray-100'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
               }`}
             >
               Toutes
             </button>
             <button
               onClick={() => setFilter('ongoing')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
                 filter === 'ongoing'
-                  ? 'bg-[#FBCF03] text-black'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'text-black bg-gray-100'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
               }`}
             >
               En cours
             </button>
             <button
               onClick={() => setFilter('pending')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
                 filter === 'pending'
-                  ? 'bg-gray-200 text-gray-700'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'text-black bg-gray-100'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
               }`}
             >
               En attente
             </button>
             <button
               onClick={() => setFilter('closed')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
                 filter === 'closed'
-                  ? 'bg-gray-100 text-gray-500'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'text-black bg-gray-100'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
               }`}
             >
               Terminées
@@ -203,110 +222,105 @@ export default function ConversationsList({ conversations, currentUser, particip
         </div>
       </div>
 
-      {/* Liste des conversations */}
-      <div className="max-w-4xl mx-auto px-4 py-4">
+      {/* Liste des conversations - style premium Instagram/WhatsApp */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2">
         {filteredConversations.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.</p>
+          <div className="py-16 text-center">
+            <p className="text-gray-400 text-sm">Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
             {filteredConversations.map((conversation) => {
               const otherParticipant = getOtherParticipantInfo(conversation)
-              const isCurrentUserChef = conversation.participants.find(
-                p => p.email.toLowerCase() === currentUser.email?.toLowerCase()
-              )?.role === 'chef'
+              const isActive = conversation.status === 'ongoing'
+              
+              // Format date pour meta
+              const eventDate = conversation.bookingRequest?.booking_date
+                ? new Date(conversation.bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                  })
+                : null
+              
+              // Format dernier message
+              const lastMessagePreview = conversation.lastMessage
+                ? conversation.lastMessage.content.trim()
+                : null
               
               return (
                 <button
                   key={conversation.id}
                   onClick={() => router.push(`/chat/${conversation.id}`)}
-                  className="group relative w-full bg-white rounded-2xl overflow-hidden border-2 border-gray-100 hover:border-black transition-all duration-300 hover:shadow-xl"
+                  className={`w-full px-4 py-3.5 rounded-xl transition-all text-left ${
+                    isActive 
+                      ? 'bg-gray-50/80 hover:bg-gray-100/80 shadow-sm' 
+                      : 'bg-white hover:bg-gray-50/60 shadow-sm hover:shadow'
+                  }`}
                 >
-                  {/* Header avec gradient */}
-                  <div className={`relative h-32 ${otherParticipant.isChef ? 'bg-gradient-to-br from-black to-gray-800' : 'bg-gradient-to-br from-[#FBCF03] to-yellow-400'}`}>
-                    {/* Badge de statut en haut à droite */}
-                    <div className="absolute top-3 right-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
-                        conversation.status === 'ongoing' 
-                          ? 'bg-[#FBCF03]/90 text-black' 
-                          : conversation.status === 'pending'
-                          ? 'bg-white/90 text-gray-700'
-                          : 'bg-gray-100/90 text-gray-500'
-                      }`}>
-                        {getStatusLabel(conversation.status)}
+                  <div className="flex items-center gap-3">
+                    {/* Avatar - cercle avec initiales */}
+                    <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center shadow-sm">
+                      <span className="text-base font-semibold text-gray-700">
+                        {otherParticipant.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     
-                    {/* Nom de l'autre participant en gros */}
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          otherParticipant.isChef 
-                            ? 'bg-white/20 text-white backdrop-blur-sm' 
-                            : 'bg-black/20 text-black backdrop-blur-sm'
-                        }`}>
-                          {otherParticipant.isChef ? '👨‍🍳 Chef' : '👤 Client'}
-                        </span>
-                      </div>
-                      <h3 className={`text-2xl sm:text-3xl font-bold ${
-                        otherParticipant.isChef ? 'text-white' : 'text-black'
-                      }`}>
-                        {otherParticipant.name}
-                      </h3>
-                    </div>
-                  </div>
-                  
-                  {/* Contenu de la carte */}
-                  <div className="p-4">
-                    {conversation.bookingRequest && (
-                      <div className="mb-3 space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>📅</span>
-                          <span className="font-medium">
-                            {new Date(conversation.bookingRequest.booking_date).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric'
-                            })}
+                    {/* Contenu principal */}
+                    <div className="flex-1 min-w-0">
+                      {/* Ligne 1: Nom + Badge statut + Prix */}
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <h3 className="text-[15px] font-semibold text-black truncate">
+                            {otherParticipant.name}
+                          </h3>
+                          {/* Badge statut */}
+                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            conversation.status === 'ongoing'
+                              ? 'bg-[#FBCF03]/20 text-[#FBCF03]'
+                              : conversation.status === 'pending'
+                              ? 'bg-gray-200 text-gray-600'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {getStatusLabel(conversation.status)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <span>📍</span>
-                            <span>{conversation.bookingRequest.city}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span>👥</span>
-                            <span>{conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}</span>
-                          </div>
+                        {/* Prix aligné à droite */}
+                        {conversation.bookingRequest?.totalPrice !== undefined && conversation.bookingRequest.totalPrice > 0 && (
+                          <p className="text-sm font-semibold text-black whitespace-nowrap">
+                            {conversation.bookingRequest.totalPrice.toFixed(2)} €
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Ligne 2: Dernier message */}
+                      {lastMessagePreview ? (
+                        <p className="text-sm text-gray-500 line-clamp-1 mb-1.5">
+                          {lastMessagePreview}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic mb-1.5">Aucun message</p>
+                      )}
+                      
+                      {/* Ligne 3: Meta info (Date + Convives) */}
+                      {conversation.bookingRequest && (
+                        <div className="flex items-center gap-1.5">
+                          {eventDate && (
+                            <p className="text-xs text-gray-400">
+                              {eventDate}
+                            </p>
+                          )}
+                          {conversation.bookingRequest.guests_count && (
+                            <>
+                              {eventDate && <span className="text-xs text-gray-300">•</span>}
+                              <p className="text-xs text-gray-400">
+                                {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                              </p>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    )}
-                    
-                    {conversation.lastMessage ? (
-                      <div className="pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-700 line-clamp-2 mb-2">
-                          {conversation.lastMessage.content}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(conversation.lastMessage.created_at).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-400 italic">Aucun message pour le moment</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Effet hover */}
-                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none" />
                 </button>
               )
             })}

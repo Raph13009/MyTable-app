@@ -97,6 +97,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           participants={participants || []}
           currentUser={user}
           bookingRequest={bookingRequest}
+          menuDetails={menuDetails}
           showAcceptedMessage={searchParams.accepted === 'true'}
         />
       )
@@ -141,9 +142,10 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       console.error('[ChatPage] Messages error:', messagesError)
     }
     
-    // 5. Récupérer le booking_request séparément
+    // 5. Récupérer le booking_request séparément avec les détails du menu
     console.log('[ChatPage] Step 5: Fetching booking request...')
     let bookingRequest = null
+    let menuDetails = null
     if ((conversation as any).booking_request_id) {
       const { data: booking, error: bookingError } = await supabaseAdmin
         .from('booking_requests')
@@ -154,6 +156,22 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       if (!bookingError && booking) {
         bookingRequest = booking
         console.log('[ChatPage] ✅ Booking request found')
+        
+        // Récupérer les détails du menu si menu_id existe
+        if ((booking as any).menu_id) {
+          const { data: menu, error: menuError } = await supabaseAdmin
+            .from('menus')
+            .select('*')
+            .eq('id', (booking as any).menu_id)
+            .single()
+          
+          if (!menuError && menu) {
+            menuDetails = menu
+            console.log('[ChatPage] ✅ Menu details found:', menu)
+          } else {
+            console.log('[ChatPage] ⚠️  Menu not found or error:', menuError)
+          }
+        }
       } else {
         console.log('[ChatPage] ⚠️  Booking request not found or error:', bookingError)
       }
@@ -184,6 +202,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         participants={participants || []}
         currentUser={user}
         bookingRequest={bookingRequest}
+        menuDetails={menuDetails}
         showAcceptedMessage={searchParams.accepted === 'true'}
       />
     )

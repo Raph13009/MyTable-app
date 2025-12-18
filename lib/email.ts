@@ -306,6 +306,11 @@ export const emailSubjects = {
   bookingRefusedToClient: 'Votre demande de réservation',
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée - Accès au chat',
+  bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
+  bookingValidatedToChef: 'Réservation validée par le client',
+  bookingValidatedToAdmin: 'Action requise – lien de paiement à envoyer',
+  bookingCancelledToClient: 'Réservation annulée',
+  bookingCancelledToChef: 'Réservation annulée',
 }
 
 /**
@@ -415,6 +420,98 @@ export const emailTemplates = {
     return emailLayout({
       title: 'Réservation acceptée',
       content: contentWithCta,
+      baseUrl,
+    })
+  },
+
+  bookingValidatedToClient: (clientName: string, bookingDate: string, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${clientName},</p>
+      <p>Votre réservation du <strong>${bookingDate}</strong> a été validée avec succès.</p>
+      <p>Vous recevrez un lien de paiement dans les prochaines 24 heures pour finaliser votre réservation.</p>
+      <p>Merci de votre confiance !</p>
+    `
+    return emailLayout({
+      title: 'Réservation confirmée',
+      content,
+      baseUrl,
+    })
+  },
+
+  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, totalAmount: number, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${chefName},</p>
+      <p>La réservation de <strong>${clientName}</strong> a été validée par le client.</p>
+      <p><strong>Détails de la réservation :</strong></p>
+      <ul style="list-style: none; padding-left: 0;">
+        <li>📅 Date : ${bookingDate}</li>
+        <li>👥 Nombre de convives : ${guestsCount}</li>
+        <li>💰 Montant total : ${totalAmount.toFixed(2)} €</li>
+      </ul>
+      <p>Le paiement est attendu dans les 48 prochaines heures.</p>
+    `
+    return emailLayout({
+      title: 'Réservation validée',
+      content,
+      baseUrl,
+    })
+  },
+
+  bookingValidatedToAdmin: (clientName: string, clientEmail: string, chefName: string, chefEmail: string, bookingDate: string, guestsCount: number, totalAmount: number, menuName: string | null, extras: Array<{ name: string; price: number }>, baseUrl?: string) => {
+    const extrasList = extras.length > 0 
+      ? extras.map(e => `<li>${e.name} : ${e.price.toFixed(2)} €</li>`).join('')
+      : '<li>Aucun extra</li>'
+    
+    const content = `
+      <p><strong>Action requise :</strong> Envoyer le lien de paiement</p>
+      <p><strong>Client :</strong> ${clientName} (${clientEmail})</p>
+      <p><strong>Chef :</strong> ${chefName} (${chefEmail})</p>
+      <p><strong>Date de l'événement :</strong> ${bookingDate}</p>
+      <p><strong>Nombre de convives :</strong> ${guestsCount}</p>
+      <p><strong>Montant total :</strong> ${totalAmount.toFixed(2)} €</p>
+      <p><strong>Menu sélectionné :</strong> ${menuName || 'Non spécifié'}</p>
+      <p><strong>Extras :</strong></p>
+      <ul>
+        ${extrasList}
+      </ul>
+      <p style="margin-top: 24px; padding: 16px; background-color: #FBCF03; border-radius: 8px; font-weight: 600;">
+        ⚠️ Le lien de paiement doit être envoyé au client dans les 24 heures.
+      </p>
+    `
+    return emailLayout({
+      title: 'Action requise – Lien de paiement',
+      content,
+      baseUrl,
+    })
+  },
+
+  bookingCancelledToClient: (clientName: string, bookingDate: string, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${clientName},</p>
+      <p>Votre réservation du <strong>${bookingDate}</strong> a été annulée.</p>
+      <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+    `
+    return emailLayout({
+      title: 'Réservation annulée',
+      content,
+      cta: {
+        text: 'Voir les autres chefs',
+        url: baseUrl || 'http://localhost:3000',
+        variant: 'secondary',
+      },
+      baseUrl,
+    })
+  },
+
+  bookingCancelledToChef: (chefName: string, clientName: string, bookingDate: string, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${chefName},</p>
+      <p>La réservation de <strong>${clientName}</strong> prévue le <strong>${bookingDate}</strong> a été annulée.</p>
+      <p>Cette réservation est maintenant fermée.</p>
+    `
+    return emailLayout({
+      title: 'Réservation annulée',
+      content,
       baseUrl,
     })
   },
