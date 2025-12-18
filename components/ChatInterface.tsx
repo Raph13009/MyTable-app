@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
+import { sanitizeMessage } from '@/lib/utils'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -28,7 +29,12 @@ export default function ChatInterface({
   menuDetails,
   showAcceptedMessage = false,
 }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  // Sanitize initial messages (extra safety layer)
+  const sanitizedInitialMessages = initialMessages.map(msg => ({
+    ...msg,
+    content: sanitizeMessage(msg.content || '')
+  }))
+  const [messages, setMessages] = useState<Message[]>(sanitizedInitialMessages)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
@@ -130,7 +136,13 @@ export default function ChatInterface({
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message])
+          const newMessage = payload.new as Message
+          // Sanitize new message before adding to state (extra safety layer)
+          const sanitizedNewMessage = {
+            ...newMessage,
+            content: sanitizeMessage(newMessage.content || '')
+          }
+          setMessages((prev) => [...prev, sanitizedNewMessage])
         }
       )
       .subscribe()
@@ -151,10 +163,16 @@ export default function ChatInterface({
 
     try {
       const currentUserRole = getCurrentUserRole()
+      const rawContent = newMessage.trim()
+      
+      // Sanitize message content before saving (mask emails and phone numbers)
+      const sanitizedContent = sanitizeMessage(rawContent)
+      
       console.log('[ChatInterface] Sending message:', {
         currentUserEmail: currentUser.email,
         currentUserRole,
-        messageContent: newMessage.trim(),
+        messageContent: rawContent,
+        sanitizedContent,
       })
 
       const { error } = await supabase
@@ -162,8 +180,8 @@ export default function ChatInterface({
         .insert({
           conversation_id: conversationId,
           sender_email: currentUser.email!,
-          content: newMessage.trim(),
-        })
+          content: sanitizedContent, // Store sanitized version
+        } as any)
 
       if (error) {
         throw error
@@ -382,11 +400,13 @@ export default function ChatInterface({
 
         for (const extra of addedExtras) {
           const notificationMessage = `✨ Extra ajouté : ${extra.name} (+${extra.price.toFixed(2)} €)`
+          // Sanitize notification message before saving
+          const sanitizedNotification = sanitizeMessage(notificationMessage)
           try {
             await supabase.from('messages').insert({
               conversation_id: conversationId,
               sender_email: currentUser.email!,
-              content: notificationMessage,
+              content: sanitizedNotification,
             } as any)
           } catch (e) {
             console.error('[ChatInterface] Error sending extra notification:', e)
@@ -395,11 +415,13 @@ export default function ChatInterface({
 
         for (const extra of removedExtras) {
           const notificationMessage = `🗑️ Extra retiré : ${extra.name} (-${extra.price.toFixed(2)} €)`
+          // Sanitize notification message before saving
+          const sanitizedNotification = sanitizeMessage(notificationMessage)
           try {
             await supabase.from('messages').insert({
               conversation_id: conversationId,
               sender_email: currentUser.email!,
-              content: notificationMessage,
+              content: sanitizedNotification,
             } as any)
           } catch (e) {
             console.error('[ChatInterface] Error sending extra removal notification:', e)
@@ -437,12 +459,13 @@ export default function ChatInterface({
         const changeType = guestsCount > previousCount ? 'augmenté' : 'diminué'
         const changeAmount = Math.abs(guestsCount - previousCount)
         const notificationMessage = `✨ Nombre de convives ${changeType} : ${previousCount} → ${guestsCount} (${changeAmount} ${changeAmount === 1 ? 'convive' : 'convives'})`
-        
+        // Sanitize notification message before saving
+        const sanitizedNotification = sanitizeMessage(notificationMessage)
         try {
           await supabase.from('messages').insert({
             conversation_id: conversationId,
             sender_email: currentUser.email!,
-            content: notificationMessage,
+            content: sanitizedNotification,
           } as any)
         } catch (e) {
           console.error('[ChatInterface] Error sending guests change notification:', e)
@@ -656,8 +679,8 @@ export default function ChatInterface({
                 </>
               )}
               
-              {/* Information button (client only) */}
-              {isClient && bookingRequest && (
+              {/* Information button (client and chef) */}
+              {bookingRequest && (
                 <button
                   onClick={() => setShowInfoModal(true)}
                   className="flex-shrink-0 p-1.5 text-gray-500 hover:text-black hover:bg-black/5 rounded-lg transition-all"
@@ -740,12 +763,14 @@ export default function ChatInterface({
                   }
                   
                   const contentWithoutIcon = message.content.replace(/^[✨🗑️✅❌ℹ️]+\s*/, '')
+                  // Sanitize content before rendering (extra safety layer)
+                  const sanitizedContent = sanitizeMessage(contentWithoutIcon)
                   return (
                     <div key={message.id} className="flex justify-center my-3">
                       <div className="bg-gray-100 rounded-full px-4 py-2.5 max-w-[85%] flex items-center gap-2">
                         <span className="text-xs">{icon}</span>
                         <p className="text-xs text-gray-600 text-center">
-                          {contentWithoutIcon}
+                          {sanitizedContent}
                         </p>
                       </div>
                     </div>
@@ -775,7 +800,7 @@ export default function ChatInterface({
                         <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${
                           isClientMessage ? 'text-black' : 'text-white'
                         }`}>
-                          {message.content}
+                          {sanitizeMessage(message.content)}
                         </div>
                       </div>
                       
@@ -1209,6 +1234,231 @@ export default function ChatInterface({
                   </div>
                 )}
               </div>
+
+              {/* Système d'étapes visuelles - Stepper moderne premium */}
+              {bookingRequest && (() => {
+                const isStep1Complete = true // Chef/Client trouvé - toujours complété
+                const isStep2Complete = bookingStatus === 'validated_by_client'
+                const isStep3Active = isStep2Complete && bookingStatus !== 'cancelled' // Paiement actif si step 2 complété
+                const isStep4Active = false // Prestation confirmée - toujours en attente
+                
+                const currentStep = isStep2Complete ? 3 : isStep1Complete ? 2 : 1
+                
+                return (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-black mb-6">Progression de la réservation</h3>
+                    
+                    {/* Stepper vertical avec lignes de connexion */}
+                    <div className="relative">
+                      {/* Ligne de progression verticale */}
+                      <div className="absolute left-5 top-0 bottom-0 w-0.5">
+                        {/* Ligne complétée */}
+                        <div 
+                          className={`absolute top-0 left-0 w-full transition-all duration-500 ease-out ${
+                            isStep2Complete 
+                              ? 'bg-[#FBCF03] h-1/2' 
+                              : isStep1Complete 
+                              ? 'bg-[#FBCF03] h-1/4'
+                              : 'bg-gray-200 h-0'
+                          }`}
+                          style={{ height: isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%' }}
+                        />
+                        {/* Ligne en attente */}
+                        <div 
+                          className={`absolute top-0 left-0 w-full bg-gray-200 transition-all duration-500 ${
+                            isStep2Complete ? 'h-1/2' : isStep1Complete ? 'h-3/4' : 'h-full'
+                          }`}
+                          style={{ 
+                            top: isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%',
+                            height: isStep2Complete ? '50%' : isStep1Complete ? '75%' : '100%'
+                          }}
+                        />
+                      </div>
+
+                      <div className="relative space-y-6">
+                        {/* Étape 1: Chef/Client trouvé (toujours complétée) */}
+                        <div className="relative flex items-start gap-4">
+                          {/* Icône de l'étape */}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-[#FBCF03] flex items-center justify-center shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 transition-all duration-300">
+                              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                            {/* Badge de complétion */}
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          </div>
+                          
+                          {/* Contenu de l'étape */}
+                          <div className="flex-1 pt-1.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-semibold text-black">
+                                {isClient ? 'Chef sélectionné' : 'Client trouvé'}
+                              </p>
+                              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
+                                Complété
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                              {isClient 
+                                ? 'Votre demande a été acceptée par le chef'
+                                : 'La demande de réservation a été reçue'
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Étape 2: Prestation validée */}
+                        <div className="relative flex items-start gap-4">
+                          {/* Icône de l'étape */}
+                          <div className="relative flex-shrink-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isStep2Complete
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                : currentStep === 2
+                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20 scale-105'
+                                : 'bg-gray-100 border-2 border-gray-300'
+                            }`}>
+                              {isStep2Complete ? (
+                                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : currentStep === 2 ? (
+                                <svg className="w-5 h-5 text-[#FBCF03]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              ) : (
+                                <div className="w-3 h-3 rounded-full bg-gray-400" />
+                              )}
+                            </div>
+                            {isStep2Complete && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Contenu de l'étape */}
+                          <div className="flex-1 pt-1.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className={`text-sm font-semibold transition-colors ${
+                                isStep2Complete 
+                                  ? 'text-black' 
+                                  : currentStep === 2 
+                                  ? 'text-[#FBCF03]'
+                                  : 'text-gray-400'
+                              }`}>
+                                Prestation validée
+                              </p>
+                              {isStep2Complete ? (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
+                                  Complété
+                                </span>
+                              ) : currentStep === 2 ? (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/10 text-[#FBCF03] rounded-full animate-pulse">
+                                  En cours
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
+                                  En attente
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-xs leading-relaxed transition-colors ${
+                              isStep2Complete ? 'text-gray-600' : currentStep === 2 ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                              {isStep2Complete 
+                                ? 'La réservation a été confirmée'
+                                : 'En attente de validation'
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Étape 3: Paiement */}
+                        <div className="relative flex items-start gap-4">
+                          {/* Icône de l'étape */}
+                          <div className="relative flex-shrink-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isStep3Active
+                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20 scale-105'
+                                : 'bg-gray-100 border-2 border-gray-300'
+                            }`}>
+                              {isStep3Active ? (
+                                <svg className="w-5 h-5 text-[#FBCF03]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              ) : (
+                                <div className="w-3 h-3 rounded-full bg-gray-400" />
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Contenu de l'étape */}
+                          <div className="flex-1 pt-1.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className={`text-sm font-semibold transition-colors ${
+                                isStep3Active ? 'text-[#FBCF03]' : 'text-gray-400'
+                              }`}>
+                                {isClient ? 'Paiement en attente' : 'Client paye'}
+                              </p>
+                              {isStep3Active ? (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/10 text-[#FBCF03] rounded-full animate-pulse">
+                                  En cours
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
+                                  En attente
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-xs leading-relaxed transition-colors ${
+                              isStep3Active ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                              {isStep3Active
+                                ? (isClient 
+                                  ? 'Un lien de paiement vous sera envoyé par email sous 24h'
+                                  : 'Le client va procéder au paiement. Vous serez notifié dès que le paiement sera effectué.'
+                                )
+                                : 'En attente de validation de la réservation'
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Étape 4: Prestation confirmée */}
+                        <div className="relative flex items-start gap-4">
+                          {/* Icône de l'étape */}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 flex items-center justify-center">
+                              <div className="w-3 h-3 rounded-full bg-gray-400" />
+                            </div>
+                          </div>
+                          
+                          {/* Contenu de l'étape */}
+                          <div className="flex-1 pt-1.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-semibold text-gray-400">Prestation confirmée</p>
+                              <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
+                                En attente
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                              En attente du paiement
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Avertissement de sécurité */}
               <div className="pt-4 border-t border-gray-100">

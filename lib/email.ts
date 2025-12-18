@@ -308,7 +308,7 @@ export const emailSubjects = {
   bookingAcceptedToChef: 'Réservation acceptée - Accès au chat',
   bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
   bookingValidatedToChef: 'Réservation validée par le client',
-  bookingValidatedToAdmin: 'Action requise – lien de paiement à envoyer',
+  bookingValidatedToAdmin: 'Nouvelle offre validée !',
   bookingCancelledToClient: 'Réservation annulée',
   bookingCancelledToChef: 'Réservation annulée',
 }
@@ -463,23 +463,66 @@ export const emailTemplates = {
       : '<li>Aucun extra</li>'
     
     const content = `
-      <p><strong>Action requise :</strong> Envoyer le lien de paiement</p>
-      <p><strong>Client :</strong> ${clientName} (${clientEmail})</p>
-      <p><strong>Chef :</strong> ${chefName} (${chefEmail})</p>
-      <p><strong>Date de l'événement :</strong> ${bookingDate}</p>
-      <p><strong>Nombre de convives :</strong> ${guestsCount}</p>
-      <p><strong>Montant total :</strong> ${totalAmount.toFixed(2)} €</p>
-      <p><strong>Menu sélectionné :</strong> ${menuName || 'Non spécifié'}</p>
-      <p><strong>Extras :</strong></p>
-      <ul>
-        ${extrasList}
-      </ul>
-      <p style="margin-top: 24px; padding: 16px; background-color: #FBCF03; border-radius: 8px; font-weight: 600;">
-        ⚠️ Le lien de paiement doit être envoyé au client dans les 24 heures.
-      </p>
+      <p><strong style="font-size: 18px; color: #000;">Action requise : Envoyer le lien de paiement</strong></p>
+      
+      <div style="background-color: #f9f9f9; border-left: 4px solid #FBCF03; padding: 16px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">📧 Envoyer le lien de paiement d'une valeur de <strong>${totalAmount.toFixed(2)} €</strong> au client :</p>
+        <p style="margin: 8px 0 0 0; font-size: 15px; color: #000;"><strong>${clientEmail}</strong></p>
+      </div>
+      
+      <div style="margin: 24px 0; padding: 20px; background-color: #ffffff; border: 1px solid #e8e8e8; border-radius: 8px;">
+        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; color: #000; font-weight: 600;">Détails de la réservation</h3>
+        
+        <div style="margin-bottom: 12px;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Client :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${clientName}</p>
+          <p style="margin: 2px 0 0 0; color: #666; font-size: 14px;">${clientEmail}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Chef :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${chefName}</p>
+          <p style="margin: 2px 0 0 0; color: #666; font-size: 14px;">${chefEmail}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Date de l'événement :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${bookingDate}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Nombre de convives :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${guestsCount} ${guestsCount === 1 ? 'convive' : 'convives'}</p>
+        </div>
+        
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Menu sélectionné :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${menuName || 'Non spécifié'}</p>
+        </div>
+        
+        ${extras.length > 0 ? `
+        <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Extras :</strong></p>
+          <ul style="margin: 4px 0 0 0; padding-left: 20px; color: #000; font-size: 15px;">
+            ${extrasList}
+          </ul>
+        </div>
+        ` : ''}
+        
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #000;">
+          <p style="margin: 0; color: #666; font-size: 13px;"><strong>Montant total :</strong></p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 20px; font-weight: 700;">${totalAmount.toFixed(2)} €</p>
+        </div>
+      </div>
+      
+      <div style="margin-top: 24px; padding: 20px; background-color: #FBCF03; border-radius: 8px; text-align: center;">
+        <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">
+          ⚠️ Action requise : Envoyer le lien de paiement de <strong>${totalAmount.toFixed(2)} €</strong> à ${clientEmail} dans les 24 heures
+        </p>
+      </div>
     `
     return emailLayout({
-      title: 'Action requise – Lien de paiement',
+      title: 'Action requise – Lien de paiement à envoyer',
       content,
       baseUrl,
     })

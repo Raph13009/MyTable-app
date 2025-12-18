@@ -147,22 +147,29 @@ export async function POST(request: NextRequest) {
       }
 
       // Email à l'admin
-      await sendEmail({
-        to: 'contact.avenirea@gmail.com',
-        subject: emailSubjects.bookingValidatedToAdmin,
-        html: emailTemplates.bookingValidatedToAdmin(
-          `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
-          (bookingRequest as any).email,
-          chef?.name || 'Chef',
-          chef?.email || '',
-          bookingDate,
-          guestsCount,
-          totalAmount,
-          (bookingRequest as any).menus?.name || null,
-          extras,
-          baseUrl
-        ),
-      })
+      console.log('[booking-validate] Sending email to admin: contact.avenirea@gmail.com')
+      try {
+        await sendEmail({
+          to: 'contact.avenirea@gmail.com',
+          subject: emailSubjects.bookingValidatedToAdmin,
+          html: emailTemplates.bookingValidatedToAdmin(
+            `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
+            (bookingRequest as any).email,
+            chef?.name || 'Chef',
+            chef?.email || '',
+            bookingDate,
+            guestsCount,
+            totalAmount,
+            (bookingRequest as any).menus?.name || null,
+            extras,
+            baseUrl
+          ),
+        })
+        console.log('[booking-validate] ✅ Admin email sent successfully')
+      } catch (adminEmailError) {
+        console.error('[booking-validate] ❌ Error sending admin email:', adminEmailError)
+        // Ne pas bloquer si l'envoi d'email admin échoue, mais logger l'erreur
+      }
     } catch (emailError) {
       console.error('[booking-validate] Error sending emails:', emailError)
       // Ne pas bloquer si l'envoi d'email échoue

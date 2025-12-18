@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailLayout } from '@/lib/email'
+import { sanitizeMessage } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -110,12 +111,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 5. Créer le contenu de l'email
+    // 5. Sanitize message content before including in email (mask emails and phone numbers)
+    const sanitizedMessageContent = sanitizeMessage(messageContent)
+    
+    // 6. Créer le contenu de l'email
     const emailContent = `
       <p>Bonjour ${recipientName},</p>
       <p><strong>${senderName}</strong> vous a envoyé un nouveau message :</p>
       <div style="background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #FBCF03;">
-        <p style="margin: 0; font-style: italic;">"${messageContent}"</p>
+        <p style="margin: 0; font-style: italic;">"${sanitizedMessageContent}"</p>
       </div>
       <p>Cliquez sur le bouton ci-dessous pour vous connecter et répondre :</p>
     `
@@ -131,7 +135,7 @@ export async function POST(request: NextRequest) {
       baseUrl,
     })
 
-    // 6. Envoyer l'email
+    // 7. Envoyer l'email
     await sendEmail({
       to: recipient.email,
       subject: `Nouveau message de ${senderName}`,
