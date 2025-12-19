@@ -2,13 +2,18 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  // Rediriger HTTP vers HTTPS en production
-  if (process.env.NODE_ENV === 'production' && request.nextUrl.protocol === 'http:') {
-    const httpsUrl = request.nextUrl.clone()
-    httpsUrl.protocol = 'https:'
-    return NextResponse.redirect(httpsUrl, 301)
+  // Force HTTPS in production
+  if (process.env.NODE_ENV === 'production') {
+    const url = request.nextUrl.clone()
+    const protocol = request.headers.get('x-forwarded-proto') || url.protocol
+    
+    // If request is HTTP, redirect to HTTPS
+    if (protocol === 'http:' && !url.hostname.includes('localhost')) {
+      url.protocol = 'https:'
+      return NextResponse.redirect(url, 301)
+    }
   }
-
+  
   return await updateSession(request)
 }
 
