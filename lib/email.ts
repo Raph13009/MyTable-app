@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getBaseUrl } from './utils'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -68,7 +69,7 @@ interface EmailLayoutOptions {
 }
 
 export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions): string {
-  const appUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = getBaseUrl(baseUrl)
   const logoBannerUrl = `${appUrl}/logo-banner.jpeg`
   const logoCercleUrl = `${appUrl}/logo-cercle.jpeg`
   
@@ -540,7 +541,7 @@ export const emailTemplates = {
       content,
       cta: {
         text: 'Voir les autres chefs',
-        url: baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        url: getBaseUrl(baseUrl),
         variant: 'secondary',
       },
       baseUrl,

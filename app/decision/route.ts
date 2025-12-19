@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifyToken } from '@/lib/utils'
+import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 
 export async function GET(request: NextRequest) {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       .eq('booking_request_id', bookingRequest.id)
       .neq('id', matchingToken.id)
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const siteUrl = baseUrl
 
     if (action === 'refuse') {

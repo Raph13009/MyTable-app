@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
+import { getBaseUrl } from '@/lib/utils'
 
 /**
  * Route de test pour envoyer l'email admin pour la dernière réservation validée
@@ -8,7 +9,7 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 export async function GET(request: NextRequest) {
   try {
     const supabaseAdmin = createAdminClient()
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
 
     console.log('[test-admin-email] 🔍 Recherche de la dernière réservation validée...')
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     const chef = bookingRequest.chefs
 
     console.log('[test-admin-email] 📧 Envoi de l\'email admin...')
-    console.log('[test-admin-email] Destinataire: contact@guidemytable.fr')
+    console.log('[test-admin-email] Destinataire: contact.avenirea@gmail.com')
     console.log('[test-admin-email] Détails:', {
       client: `${bookingRequest.first_name} ${bookingRequest.last_name}`,
       clientEmail: bookingRequest.email,
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     try {
       await sendEmail({
-        to: 'contact@guidemytable.fr',
+        to: 'contact.avenirea@gmail.com',
         subject: emailSubjects.bookingValidatedToAdmin,
         html: emailTemplates.bookingValidatedToAdmin(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,

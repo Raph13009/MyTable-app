@@ -67,3 +67,25 @@ export function sanitizeMessage(content: string): string {
   return sanitized
 }
 
+/**
+ * Get the base URL for the application, forcing HTTPS in production
+ * This ensures all URLs use HTTPS to avoid "not secure" warnings
+ * 
+ * @param providedUrl - Optional URL to use instead of NEXT_PUBLIC_APP_URL
+ * @returns The base URL with HTTPS enforced in production
+ */
+export function getBaseUrl(providedUrl?: string): string {
+  // Use provided URL, then NEXT_PUBLIC_APP_URL, then fallback to localhost
+  let baseUrl = providedUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  
+  // Force HTTPS in production (not localhost)
+  const isProduction = process.env.NODE_ENV === 'production'
+  const isLocalhost = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
+  
+  if (isProduction && !isLocalhost && baseUrl.startsWith('http://')) {
+    baseUrl = baseUrl.replace('http://', 'https://')
+  }
+  
+  return baseUrl
+}
+

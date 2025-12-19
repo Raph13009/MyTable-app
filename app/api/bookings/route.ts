@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { generateDecisionToken, hashToken } from '@/lib/utils'
+import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
     ])
 
     // Construire les URLs de décision
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const acceptUrl = `${baseUrl}/decision?token=${acceptToken}&action=accept`
     const refuseUrl = `${baseUrl}/decision?token=${refuseToken}&action=refuse`
 

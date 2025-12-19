@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailLayout } from '@/lib/email'
-import { sanitizeMessage } from '@/lib/utils'
+import { sanitizeMessage, getBaseUrl } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAdmin = createAdminClient()
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
 
     // 1. Récupérer les participants de la conversation
     const { data: participants, error: participantsError } = await supabaseAdmin

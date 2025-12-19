@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
+import { getBaseUrl } from '@/lib/utils'
 
 /**
  * API Route pour finaliser une réservation (client uniquement)
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     })
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
 
     // Envoyer les emails
     try {

@@ -97,7 +97,10 @@ export default function AdminChefs() {
   }
 
   const handleShowLink = (chef: Chef) => {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Utiliser window.location.origin qui retourne toujours l'URL correcte du navigateur (HTTPS en production)
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const link = `${baseUrl}/book/${chef.slug}`
     setChefLink(link)
     setShowLinkModal(true)
