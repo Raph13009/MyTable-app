@@ -97,7 +97,8 @@ export default function AdminChefs() {
   }
 
   const handleShowLink = (chef: Chef) => {
-    const link = `https://app.guidemytable.fr/book/${chef.slug}`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const link = `${baseUrl}/book/${chef.slug}`
     setChefLink(link)
     setShowLinkModal(true)
   }

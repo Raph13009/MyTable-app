@@ -540,7 +540,7 @@ export const emailTemplates = {
       content,
       cta: {
         text: 'Voir les autres chefs',
-        url: baseUrl || 'http://localhost:3000',
+        url: baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
         variant: 'secondary',
       },
       baseUrl,
