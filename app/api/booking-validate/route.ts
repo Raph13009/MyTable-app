@@ -148,10 +148,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Email à l'admin
-      console.log('[booking-validate] Sending email to admin: contact.avenirea@gmail.com')
+      console.log('[booking-validate] Sending email to admin: contact@guidemytable.fr')
       try {
         await sendEmail({
-          to: 'contact.avenirea@gmail.com',
+          to: 'contact@guidemytable.fr',
           subject: emailSubjects.bookingValidatedToAdmin,
           html: emailTemplates.bookingValidatedToAdmin(
             `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,

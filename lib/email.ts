@@ -305,7 +305,7 @@ export const emailSubjects = {
   bookingRequestToChef: 'Nouvelle demande de réservation',
   bookingRefusedToClient: 'Votre demande de réservation',
   bookingAcceptedToClient: 'Réservation acceptée',
-  bookingAcceptedToChef: 'Réservation acceptée - Accès au chat',
+  bookingAcceptedToChef: 'Réservation acceptée',
   bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
   bookingValidatedToChef: 'Réservation validée par le client',
   bookingValidatedToAdmin: 'Nouvelle offre validée !',
