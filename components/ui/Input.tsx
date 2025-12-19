@@ -19,9 +19,14 @@ export function Input({ label, error, className, ...props }: InputProps) {
       <input
         className={cn(
           'w-full min-w-0 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black transition-colors',
+          props.type === 'date' && 'max-w-full',
           error && 'border-red-500',
           className
         )}
+        style={props.type === 'date' ? { 
+          maxWidth: '100%',
+          boxSizing: 'border-box'
+        } : undefined}
         {...props}
       />
       {error && (

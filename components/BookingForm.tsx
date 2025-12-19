@@ -218,7 +218,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         <h2 className="text-2xl font-bold text-black mb-4">Détails de la réservation</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="w-full min-w-0">
+          <div className="w-full min-w-0 overflow-hidden">
             <Input
               label="Date *"
               type="date"
@@ -228,7 +228,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               error={errors.bookingDate}
               min={getMinDate()}
               required
-              className="w-full min-w-0"
+              className="w-full min-w-0 max-w-full"
             />
             <p className="mt-1 text-xs text-gray-500">
               Vous devez réserver au moins 3 jours avant la date de l&apos;évènement
