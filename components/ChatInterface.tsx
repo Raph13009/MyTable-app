@@ -746,9 +746,9 @@ export default function ChatInterface({
                   <span className="text-lg animate-spin">🍳</span>
                 </div>
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
               )}
             </button>
 
@@ -850,16 +850,16 @@ export default function ChatInterface({
                       <div className="flex-1 space-y-3 sm:space-y-4">
                         <div>
                           <p className="text-sm sm:text-base text-black font-medium leading-relaxed">
-                            Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
+                        Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
                             <span className="font-bold text-black">
-                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })}
+                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
                             </span>
-                            .
-                          </p>
+                        .
+                      </p>
                         </div>
                         <div className="bg-white/60 rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 border border-black/10">
                           <p className="text-xs sm:text-sm text-black leading-relaxed">
@@ -867,15 +867,15 @@ export default function ChatInterface({
                           </p>
                         </div>
                         <div className="pt-1">
-                          {isClient ? (
+                      {isClient ? (
                             <p className="text-xs sm:text-sm text-black leading-relaxed">
                               Une fois que tout est bon de votre côté, appuyez sur <span className="font-bold">&quot;Finaliser&quot;</span>.
                             </p>
-                          ) : (
+                      ) : (
                             <p className="text-xs sm:text-sm text-black leading-relaxed">
                               Une fois que tout est bon, le client doit appuyer sur <span className="font-bold">&quot;Finaliser&quot;</span>.
                             </p>
-                          )}
+                      )}
                         </div>
                       </div>
                     </div>

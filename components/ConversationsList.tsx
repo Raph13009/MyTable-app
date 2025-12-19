@@ -224,7 +224,7 @@ export default function ConversationsList({ conversations, currentUser, particip
 
       {/* Liste des conversations - style premium Instagram/WhatsApp */}
       <div className="pt-32 sm:pt-36">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2">
         {filteredConversations.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-gray-400 text-sm">Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.</p>

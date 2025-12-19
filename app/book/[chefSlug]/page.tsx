@@ -32,8 +32,8 @@ export default async function BookPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Bannière jaune avec logo - Fixe */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b-2 border-black shadow-lg">
+      {/* Bannière jaune avec logo - Fixe (ne se replie jamais) */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b-2 border-black shadow-lg will-change-transform">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-5 relative">
           <div className="flex items-center justify-center">
             <img 

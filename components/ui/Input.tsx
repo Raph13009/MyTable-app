@@ -18,7 +18,7 @@ export function Input({ label, error, className, ...props }: InputProps) {
       )}
       <input
         className={cn(
-          'w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black transition-colors',
+          'w-full min-w-0 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black transition-colors',
           error && 'border-red-500',
           className
         )}

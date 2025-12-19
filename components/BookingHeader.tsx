@@ -1,9 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function BookingHeader() {
   const [showStepper, setShowStepper] = useState(false)
+
+  // Bloquer le scroll du body quand la popup est ouverte
+  useEffect(() => {
+    if (showStepper) {
+      // Sauvegarder la position actuelle du scroll
+      const scrollY = window.scrollY
+      // Bloquer le scroll
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restaurer le scroll quand la popup se ferme
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [showStepper])
 
   // Même logique que dans ChatInterface - pour le formulaire, on est à l'étape 1
   const isStep1Complete = true // Formulaire rempli
@@ -288,3 +310,4 @@ export default function BookingHeader() {
     </>
   )
 }
+
