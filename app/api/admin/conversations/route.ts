@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les booking_requests et les chefs avec leurs noms
     const conversationsWithDetails = await Promise.all(
-      (conversationsData || []).map(async (conv) => {
+      (conversationsData || []).map(async (conv: any) => {
         let bookingRequest = null
         let chefName = null
         
@@ -38,27 +38,29 @@ export async function GET(request: NextRequest) {
           const { data: booking, error: bookingError } = await supabaseAdmin
             .from('booking_requests')
             .select('*')
-            .eq('id', conv.booking_request_id)
+            .eq('id', (conv as any).booking_request_id)
             .single()
 
           if (booking && !bookingError) {
             // Récupérer le nom et la photo de profil du chef depuis la table chefs
             let chefProfilePicture = null
-            if (booking.chef_id) {
+            const bookingData = booking as any
+            if (bookingData.chef_id) {
               const { data: chef, error: chefError } = await supabaseAdmin
                 .from('chefs')
                 .select('name, profile_picture')
-                .eq('id', booking.chef_id)
+                .eq('id', bookingData.chef_id)
                 .single()
 
               if (chef && !chefError) {
-                chefName = chef.name
-                chefProfilePicture = chef.profile_picture
+                const chefData = chef as any
+                chefName = chefData.name
+                chefProfilePicture = chefData.profile_picture
               }
             }
 
             bookingRequest = {
-              ...booking,
+              ...bookingData,
               chefName: chefName,
               chefProfilePicture: chefProfilePicture,
             }
@@ -69,7 +71,7 @@ export async function GET(request: NextRequest) {
         const { data: lastMsg } = await supabaseAdmin
           .from('messages')
           .select('*')
-          .eq('conversation_id', conv.id)
+          .eq('conversation_id', (conv as any).id)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()

@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
     console.log('[check-participant] All participants error:', allError)
     
     if (allParticipants && allParticipants.length > 0) {
-      console.log('[check-participant] Participant emails:', allParticipants.map(p => p.email))
-      console.log('[check-participant] Participant user_ids:', allParticipants.map(p => p.user_id))
+      console.log('[check-participant] Participant emails:', allParticipants.map((p: any) => (p as any).email))
+      console.log('[check-participant] Participant user_ids:', allParticipants.map((p: any) => (p as any).user_id))
     } else {
       console.log('[check-participant] ⚠️ WARNING: No participants found for this conversation!')
       

@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
     const bookingRequestId = (bookingRequest as any).id
     await supabase
       .from('conversations')
+      // @ts-expect-error - Supabase type inference issue
       .update({ booking_request_id: bookingRequestId } as any)
       .eq('id', conversationId)
 
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     let chefUserId: string | null = null
     try {
       const { data: users } = await supabase.auth.admin.listUsers()
-      const existingChefUser = users?.users.find(u => u.email === chef.email)
+      const existingChefUser = users?.users.find(u => u.email === (chef as any).email)
       if (existingChefUser) {
         chefUserId = existingChefUser.id
       }
@@ -155,12 +156,12 @@ export async function POST(request: NextRequest) {
 
     // Créer les participants (normaliser les emails en lowercase)
     const normalizedClientEmail = email.toLowerCase().trim()
-    const normalizedChefEmail = chef.email.toLowerCase().trim()
+    const normalizedChefEmail = (chef as any).email.toLowerCase().trim()
     
     console.log('[bookings] ========== CREATING PARTICIPANTS ==========')
     console.log('[bookings] Original client email from form:', email)
     console.log('[bookings] Normalized client email:', normalizedClientEmail)
-    console.log('[bookings] Original chef email from DB:', chef.email)
+    console.log('[bookings] Original chef email from DB:', (chef as any).email)
     console.log('[bookings] Normalized chef email:', normalizedChefEmail)
     console.log('[bookings] Conversation ID:', conversationId)
     console.log('[bookings] Client user_id:', clientUserId)
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
     console.log('[bookings] Email comparison:', {
       originalClient: email,
       normalizedClient: normalizedClientEmail,
-      originalChef: chef.email,
+      originalChef: (chef as any).email,
       normalizedChef: normalizedChefEmail,
       clientLength: normalizedClientEmail.length,
       chefLength: normalizedChefEmail.length,
@@ -193,7 +194,7 @@ export async function POST(request: NextRequest) {
     console.log('[bookings] Participants to insert (detailed):', participantsToInsert.map(p => ({
       ...p,
       emailLength: p.email.length,
-      emailChars: p.email.split('').map(c => `${c}(${c.charCodeAt(0)})`).join(''),
+      emailChars: p.email.split('').map((c: string) => `${c}(${c.charCodeAt(0)})`).join(''),
     })))
     
     const { data: participants, error: participantsError } = await supabase
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
     }
     if (participants && participants.length > 0) {
       console.log('[bookings] ✅ Participants created successfully:')
-      participants.forEach((p, i) => {
+      participants.forEach((p: any, i: number) => {
         console.log(`[bookings]   ${i + 1}. Email: "${p.email}" (normalized: "${(p.email || '').toLowerCase().trim()}")`)
         console.log(`[bookings]      Role: ${p.role}`)
         console.log(`[bookings]      User ID: ${p.user_id || 'null'}`)
@@ -263,6 +264,7 @@ export async function POST(request: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + 7) // 7 jours de validité
 
     // Stocker les tokens hashés
+    // @ts-expect-error - Supabase type inference issue
     await supabase.from('decision_tokens').insert([
       {
         booking_request_id: bookingRequestId,
@@ -304,17 +306,17 @@ export async function POST(request: NextRequest) {
       subject: emailSubjects.bookingConfirmationToClient,
       html: emailTemplates.bookingConfirmationToClient(
         `${firstName} ${lastName}`,
-        chef.name,
+        (chef as any).name,
         baseUrl
       ),
     })
 
     // Envoyer l'email au chef
     await sendEmail({
-      to: chef.email,
+      to: (chef as any).email,
       subject: emailSubjects.bookingRequestToChef,
       html: emailTemplates.bookingRequestToChef(
-        chef.name,
+        (chef as any).name,
         bookingDetails,
         acceptUrl,
         refuseUrl,

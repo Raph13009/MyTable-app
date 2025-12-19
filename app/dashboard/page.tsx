@@ -36,7 +36,7 @@ export default async function DashboardPage() {
     .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, email')
   
   console.log('[Dashboard] All booking requests in DB:', allBookingRequests?.length || 0)
-  console.log('[Dashboard] Sample booking requests (first 5):', allBookingRequests?.slice(0, 5).map(br => ({
+  console.log('[Dashboard] Sample booking requests (first 5):', allBookingRequests?.slice(0, 5).map((br: any) => ({
     id: br.id,
     email: br.email,
     normalizedEmail: br.email?.toLowerCase().trim(),
@@ -44,7 +44,7 @@ export default async function DashboardPage() {
   })))
   
   // Filtrer les booking_requests avec l'email normalisé
-  const userBookingRequests = (allBookingRequests || []).filter(br => {
+  const userBookingRequests = (allBookingRequests || []).filter((br: any) => {
     const brEmail = br.email?.toLowerCase().trim() || ''
     const matches = brEmail === normalizedUserEmail
     if (matches) {
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   
   console.log('[Dashboard] Booking requests found for user email:', {
     count: userBookingRequests?.length || 0,
-    bookingRequests: userBookingRequests?.map(br => ({
+    bookingRequests: userBookingRequests?.map((br: any) => ({
       id: br.id,
       conversation_id: br.conversation_id,
       status: br.status,
@@ -73,11 +73,11 @@ export default async function DashboardPage() {
   })
   
   const conversationIdsFromBR = (userBookingRequests || [])
-    .map(br => br.conversation_id)
+    .map((br: any) => br.conversation_id)
     .filter((id): id is string => Boolean(id) && typeof id === 'string') as string[]
   
-  console.log('[Dashboard] Booking requests with conversation_id:', userBookingRequests.filter(br => br.conversation_id).length)
-  console.log('[Dashboard] Booking requests WITHOUT conversation_id:', userBookingRequests.filter(br => !br.conversation_id).length)
+  console.log('[Dashboard] Booking requests with conversation_id:', userBookingRequests.filter((br: any) => br.conversation_id).length)
+  console.log('[Dashboard] Booking requests WITHOUT conversation_id:', userBookingRequests.filter((br: any) => !br.conversation_id).length)
   
   console.log('[Dashboard] Conversation IDs from booking_requests:', conversationIdsFromBR)
   
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
   }
 
   console.log('[Dashboard] All participants in DB:', allParticipants?.length || 0)
-  console.log('[Dashboard] Sample participants (first 5):', allParticipants?.slice(0, 5).map(p => ({
+  console.log('[Dashboard] Sample participants (first 5):', allParticipants?.slice(0, 5).map((p: any) => ({
     email: p.email,
     normalizedEmail: p.email?.toLowerCase().trim(),
     user_id: p.user_id,
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
   })))
 
   // Filtrer les participants correspondant à l'utilisateur
-  const userParticipants = (allParticipants || []).filter(p => {
+  const userParticipants = (allParticipants || []).filter((p: any) => {
     const participantEmail = p.email?.toLowerCase().trim() || ''
     const emailMatch = participantEmail === normalizedUserEmail
     const userIdMatch = p.user_id === user.id
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
   console.log('[Dashboard] Participants query result:', {
     count: userParticipants?.length || 0,
     totalParticipants: allParticipants?.length || 0,
-    participants: userParticipants?.map(p => ({
+    participants: userParticipants?.map((p: any) => ({
       email: p.email,
       user_id: p.user_id,
       role: p.role,
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
     console.error('[Dashboard] Normalized user email:', normalizedUserEmail)
     console.error('[Dashboard] User ID:', user.id)
     console.error('[Dashboard] Total participants in DB:', (allParticipants || []).length)
-    console.error('[Dashboard] All participant emails:', (allParticipants || []).map(p => ({
+    console.error('[Dashboard] All participant emails:', (allParticipants || []).map((p: any) => ({
       original: p.email,
       normalized: p.email?.toLowerCase().trim(),
       matches: p.email?.toLowerCase().trim() === normalizedUserEmail,
@@ -165,7 +165,7 @@ export default async function DashboardPage() {
     console.error('[Dashboard] Error fetching participants:', participantsError)
   }
 
-  const conversationIdsFromParticipants = userParticipants.map(p => p.conversation_id).filter(Boolean) as string[]
+  const conversationIdsFromParticipants = userParticipants.map((p: any) => p.conversation_id).filter(Boolean) as string[]
   
   // Combiner les deux approches : booking_requests + participants
   const allConversationIds = [...new Set([...conversationIdsFromBR, ...conversationIdsFromParticipants])]
@@ -368,9 +368,9 @@ export default async function DashboardPage() {
       console.log(`[Dashboard] Last message for ${conv.id}:`, {
         found: !!(lastMessageData && lastMessageData.length > 0),
         message: lastMessageData?.[0] ? {
-          content: lastMessageData[0].content?.substring(0, 50) + '...',
-          created_at: lastMessageData[0].created_at,
-          sender_email: lastMessageData[0].sender_email,
+          content: (lastMessageData[0] as any).content?.substring(0, 50) + '...',
+          created_at: (lastMessageData[0] as any).created_at,
+          sender_email: (lastMessageData[0] as any).sender_email,
         } : null,
         error: messageError?.message,
       })
@@ -516,9 +516,9 @@ export default async function DashboardPage() {
   console.log('[Dashboard] ========== SORTING CONVERSATIONS ==========')
   console.log('[Dashboard] Conversations before sort:', enrichedConversations.length)
   
-  enrichedConversations.sort((a, b) => {
-    const dateA = new Date(a.updatedAt || a.lastMessage?.created_at || 0).getTime()
-    const dateB = new Date(b.updatedAt || b.lastMessage?.created_at || 0).getTime()
+  enrichedConversations.sort((a: any, b: any) => {
+    const dateA = new Date(a.updatedAt || (a.lastMessage as any)?.created_at || 0).getTime()
+    const dateB = new Date(b.updatedAt || (b.lastMessage as any)?.created_at || 0).getTime()
     return dateB - dateA
   })
   
@@ -538,7 +538,7 @@ export default async function DashboardPage() {
   // Créer un map des participants par conversation pour le composant
   console.log('[Dashboard] ========== CREATING PARTICIPANTS MAP ==========')
   const participantsMap = new Map()
-  userParticipants.forEach(p => {
+  userParticipants.forEach((p: any) => {
     if (!participantsMap.has(p.conversation_id)) {
       participantsMap.set(p.conversation_id, [])
     }

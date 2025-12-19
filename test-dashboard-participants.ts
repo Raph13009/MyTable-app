@@ -32,7 +32,7 @@ async function testDashboardParticipants(userEmail: string) {
 
   // 2. Afficher tous les participants
   console.log('2. All participants:')
-  allParticipants?.forEach((p, i) => {
+  allParticipants?.forEach((p: any, i) => {
     const normalizedEmail = p.email?.toLowerCase().trim() || ''
     const matches = normalizedEmail === normalizedUserEmail
     console.log(`  ${i + 1}. Email: "${p.email}" (normalized: "${normalizedEmail}")`)
@@ -45,7 +45,7 @@ async function testDashboardParticipants(userEmail: string) {
 
   // 3. Filtrer les participants correspondant à l'utilisateur
   console.log('3. Filtering participants for user...')
-  const userParticipants = (allParticipants || []).filter(p => {
+  const userParticipants = (allParticipants || []).filter((p: any) => {
     const participantEmail = p.email?.toLowerCase().trim() || ''
     return participantEmail === normalizedUserEmail
   })
@@ -64,7 +64,7 @@ async function testDashboardParticipants(userEmail: string) {
   }
 
   // 4. Récupérer les conversations
-  const conversationIds = userParticipants.map(p => p.conversation_id)
+  const conversationIds = userParticipants.map((p: any) => p.conversation_id)
   console.log('4. Conversation IDs:', conversationIds)
   console.log('')
 

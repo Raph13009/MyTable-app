@@ -38,17 +38,18 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     notes: '',
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name?: string; value: string } }) => {
+    const { name, value } = e.target
+    const type = 'target' in e && 'type' in e.target ? (e.target as HTMLInputElement).type : undefined
+    const checked = 'target' in e && 'checked' in e.target ? (e.target as HTMLInputElement).checked : false
 
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name || '']: type === 'checkbox' ? checked : value,
     }))
 
     // Clear error when user starts typing
-    if (errors[name]) {
+    if (name && errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev }
         delete newErrors[name]
@@ -239,7 +240,6 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             onChange={handleChange}
             options={guestsOptions}
             error={errors.guestsCount}
-            required
           />
         </div>
 

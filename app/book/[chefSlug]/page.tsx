@@ -26,7 +26,7 @@ export default async function BookPage({ params }: PageProps) {
   const { data: menus } = await supabase
     .from('menus')
     .select('*')
-    .eq('chef_id', chef.id)
+    .eq('chef_id', (chef as any).id)
     .order('name')
 
   return (
@@ -47,7 +47,7 @@ export default async function BookPage({ params }: PageProps) {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-black mb-2">
-            Réserver avec {chef.name}
+            Réserver avec {(chef as any).name}
           </h1>
           <p className="text-gray-600">
             Remplissez le formulaire ci-dessous pour faire une demande de réservation

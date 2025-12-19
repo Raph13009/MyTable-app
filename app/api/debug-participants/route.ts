@@ -27,13 +27,13 @@ export async function GET(request: NextRequest) {
       .select('id, email, status, conversation_id')
 
     // Filtrer les participants correspondant à l'utilisateur
-    const userParticipants = (allParticipants || []).filter(p => {
-      const participantEmail = p.email?.toLowerCase().trim() || ''
+    const userParticipants = (allParticipants || []).filter((p: any) => {
+      const participantEmail = (p as any).email?.toLowerCase().trim() || ''
       return participantEmail === normalizedUserEmail || p.user_id === user.id
     })
 
     // Trouver les booking_requests correspondant à l'utilisateur
-    const userBookingRequests = (bookingRequests || []).filter(br => {
+    const userBookingRequests = (bookingRequests || []).filter((br: any) => {
       const bookingEmail = br.email?.toLowerCase().trim() || ''
       return bookingEmail === normalizedUserEmail
     })
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       },
       allParticipants: {
         total: allParticipants?.length || 0,
-        participants: allParticipants?.map(p => ({
+        participants: allParticipants?.map((p: any) => ({
           email: p.email,
           normalizedEmail: p.email?.toLowerCase().trim(),
           role: p.role,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       },
       userParticipants: {
         count: userParticipants.length,
-        participants: userParticipants.map(p => ({
+        participants: userParticipants.map((p: any) => ({
           email: p.email,
           role: p.role,
           user_id: p.user_id,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       },
       bookingRequests: {
         total: bookingRequests?.length || 0,
-        userBookingRequests: userBookingRequests.map(br => ({
+        userBookingRequests: userBookingRequests.map((br: any) => ({
           id: br.id,
           email: br.email,
           normalizedEmail: br.email?.toLowerCase().trim(),

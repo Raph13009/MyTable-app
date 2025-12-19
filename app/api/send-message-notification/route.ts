@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     // 2. Trouver le destinataire (celui qui n'a pas envoyé le message)
     const normalizedSenderEmail = senderEmail.toLowerCase().trim()
     const recipient = participants.find(
-      p => p.email.toLowerCase().trim() !== normalizedSenderEmail
+      (p: any) => p.email.toLowerCase().trim() !== normalizedSenderEmail
     )
 
     if (!recipient) {
@@ -56,24 +56,25 @@ export async function POST(request: NextRequest) {
     let senderName = 'Quelqu\'un'
     let recipientName = 'vous'
 
-    if (conversation?.booking_request_id) {
+    if ((conversation as any)?.booking_request_id) {
       const { data: bookingRequest } = await supabaseAdmin
         .from('booking_requests')
         .select('first_name, last_name, chef_id, email')
-        .eq('id', conversation.booking_request_id)
+        .eq('id', (conversation as any).booking_request_id)
         .single()
 
       if (bookingRequest) {
+        const br = bookingRequest as any
         // Si l'expéditeur est le client
-        if (normalizedSenderEmail === bookingRequest.email?.toLowerCase().trim()) {
-          senderName = `${bookingRequest.first_name} ${bookingRequest.last_name}`
+        if (normalizedSenderEmail === br.email?.toLowerCase().trim()) {
+          senderName = `${br.first_name} ${br.last_name}`
           
           // Récupérer le nom du chef
-          if (bookingRequest.chef_id) {
+          if (br.chef_id) {
             const { data: chef } = await supabaseAdmin
               .from('chefs')
               .select('name')
-              .eq('id', bookingRequest.chef_id)
+              .eq('id', br.chef_id)
               .single()
             
             if (chef) {
@@ -82,18 +83,18 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Si l'expéditeur est le chef
-          if (bookingRequest.chef_id) {
+          if (br.chef_id) {
             const { data: chef } = await supabaseAdmin
               .from('chefs')
               .select('name')
-              .eq('id', bookingRequest.chef_id)
+              .eq('id', br.chef_id)
               .single()
             
             if (chef) {
               senderName = (chef as any).name
             }
           }
-          recipientName = `${bookingRequest.first_name} ${bookingRequest.last_name}`
+          recipientName = `${br.first_name} ${br.last_name}`
         }
       }
     }
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
     
     // Envoyer un magic link Supabase au destinataire
     const { data: otpData, error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-      email: recipient.email.toLowerCase().trim(),
+      email: (recipient as any).email.toLowerCase().trim(),
       options: {
         emailRedirectTo: redirectUrl,
         shouldCreateUser: true,
@@ -137,12 +138,12 @@ export async function POST(request: NextRequest) {
 
     // 7. Envoyer l'email
     await sendEmail({
-      to: recipient.email,
+      to: (recipient as any).email,
       subject: `Nouveau message de ${senderName}`,
       html: emailHtml,
     })
 
-    console.log('[send-message-notification] ✅ Email sent to:', recipient.email)
+    console.log('[send-message-notification] ✅ Email sent to:', (recipient as any).email)
     console.log('[send-message-notification] Magic link sent:', !otpError)
 
     return NextResponse.json({ success: true })

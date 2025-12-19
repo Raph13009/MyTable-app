@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
       .from('booking_requests')
       .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, email')
     
-    const userBookingRequests = (allBookingRequests || []).filter(br => {
+    const userBookingRequests = (allBookingRequests || []).filter((br: any) => {
       const brEmail = br.email?.toLowerCase().trim() || ''
       return brEmail === normalizedUserEmail
     })
 
     const conversationIdsFromBR = (userBookingRequests || [])
-      .map(br => br.conversation_id)
+      .map((br: any) => br.conversation_id)
       .filter((id): id is string => Boolean(id) && typeof id === 'string')
 
     // 2. Récupérer tous les participants
@@ -35,12 +35,12 @@ export async function GET(request: NextRequest) {
       .from('participants')
       .select('conversation_id, role, email, user_id')
 
-    const userParticipants = (allParticipants || []).filter(p => {
+    const userParticipants = (allParticipants || []).filter((p: any) => {
       const participantEmail = p.email?.toLowerCase().trim() || ''
       return participantEmail === normalizedUserEmail || p.user_id === user.id
     })
 
-    const conversationIdsFromParticipants = userParticipants.map(p => p.conversation_id).filter(Boolean) as string[]
+    const conversationIdsFromParticipants = userParticipants.map((p: any) => p.conversation_id).filter(Boolean) as string[]
     
     const allConversationIds = [...new Set([...conversationIdsFromBR, ...conversationIdsFromParticipants])]
 

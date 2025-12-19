@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         city: city || null,
         postal_code: postal_code || null,
-      })
+      } as any)
       .select()
       .single()
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       chef: {
-        ...chef,
+        ...(chef as any),
         auth_user_id: chefUserId,
       },
     })

@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     // Mettre à jour le nombre de convives
     const { error: updateError } = await supabaseAdmin
       .from('booking_requests')
+      // @ts-expect-error - Supabase type inference issue
       .update({ 
         guests_count: guestsCount,
         updated_at: new Date().toISOString(),

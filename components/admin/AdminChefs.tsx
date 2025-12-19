@@ -62,14 +62,14 @@ export default function AdminChefs() {
 
       // Récupérer les menus pour chaque chef
       const chefsWithMenus = await Promise.all(
-        (data || []).map(async (chef) => {
+        (data || []).map(async (chef: any) => {
           const { data: menusData } = await supabase
             .from('menus')
             .select('*')
             .eq('chef_id', chef.id)
 
           return {
-            ...chef,
+            ...(chef as any),
             menus: menusData || [],
           }
         })

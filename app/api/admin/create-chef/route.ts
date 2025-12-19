@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     // Créer le chef
     const { data: newChef, error: chefError } = await supabaseAdmin
       .from('chefs')
+      // @ts-expect-error - Supabase type inference issue
       .insert({
         slug,
         name,
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Ajouter les menus si fournis
     if (menus && menus.length > 0 && newChef) {
       const menusToInsert = menus.map((menu: any) => ({
-        chef_id: newChef.id,
+        chef_id: (newChef as any).id,
         name: menu.name,
         description: menu.description || null,
         price: menu.price ? parseFloat(menu.price.toString()) : null,

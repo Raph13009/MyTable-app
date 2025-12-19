@@ -78,6 +78,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       
       // Récupérer le booking_request séparément
       let bookingRequest = null
+      let menuDetails = null
       if (conv.booking_request_id) {
         const { data: booking } = await supabaseAdmin
           .from('booking_requests')
@@ -96,12 +97,12 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
               .eq('id', (booking as any).chef_id)
               .single()
             if (chef) {
-              chefName = chef.name
+              chefName = (chef as any).name
               chefEmail = (chef as any).email
             }
           }
           bookingRequest = {
-            ...booking,
+            ...(booking as any),
             chefName: chefName,
             chefEmail: chefEmail,
           }
@@ -110,7 +111,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       
       // Vérifier l'accès (admin a toujours accès)
       const hasAccess = isAdmin || participants?.some(
-        p => p.email === user.email || p.user_id === user.id
+        (p: any) => p.email === user.email || p.user_id === user.id
       )
       
       if (!hasAccess) {
@@ -136,7 +137,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       redirect(`/login?next=/chat/${conversationId}&error=conversation_not_found`)
     }
     
-    console.log('[ChatPage] ✅ Conversation found:', conversation.id)
+    console.log('[ChatPage] ✅ Conversation found:', (conversation as any).id)
     
     // 3. Récupérer les participants
     console.log('[ChatPage] Step 3: Fetching participants...')
@@ -160,7 +161,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       .order('created_at', { ascending: true })
     
     console.log('[ChatPage] Messages count:', messages?.length || 0)
-    console.log('[ChatPage] Messages details:', messages?.map(m => ({
+    console.log('[ChatPage] Messages details:', messages?.map((m: any) => ({
       id: m.id,
       sender_email: m.sender_email,
       content: m.content?.substring(0, 50),
@@ -193,7 +194,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
             .single()
           
           if (!chefError && chef) {
-            chefName = chef.name
+            chefName = (chef as any).name
             chefEmail = (chef as any).email
             console.log('[ChatPage] ✅ Chef name found:', chefName)
             console.log('[ChatPage] ✅ Chef email found:', chefEmail)
@@ -201,7 +202,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }
         
         bookingRequest = {
-          ...booking,
+          ...(booking as any),
           chefName: chefName,
           chefEmail: chefEmail,
         }
@@ -230,12 +231,12 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     // 6. Vérifier l'accès (admin a toujours accès)
     console.log('[ChatPage] Step 6: Checking access...')
     const hasAccess = isAdmin || participants?.some(
-      p => p.email === user.email || p.user_id === user.id
+      (p: any) => p.email === user.email || p.user_id === user.id
     )
     
     console.log('[ChatPage] Has access:', hasAccess, isAdmin ? '(Admin bypass)' : '')
     console.log('[ChatPage] User email:', user.email)
-    console.log('[ChatPage] Participants emails:', participants?.map(p => p.email))
+    console.log('[ChatPage] Participants emails:', participants?.map((p: any) => p.email))
     
     if (!hasAccess) {
       console.log('[ChatPage] ❌ No access, redirecting to login')

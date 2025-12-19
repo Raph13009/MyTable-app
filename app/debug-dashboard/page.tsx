@@ -21,7 +21,7 @@ export default async function DebugDashboardPage() {
     .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, email')
   
   // Filtrer les booking_requests avec l'email normalisé
-  const userBookingRequests = (allBookingRequests || []).filter(br => {
+  const userBookingRequests = (allBookingRequests || []).filter((br: any) => {
     const brEmail = br.email?.toLowerCase().trim() || ''
     return brEmail === normalizedUserEmail
   })
@@ -32,17 +32,17 @@ export default async function DebugDashboardPage() {
     .select('conversation_id, role, email, user_id')
 
   // 3. Filtrer les participants
-  const userParticipants = (allParticipants || []).filter(p => {
+  const userParticipants = (allParticipants || []).filter((p: any) => {
     const participantEmail = p.email?.toLowerCase().trim() || ''
     return participantEmail === normalizedUserEmail || p.user_id === user.id
   })
 
   // 4. Extraire les conversation IDs
   const conversationIdsFromBR = (userBookingRequests || [])
-    .map(br => br.conversation_id)
+    .map((br: any) => br.conversation_id)
     .filter(Boolean) as string[]
   
-  const conversationIdsFromParticipants = userParticipants.map(p => p.conversation_id).filter(Boolean) as string[]
+  const conversationIdsFromParticipants = userParticipants.map((p: any) => p.conversation_id).filter(Boolean) as string[]
   
   const allConversationIds = [...new Set([...conversationIdsFromBR, ...conversationIdsFromParticipants])]
 

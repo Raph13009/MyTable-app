@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     // Mettre à jour le chef
     const { error: chefError } = await supabaseAdmin
       .from('chefs')
+      // @ts-expect-error - Supabase type inference issue
       .update({
         slug,
         name,
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
         city: city || null,
         postal_code: postal_code || null,
         profile_picture: profile_picture || null,
-      })
+      } as any)
       .eq('id', chefId)
 
     if (chefError) {

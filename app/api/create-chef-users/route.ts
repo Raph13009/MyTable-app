@@ -28,7 +28,7 @@ export async function GET() {
       try {
         // Essayer de créer l'utilisateur (créera une erreur si existe déjà)
         const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-          email: chef.email,
+          email: (chef as any).email,
           email_confirm: true,
         })
 
@@ -37,38 +37,38 @@ export async function GET() {
           if (createError.message.includes('already registered') || createError.message.includes('already exists')) {
             // Lister les utilisateurs pour trouver celui qui existe
             const { data: users, error: listError } = await supabase.auth.admin.listUsers()
-            const existingUser = users?.users.find(u => u.email === chef.email)
+            const existingUser = users?.users.find(u => u.email === (chef as any).email)
             
             if (existingUser) {
               results.push({
-                email: chef.email,
+                email: (chef as any).email,
                 status: 'exists',
                 userId: existingUser.id,
               })
             } else {
               results.push({
-                email: chef.email,
+                email: (chef as any).email,
                 status: 'error',
                 error: 'User exists but could not be found',
               })
             }
           } else {
             results.push({
-              email: chef.email,
+              email: (chef as any).email,
               status: 'error',
               error: createError.message,
             })
           }
         } else if (newUser?.user) {
           results.push({
-            email: chef.email,
+            email: (chef as any).email,
             status: 'created',
             userId: newUser.user.id,
           })
         }
       } catch (error: any) {
         results.push({
-          email: chef.email,
+          email: (chef as any).email,
           status: 'error',
           error: error.message,
         })

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { data: chef, error: chefError } = await supabaseAdmin
       .from('chefs')
       .select('email')
-      .eq('id', bookingRequest.chef_id)
+      .eq('id', (bookingRequest as any).chef_id)
       .single()
 
     if (chefError || !chef) {
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     // Essayer d'abord avec le champ extras (JSONB)
     const { error: updateError } = await supabaseAdmin
       .from('booking_requests')
+      // @ts-expect-error - Supabase type inference issue
       .update({
         extras: extrasArray,
       } as any)
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       }
       const { error: fallbackError } = await supabaseAdmin
         .from('booking_requests')
+        // @ts-expect-error - Supabase type inference issue
         .update({
           notes: JSON.stringify(extrasData),
         } as any)
@@ -142,10 +144,10 @@ export async function GET(request: NextRequest) {
           console.error('Error parsing extras:', e)
         }
       }
-    } else if (bookingRequest.notes) {
+    } else if ((bookingRequest as any).notes) {
       // Fallback: parser depuis notes (ancienne méthode)
       try {
-        const parsed = JSON.parse(bookingRequest.notes)
+        const parsed = JSON.parse((bookingRequest as any).notes)
         if (parsed.extras && Array.isArray(parsed.extras)) {
           extras = parsed.extras
         }

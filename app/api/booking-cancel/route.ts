@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     // Mettre à jour le statut
     const { error: updateError } = await supabaseAdmin
       .from('booking_requests')
+      // @ts-expect-error - Supabase type inference issue
       .update({ 
         status: 'cancelled',
         updated_at: new Date().toISOString(),
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from('messages')
         .insert({
-          conversation_id: conversation.id,
+          conversation_id: (conversation as any).id,
           sender_email: user.email!,
           content: 'La réservation a été annulée.',
         } as any)

@@ -95,7 +95,7 @@ export default async function HomePage({
           
           {chefs && chefs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {chefs.map((chef) => (
+              {chefs.map((chef: any) => (
                 <div
                   key={chef.id}
                   className="border-2 border-gray-300 rounded-lg p-6 hover:border-black transition-colors"
