@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const chef = bookingRequest.chefs
 
     console.log('[test-admin-email] 📧 Envoi de l\'email admin...')
-    console.log('[test-admin-email] Destinataire: contact.avenirea@gmail.com')
+    console.log('[test-admin-email] Destinataire: contact@guidemytable.fr')
     console.log('[test-admin-email] Détails:', {
       client: `${bookingRequest.first_name} ${bookingRequest.last_name}`,
       clientEmail: bookingRequest.email,
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     try {
       await sendEmail({
-        to: 'contact.avenirea@gmail.com',
+        to: 'contact@guidemytable.fr',
         subject: emailSubjects.bookingValidatedToAdmin,
         html: emailTemplates.bookingValidatedToAdmin(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,

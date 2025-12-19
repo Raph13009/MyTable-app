@@ -834,7 +834,7 @@ export default function ChatInterface({
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div className="px-4 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-8 min-h-full flex flex-col justify-end">
+        <div className="px-4 py-6 sm:px-6 sm:py-8 min-h-full flex flex-col justify-end">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               {/* Message système par défaut pour nouvelle conversation */}
@@ -1027,26 +1027,8 @@ export default function ChatInterface({
 
       {/* Modal d'offre - Design premium, compact pour tenir sur une page */}
       {showOfferModal && (
-        <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" 
-          onClick={() => setShowOfferModal(false)}
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            touchAction: 'none'
-          }}
-        >
-          <div 
-            className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-xl" 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '100vw',
-              width: '100%'
-            }}
-          >
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowOfferModal(false)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             {/* Header fixe */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-200 flex-shrink-0">
               <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
@@ -1212,7 +1194,6 @@ export default function ChatInterface({
                         onChange={(e) => setNewExtraName(e.target.value)}
                         placeholder="Nom de l'extra"
                         className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent text-sm"
-                        style={{ fontSize: '16px' }}
                         disabled={savingExtras}
                       />
                       <input
@@ -1223,7 +1204,6 @@ export default function ChatInterface({
                         step="0.01"
                         min="0"
                         className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent text-sm"
-                        style={{ fontSize: '16px' }}
                         disabled={savingExtras}
                       />
                     </div>
