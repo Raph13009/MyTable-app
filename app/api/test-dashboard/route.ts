@@ -59,16 +59,22 @@ export async function GET(request: NextRequest) {
       
       // Récupérer les booking_requests séparément
       if (conversations && conversations.length > 0) {
-        for (const conv of conversations) {
-          const { data: bookingReqs } = await supabaseAdmin
-            .from('booking_requests')
-            .select('id, status, first_name, last_name, booking_date, city, guests_count')
-            .eq('conversation_id', conv.id)
-          
-          (conv as any).booking_requests = bookingReqs || []
-        }
+        const conversationsWithBookings = await Promise.all(
+          conversations.map(async (conv) => {
+            const { data: bookingReqs } = await supabaseAdmin
+              .from('booking_requests')
+              .select('id, status, first_name, last_name, booking_date, city, guests_count')
+              .eq('conversation_id', conv.id)
+            
+            return {
+              ...conv,
+              booking_requests: bookingReqs || []
+            }
+          })
+        )
+        conversations = conversationsWithBookings as any
       }
-    }
+        }
 
     return NextResponse.json({
       user: {

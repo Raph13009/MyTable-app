@@ -32,6 +32,7 @@ export default function AdminPage() {
     return () => {
       subscription.unsubscribe()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const checkAuth = async () => {
@@ -99,7 +100,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
-          <p className="text-gray-600">Vérification de l'authentification...</p>
+          <p className="text-gray-600">Vérification de l&apos;authentification...</p>
         </div>
       </div>
     )
@@ -111,7 +112,7 @@ export default function AdminPage() {
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-black mb-2">Administration</h1>
-            <p className="text-gray-600">Connectez-vous pour accéder au panneau d'administration</p>
+            <p className="text-gray-600">Connectez-vous pour accéder au panneau d&apos;administration</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">

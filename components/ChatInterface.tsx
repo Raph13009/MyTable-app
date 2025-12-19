@@ -235,7 +235,7 @@ export default function ChatInterface({
       setNewMessage('')
     } catch (error) {
       console.error('[ChatInterface] Error sending message:', error)
-      alert('Erreur lors de l\'envoi du message')
+      alert('Erreur lors de l&apos;envoi du message')
     } finally {
       setLoading(false)
     }
@@ -259,10 +259,6 @@ export default function ChatInterface({
 
   const isOwnMessage = (message: Message) => {
     return currentUser?.email === message.sender_email
-  }
-
-  if (!currentUser) {
-    return null
   }
 
   const handleSignOut = async () => {
@@ -611,7 +607,7 @@ export default function ChatInterface({
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Erreur lors de l\'annulation')
+        throw new Error(error.error || 'Erreur lors de l&apos;annulation')
       }
 
       // Mettre à jour le statut localement
@@ -621,7 +617,7 @@ export default function ChatInterface({
       window.location.reload()
     } catch (error: any) {
       console.error('[ChatInterface] Error cancelling booking:', error)
-      alert(error.message || 'Erreur lors de l\'annulation de la réservation')
+      alert(error.message || 'Erreur lors de l&apos;annulation de la réservation')
     } finally {
       setProcessingAction(false)
     }
@@ -635,6 +631,10 @@ export default function ChatInterface({
     }
     // Sinon, utiliser "Chef" comme valeur par défaut
     return 'Chef'
+  }
+
+  if (!currentUser) {
+    return null
   }
 
   return (
@@ -698,7 +698,7 @@ export default function ChatInterface({
                     onClick={() => setShowOfferModal(true)}
                     className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                   >
-                    Voir l'offre
+                    Voir l&apos;offre
                   </button>
                   
                   {/* Primary: Finaliser (client uniquement, statut accepted) */}
@@ -781,7 +781,7 @@ export default function ChatInterface({
                     <span className="text-xs">ℹ️</span>
                     <div className="text-xs text-gray-600 text-center space-y-1">
                       <p>
-                        Voici l'espace pour communiquer à propos de la prestation du{' '}
+                        Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
                         <strong>
                           {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
                             day: 'numeric',
@@ -791,11 +791,11 @@ export default function ChatInterface({
                         </strong>
                         .
                       </p>
-                      <p>Retrouvez l'état de la prestation dans <strong>"Voir l'offre"</strong>.</p>
+                      <p>Retrouvez l&apos;état de la prestation dans <strong>&quot;Voir l&apos;offre&quot;</strong>.</p>
                       {isClient ? (
-                        <p>Une fois que tout est bon de votre côté, appuyez sur <strong>"Finaliser"</strong>.</p>
+                        <p>Une fois que tout est bon de votre côté, appuyez sur <strong>&quot;Finaliser&quot;</strong>.</p>
                       ) : (
-                        <p>Une fois que tout est bon, le client doit appuyer sur <strong>"Finaliser"</strong>.</p>
+                        <p>Une fois que tout est bon, le client doit appuyer sur <strong>&quot;Finaliser&quot;</strong>.</p>
                       )}
                     </div>
                   </div>
@@ -950,7 +950,7 @@ export default function ChatInterface({
           <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             {/* Header fixe */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-black">Détails de l'offre</h2>
+              <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
               <button
                 onClick={() => setShowOfferModal(false)}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1277,7 +1277,7 @@ export default function ChatInterface({
                     }}
                     className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow flex-shrink-0"
                   >
-                    Voir l'offre
+                    Voir l&apos;offre
                   </button>
                   <p className="text-xs text-gray-500 flex-1">Consulter les détails de votre réservation</p>
                 </div>
@@ -1609,7 +1609,7 @@ export default function ChatInterface({
               {/* Avertissement de sécurité */}
               <div className="pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  Pour des raisons de sécurité, merci de ne pas partager d'informations personnelles (email, numéro de téléphone, coordonnées bancaires) dans la messagerie.
+                  Pour des raisons de sécurité, merci de ne pas partager d&apos;informations personnelles (email, numéro de téléphone, coordonnées bancaires) dans la messagerie.
                 </p>
               </div>
             </div>

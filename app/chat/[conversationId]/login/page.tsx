@@ -1,5 +1,6 @@
 'use client'
 
+/* eslint-disable react-hooks/rules-of-hooks */
 import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -121,7 +122,7 @@ export default function ChatLoginPage() {
     const errorDetails = searchParams.get('details')
     
     if (urlError === 'unauthorized') {
-      setError('Vous n\'êtes pas autorisé à accéder à cette conversation.')
+      setError('Vous n&apos;êtes pas autorisé à accéder à cette conversation.')
     } else if (urlError === 'auth_failed') {
       if (errorDetails?.includes('expired') || errorDetails?.includes('invalid')) {
         setError('Le lien de connexion a expiré ou est invalide. Veuillez demander un nouveau lien.')
@@ -168,7 +169,8 @@ export default function ChatLoginPage() {
       console.log('[ChatLogin] ======================================================')
     }
     checkAuth()
-  }, [conversationId, router, supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

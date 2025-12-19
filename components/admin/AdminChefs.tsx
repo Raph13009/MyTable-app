@@ -41,10 +41,13 @@ export default function AdminChefs() {
   const [menus, setMenus] = useState<Menu[]>([])
   const [newMenu, setNewMenu] = useState({ name: '', description: '', price: '' })
   const [uploading, setUploading] = useState(false)
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [chefLink, setChefLink] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
     fetchChefs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchChefs = async () => {
@@ -245,6 +248,17 @@ export default function AdminChefs() {
     setShowAddModal(true)
   }
 
+  const handleShowLink = (chef: Chef) => {
+    const link = `https://www.guidemytable.fr/book/${chef.slug}`
+    setChefLink(link)
+    setShowLinkModal(true)
+  }
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(chefLink)
+    alert('Lien copié dans le presse-papier !')
+  }
+
   const addMenu = () => {
     if (!newMenu.name.trim()) return
     setMenus([
@@ -302,7 +316,7 @@ export default function AdminChefs() {
       <div className="space-y-2">
         {chefs.length === 0 ? (
           <div className="p-12 text-center bg-white rounded-2xl border border-gray-100">
-            <p className="text-gray-400 text-sm">Aucun chef enregistré</p>
+                <p className="text-gray-400 text-sm">Aucun chef enregistr&eacute;</p>
           </div>
         ) : (
           chefs.map((chef) => (
@@ -351,6 +365,25 @@ export default function AdminChefs() {
 
               {/* Actions - Right, Icon-based, Secondary/Muted style */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => handleShowLink(chef)}
+                  className="p-2 text-gray-400 hover:text-[#FBCF03] hover:bg-[#FBCF03]/10 rounded-lg transition-all duration-200"
+                  title="Voir le lien"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                </button>
                 <button
                   onClick={() => handleEdit(chef)}
                   className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200"
@@ -452,7 +485,7 @@ export default function AdminChefs() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmer l'email *
+                      Confirmer l&apos;email *
                     </label>
                     <input
                       type="email"
@@ -577,6 +610,62 @@ export default function AdminChefs() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pour afficher le lien */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-black">Lien du formulaire</h3>
+              <button
+                onClick={() => setShowLinkModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lien vers le formulaire de réservation
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={chefLink}
+                    readOnly
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]"
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    className="px-4 py-2.5 bg-[#FBCF03] text-black font-semibold rounded-xl hover:bg-[#E6BA00] transition-colors whitespace-nowrap"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => window.open(chefLink, '_blank')}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Ouvrir le lien
+                </button>
+                <button
+                  onClick={() => setShowLinkModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
         </div>
