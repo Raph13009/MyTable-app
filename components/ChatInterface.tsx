@@ -29,6 +29,28 @@ export default function ChatInterface({
   menuDetails,
   showAcceptedMessage = false,
 }: ChatInterfaceProps) {
+  // Vérifier si l'utilisateur est admin (lecture seule)
+  const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
+  const [isAdminState, setIsAdminState] = useState(false)
+  const [cameFromAdmin, setCameFromAdmin] = useState(false)
+  
+  useEffect(() => {
+    // Vérifier si l'utilisateur est l'admin via UID
+    const isAdmin = currentUser?.id === ADMIN_UID
+    setIsAdminState(isAdmin)
+    
+    // Vérifier si on vient de l'admin (via referrer ou sessionStorage)
+    if (typeof window !== 'undefined') {
+      const fromAdmin = sessionStorage.getItem('from_admin') === 'true' || 
+                       document.referrer.includes('/admin')
+      setCameFromAdmin(fromAdmin || isAdmin)
+      if (isAdmin) {
+        sessionStorage.setItem('from_admin', 'true')
+      }
+    }
+  }, [currentUser])
+  
+  const isAdmin = isAdminState
   // Sanitize initial messages (extra safety layer)
   const sanitizedInitialMessages = initialMessages.map(msg => ({
     ...msg,
@@ -633,7 +655,13 @@ export default function ChatInterface({
           {/* Actions en dessous */}
           <div className="flex items-center justify-between gap-3">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => {
+                if (cameFromAdmin || isAdmin) {
+                  router.push('/admin?section=messaging')
+                } else {
+                  router.push('/dashboard')
+                }
+              }}
               className="flex-shrink-0 p-1.5 -ml-1.5 text-gray-500 hover:text-black hover:bg-black/5 rounded-lg transition-all"
               aria-label="Retour"
             >
@@ -726,8 +754,37 @@ export default function ChatInterface({
       >
         <div className="px-4 py-6 sm:px-6 sm:py-8 min-h-full flex flex-col justify-end">
           {messages.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-sm text-gray-400">Aucun message</p>
+            <div className="flex flex-col items-center justify-center py-16">
+              {/* Message système par défaut pour nouvelle conversation */}
+              {bookingRequest && (
+                <div className="flex justify-center my-3 w-full">
+                  <div className="bg-gray-100 rounded-full px-4 py-2.5 max-w-[85%] flex items-center gap-2">
+                    <span className="text-xs">ℹ️</span>
+                    <div className="text-xs text-gray-600 text-center space-y-1">
+                      <p>
+                        Voici l'espace pour communiquer à propos de la prestation du{' '}
+                        <strong>
+                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </strong>
+                        .
+                      </p>
+                      <p>Retrouvez l'état de la prestation dans <strong>"Voir l'offre"</strong>.</p>
+                      {isClient ? (
+                        <p>Une fois que tout est bon de votre côté, appuyez sur <strong>"Finaliser"</strong>.</p>
+                      ) : (
+                        <p>Une fois que tout est bon, le client doit appuyer sur <strong>"Finaliser"</strong>.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!bookingRequest && (
+                <p className="text-sm text-gray-400">Aucun message</p>
+              )}
             </div>
           ) : (
             <>
@@ -777,13 +834,13 @@ export default function ChatInterface({
                   )
                 }
                 
-                // Message normal - Client à droite, Chef à gauche
+                // Message normal - Chef à gauche en jaune, Client à droite
                 return (
                   <div
                     key={message.id}
-                    className={`flex mb-4 ${isClientMessage ? 'justify-end' : 'justify-start'}`}
+                    className={`flex mb-4 ${isChefMessage ? 'justify-start' : 'justify-end'}`}
                   >
-                    <div className={`max-w-[70%] sm:max-w-[65%] flex flex-col ${isClientMessage ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[70%] sm:max-w-[65%] flex flex-col ${isChefMessage ? 'items-start' : 'items-end'}`}>
                       {/* Nom de l'expéditeur - discret */}
                       <span className="text-[11px] text-gray-400 mb-1 px-1">
                         {getParticipantName(message.sender_email)}
@@ -792,13 +849,13 @@ export default function ChatInterface({
                       {/* Bulle de message */}
                       <div
                         className={`rounded-2xl px-4 py-2.5 ${
-                          isClientMessage
-                            ? 'bg-[#FBCF03] text-black rounded-br-sm'
-                            : 'bg-gray-900 text-white rounded-bl-sm'
+                          isChefMessage
+                            ? 'bg-[#FBCF03] text-black rounded-bl-sm'
+                            : 'bg-gray-900 text-white rounded-br-sm'
                         }`}
                       >
                         <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${
-                          isClientMessage ? 'text-black' : 'text-white'
+                          isChefMessage ? 'text-black' : 'text-white'
                         }`}>
                           {sanitizeMessage(message.content)}
                         </div>
@@ -821,8 +878,8 @@ export default function ChatInterface({
         </div>
       </div>
 
-      {/* Input - Style moderne premium (désactivé si réservation annulée) */}
-      {!isBookingCancelled && (
+      {/* Input - Style moderne premium (désactivé si réservation annulée ou si admin) */}
+      {!isBookingCancelled && !isAdmin && (
       <div className="flex-shrink-0 bg-white border-t border-gray-100 pb-safe">
         <form onSubmit={handleSendMessage} className="px-4 py-4">
           <div className="flex items-center gap-2">
@@ -860,6 +917,12 @@ export default function ChatInterface({
           </div>
         </form>
       </div>
+      )}
+      {/* Message pour admin (lecture seule) */}
+      {isAdmin && (
+        <div className="flex-shrink-0 bg-gray-50 border-t border-gray-200 px-4 py-3">
+          <p className="text-xs text-gray-500 text-center">Mode lecture seule - Vous ne pouvez pas envoyer de messages</p>
+        </div>
       )}
 
       {/* Modal d'offre - Design premium, compact pour tenir sur une page */}

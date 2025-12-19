@@ -18,6 +18,7 @@ export interface Database {
           phone: string | null
           city: string | null
           postal_code: string | null
+          profile_picture: string | null
           created_at: string
           updated_at: string
         }
@@ -29,6 +30,7 @@ export interface Database {
           phone?: string | null
           city?: string | null
           postal_code?: string | null
+          profile_picture?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -40,6 +42,7 @@ export interface Database {
           phone?: string | null
           city?: string | null
           postal_code?: string | null
+          profile_picture?: string | null
           created_at?: string
           updated_at?: string
         }
