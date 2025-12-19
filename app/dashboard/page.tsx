@@ -453,8 +453,17 @@ export default async function DashboardPage() {
           case 'accepted':
             status = 'ongoing' // Les réservations acceptées sont "en cours"
             break
+          case 'validated_by_client':
+            status = 'ongoing' // Les réservations validées par le client sont "en cours" (en attente de paiement)
+            break
+          case 'completed':
+            status = 'closed' // Les réservations complétées sont "terminées"
+            break
           case 'refused':
             status = 'closed' // Les réservations refusées sont "terminées"
+            break
+          case 'cancelled':
+            status = 'closed' // Les réservations annulées sont "terminées"
             break
           default:
             // Par défaut, si le statut n'est pas reconnu, on met "en cours"

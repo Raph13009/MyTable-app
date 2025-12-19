@@ -26,6 +26,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     firstName: '',
     lastName: '',
     email: '',
+    emailConfirm: '',
     phone: '',
     bookingDate: '',
     city: '',
@@ -73,6 +74,10 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email invalide'
     }
+    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = 'La confirmation de l&apos;email est requise'
+    else if (formData.email !== formData.emailConfirm) {
+      newErrors.emailConfirm = 'Les emails ne correspondent pas'
+    }
     if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est requis'
     if (!formData.bookingDate) {
       newErrors.bookingDate = 'La date est requise'
@@ -110,6 +115,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     setLoading(true)
 
     try {
+      // Exclure emailConfirm du body (c'est juste pour validation)
+      const { emailConfirm, ...bookingData } = formData
+      
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
@@ -117,7 +125,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         },
         body: JSON.stringify({
           chefId: chef.id,
-          ...formData,
+          ...bookingData,
         }),
       })
 
@@ -181,6 +189,18 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             error={errors.email}
             required
           />
+          <Input
+            label="Confirmer l&apos;email *"
+            type="email"
+            name="emailConfirm"
+            value={formData.emailConfirm}
+            onChange={handleChange}
+            error={errors.emailConfirm}
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Téléphone *"
             type="tel"

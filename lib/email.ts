@@ -406,15 +406,16 @@ export const emailTemplates = {
     })
   },
 
-  bookingAcceptedToChef: (chefName: string, chatUrl: string, baseUrl?: string) => {
+  bookingAcceptedToChef: (chefName: string, confirmationUrl: string, baseUrl?: string) => {
     const content = `
       <p>Bonjour ${chefName},</p>
-      <p>Vous avez accepté une demande de réservation. Accédez au chat pour communiquer avec votre client.</p>
+      <p>Vous avez accepté une demande de réservation.</p>
+      <p>Cliquez sur le bouton ci-dessous pour confirmer votre acceptation.</p>
     `
     // Utiliser un CTA jaune personnalisé
     const contentWithCta = content + `
       <div class="email-cta">
-        <a href="${chatUrl}" class="email-button-yellow">Accéder au chat</a>
+        <a href="${confirmationUrl}" class="email-button-yellow">Confirmer l'acceptation</a>
       </div>
     `
     return emailLayout({

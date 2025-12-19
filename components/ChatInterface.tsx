@@ -1237,12 +1237,15 @@ export default function ChatInterface({
 
               {/* Système d'étapes visuelles - Stepper moderne premium */}
               {bookingRequest && (() => {
+                const isCompleted = bookingStatus === 'completed'
+                const isCancelled = bookingStatus === 'cancelled'
                 const isStep1Complete = true // Chef/Client trouvé - toujours complété
-                const isStep2Complete = bookingStatus === 'validated_by_client'
-                const isStep3Active = isStep2Complete && bookingStatus !== 'cancelled' // Paiement actif si step 2 complété
-                const isStep4Active = false // Prestation confirmée - toujours en attente
+                const isStep2Complete = bookingStatus === 'validated_by_client' || isCompleted
+                const isStep3Complete = isCompleted // Paiement complété si mission terminée
+                const isStep3Active = (isStep2Complete && !isCancelled && !isCompleted) // Paiement actif si step 2 complété mais pas encore terminé
+                const isStep4Complete = isCompleted // Prestation confirmée si mission terminée
                 
-                const currentStep = isStep2Complete ? 3 : isStep1Complete ? 2 : 1
+                const currentStep = isCompleted ? 4 : isStep2Complete ? 3 : isStep1Complete ? 2 : 1
                 
                 return (
                   <div className="mt-6 pt-6 border-t border-gray-200">
@@ -1255,22 +1258,28 @@ export default function ChatInterface({
                         {/* Ligne complétée */}
                         <div 
                           className={`absolute top-0 left-0 w-full transition-all duration-500 ease-out ${
-                            isStep2Complete 
+                            isCompleted
+                              ? 'bg-[#FBCF03] h-full'
+                              : isStep3Complete
+                              ? 'bg-[#FBCF03] h-3/4'
+                              : isStep2Complete 
                               ? 'bg-[#FBCF03] h-1/2' 
                               : isStep1Complete 
                               ? 'bg-[#FBCF03] h-1/4'
                               : 'bg-gray-200 h-0'
                           }`}
-                          style={{ height: isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%' }}
+                          style={{ 
+                            height: isCompleted ? '100%' : isStep3Complete ? '75%' : isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%' 
+                          }}
                         />
                         {/* Ligne en attente */}
                         <div 
                           className={`absolute top-0 left-0 w-full bg-gray-200 transition-all duration-500 ${
-                            isStep2Complete ? 'h-1/2' : isStep1Complete ? 'h-3/4' : 'h-full'
+                            isCompleted ? 'h-0' : isStep3Complete ? 'h-1/4' : isStep2Complete ? 'h-1/2' : isStep1Complete ? 'h-3/4' : 'h-full'
                           }`}
                           style={{ 
-                            top: isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%',
-                            height: isStep2Complete ? '50%' : isStep1Complete ? '75%' : '100%'
+                            top: isCompleted ? '100%' : isStep3Complete ? '75%' : isStep2Complete ? '50%' : isStep1Complete ? '25%' : '0%',
+                            height: isCompleted ? '0%' : isStep3Complete ? '25%' : isStep2Complete ? '50%' : isStep1Complete ? '75%' : '100%'
                           }}
                         />
                       </div>
@@ -1386,11 +1395,17 @@ export default function ChatInterface({
                           {/* Icône de l'étape */}
                           <div className="relative flex-shrink-0">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                              isStep3Active
+                              isStep3Complete
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                : isStep3Active
                                 ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20 scale-105'
                                 : 'bg-gray-100 border-2 border-gray-300'
                             }`}>
-                              {isStep3Active ? (
+                              {isStep3Complete ? (
+                                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : isStep3Active ? (
                                 <svg className="w-5 h-5 text-[#FBCF03]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -1398,17 +1413,32 @@ export default function ChatInterface({
                                 <div className="w-3 h-3 rounded-full bg-gray-400" />
                               )}
                             </div>
+                            {isStep3Complete && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                           
                           {/* Contenu de l'étape */}
                           <div className="flex-1 pt-1.5">
                             <div className="flex items-center gap-2 mb-1">
                               <p className={`text-sm font-semibold transition-colors ${
-                                isStep3Active ? 'text-[#FBCF03]' : 'text-gray-400'
+                                isStep3Complete 
+                                  ? 'text-black' 
+                                  : isStep3Active 
+                                  ? 'text-[#FBCF03]' 
+                                  : 'text-gray-400'
                               }`}>
                                 {isClient ? 'Paiement en attente' : 'Client paye'}
                               </p>
-                              {isStep3Active ? (
+                              {isStep3Complete ? (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
+                                  Complété
+                                </span>
+                              ) : isStep3Active ? (
                                 <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/10 text-[#FBCF03] rounded-full animate-pulse">
                                   En cours
                                 </span>
@@ -1419,9 +1449,11 @@ export default function ChatInterface({
                               )}
                             </div>
                             <p className={`text-xs leading-relaxed transition-colors ${
-                              isStep3Active ? 'text-gray-600' : 'text-gray-400'
+                              isStep3Complete ? 'text-gray-600' : isStep3Active ? 'text-gray-600' : 'text-gray-400'
                             }`}>
-                              {isStep3Active
+                              {isStep3Complete
+                                ? 'Le paiement a été effectué'
+                                : isStep3Active
                                 ? (isClient 
                                   ? 'Un lien de paiement vous sera envoyé par email sous 24h'
                                   : 'Le client va procéder au paiement. Vous serez notifié dès que le paiement sera effectué.'
@@ -1436,21 +1468,53 @@ export default function ChatInterface({
                         <div className="relative flex items-start gap-4">
                           {/* Icône de l'étape */}
                           <div className="relative flex-shrink-0">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 flex items-center justify-center">
-                              <div className="w-3 h-3 rounded-full bg-gray-400" />
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isStep4Complete
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                : 'bg-gray-100 border-2 border-gray-300'
+                            }`}>
+                              {isStep4Complete ? (
+                                <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <div className="w-3 h-3 rounded-full bg-gray-400" />
+                              )}
                             </div>
+                            {isStep4Complete && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                           
                           {/* Contenu de l'étape */}
                           <div className="flex-1 pt-1.5">
                             <div className="flex items-center gap-2 mb-1">
-                              <p className="text-sm font-semibold text-gray-400">Prestation confirmée</p>
-                              <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
-                                En attente
-                              </span>
+                              <p className={`text-sm font-semibold transition-colors ${
+                                isStep4Complete ? 'text-black' : 'text-gray-400'
+                              }`}>
+                                Prestation confirmée
+                              </p>
+                              {isStep4Complete ? (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
+                                  Complété
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
+                                  En attente
+                                </span>
+                              )}
                             </div>
-                            <p className="text-xs text-gray-400 leading-relaxed">
-                              En attente du paiement
+                            <p className={`text-xs leading-relaxed transition-colors ${
+                              isStep4Complete ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                              {isStep4Complete 
+                                ? 'La prestation a été livrée avec succès'
+                                : 'En attente du paiement'
+                              }
                             </p>
                           </div>
                         </div>

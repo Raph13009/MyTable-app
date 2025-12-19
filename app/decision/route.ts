@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/?error=no_conversation_id', request.url))
       }
       const chatUrl = `${baseUrl}/chat/${conversationId}`
-      const chatLoginUrl = `${baseUrl}/chat/${conversationId}/login`
+      const confirmationUrl = `${baseUrl}/booking-accepted`
 
       // Envoyer emails au client et au chef
       const { data: chef } = await supabase
@@ -121,33 +121,14 @@ export async function GET(request: NextRequest) {
       })
 
       if (chef) {
-        // Envoyer un magic link Supabase directement au chef
-        const redirectUrl = `${baseUrl}/auth/callback?next=/dashboard`
-        
-        console.log('[decision] Sending magic link to chef:', (chef as any).email)
-        console.log('[decision] Redirect URL:', redirectUrl)
-        
-        const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
-          email: (chef as any).email.toLowerCase().trim(),
-          options: {
-            emailRedirectTo: redirectUrl,
-            shouldCreateUser: true,
-          },
+        // Envoyer un email au chef avec un lien vers la page de confirmation
+        // Le chef devra ensuite aller sur /login pour recevoir le magic link
+        await sendEmail({
+          to: (chef as any).email,
+          subject: emailSubjects.bookingAcceptedToChef,
+          html: emailTemplates.bookingAcceptedToChef((chef as any).name, confirmationUrl, baseUrl),
         })
-        
-        if (otpError) {
-          console.error('[decision] Error sending magic link to chef:', otpError)
-          // En cas d'erreur, envoyer un email avec un lien vers la page de login
-          const chefLoginUrl = `${chatLoginUrl}?email=${encodeURIComponent((chef as any).email)}`
-          await sendEmail({
-            to: (chef as any).email,
-            subject: emailSubjects.bookingAcceptedToChef,
-            html: emailTemplates.bookingAcceptedToChef((chef as any).name, chefLoginUrl, baseUrl),
-          })
-        } else {
-          console.log('[decision] Magic link sent successfully to chef via Supabase')
-          // Le magic link est envoyé par Supabase, pas besoin d'email supplémentaire
-        }
+        console.log('[decision] Confirmation email sent to chef:', (chef as any).email)
       }
 
       // Rediriger vers la page de confirmation

@@ -90,7 +90,7 @@ export interface Database {
           allergies_details: string | null
           menu_id: string | null
           notes: string | null
-          status: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled'
+          status: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
         }
@@ -110,7 +110,7 @@ export interface Database {
           allergies_details?: string | null
           menu_id?: string | null
           notes?: string | null
-          status?: 'pending' | 'accepted' | 'refused'
+          status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
         }
@@ -130,7 +130,7 @@ export interface Database {
           allergies_details?: string | null
           menu_id?: string | null
           notes?: string | null
-          status?: 'pending' | 'accepted' | 'refused'
+          status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
         }

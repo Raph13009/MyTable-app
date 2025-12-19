@@ -31,6 +31,19 @@ export default async function BookPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Bannière jaune avec logo */}
+      <div className="bg-[#FBCF03] border-b-2 border-black">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
+          <div className="flex items-center justify-center">
+            <img 
+              src="/logo-banner.jpeg" 
+              alt="MyTable" 
+              className="h-12 sm:h-14 w-auto object-contain"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-black mb-2">
