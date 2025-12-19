@@ -97,7 +97,7 @@ export default function AdminChefs() {
   }
 
   const handleShowLink = (chef: Chef) => {
-    const link = `https://www.guidemytable.fr/book/${chef.slug}`
+    const link = `https://app.guidemytable.fr/book/${chef.slug}`
     setChefLink(link)
     setShowLinkModal(true)
   }

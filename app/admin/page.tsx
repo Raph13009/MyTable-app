@@ -167,14 +167,21 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      {/* Header fixe - Jaune avec logo */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b-2 border-black shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-bold text-black">Administration</h1>
+          <div className="flex items-center justify-between h-16 sm:h-20">
+            <div className="flex items-center gap-4">
+              <img 
+                src="/logo-banner.jpeg" 
+                alt="MyTable" 
+                className="h-10 sm:h-12 w-auto object-contain"
+              />
+              <h1 className="text-lg sm:text-xl font-bold text-black hidden sm:block">Administration</h1>
+            </div>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-black bg-white/90 hover:bg-white border-2 border-black rounded-lg transition-all shadow-sm hover:shadow-md"
             >
               Déconnexion
             </button>
@@ -182,8 +189,8 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="bg-white border-b border-gray-200">
+      {/* Navigation fixe sous le header */}
+      <div className="fixed top-16 sm:top-20 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8">
             <button
@@ -210,9 +217,11 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeSection === 'messaging' ? <AdminMessaging /> : <AdminChefs />}
+      {/* Content avec padding pour les headers fixes */}
+      <div className="pt-32 sm:pt-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {activeSection === 'messaging' ? <AdminMessaging /> : <AdminChefs />}
+        </div>
       </div>
     </div>
   )
