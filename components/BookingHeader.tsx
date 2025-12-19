@@ -47,11 +47,33 @@ export default function BookingHeader() {
         </svg>
       </button>
 
-      {/* Popup avec stepper - Même structure que ChatInterface */}
+      {/* Popup avec stepper - Centrée professionnellement */}
       {showStepper && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowStepper(false)}>
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 sm:p-8">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] p-4"
+          onClick={() => setShowStepper(false)}
+          style={{ 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto'
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              margin: 'auto',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div className="p-6 sm:p-8 flex-1">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-black">Progression de la réservation</h2>
