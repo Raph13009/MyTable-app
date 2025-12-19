@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 interface Chef {
@@ -25,22 +26,9 @@ interface Menu {
 }
 
 export default function AdminChefs() {
+  const router = useRouter()
   const [chefs, setChefs] = useState<Chef[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [editingChef, setEditingChef] = useState<Chef | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    emailConfirm: '',
-    phone: '',
-    city: '',
-    postal_code: '',
-    profile_picture: null as File | null,
-  })
-  const [menus, setMenus] = useState<Menu[]>([])
-  const [newMenu, setNewMenu] = useState({ name: '', description: '', price: '' })
-  const [uploading, setUploading] = useState(false)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [chefLink, setChefLink] = useState('')
   const supabase = createClient()
@@ -84,135 +72,6 @@ export default function AdminChefs() {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, profile_picture: e.target.files[0] })
-    }
-  }
-
-  const uploadProfilePicture = async (file: File, chefId: string): Promise<string | null> => {
-    try {
-      setUploading(true)
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${chefId}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `chef-profiles/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('chef-profiles')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        })
-
-      if (uploadError) throw uploadError
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('chef-profiles').getPublicUrl(filePath)
-
-      return publicUrl
-    } catch (error) {
-      console.error('Error uploading profile picture:', error)
-      alert('Erreur lors de l\'upload de la photo')
-      return null
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (formData.email !== formData.emailConfirm) {
-      alert('Les emails ne correspondent pas')
-      return
-    }
-
-    try {
-      const slug = formData.name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-
-      let profilePictureUrl = null
-      if (formData.profile_picture) {
-        // Pour l'édition, on utilise l'ID existant, sinon on génère un ID temporaire
-        const tempId = editingChef?.id || crypto.randomUUID()
-        profilePictureUrl = await uploadProfilePicture(formData.profile_picture, tempId)
-        if (!profilePictureUrl && editingChef) {
-          profilePictureUrl = editingChef.profile_picture
-        }
-      } else if (editingChef) {
-        profilePictureUrl = editingChef.profile_picture
-      }
-
-      if (editingChef) {
-        // Mettre à jour le chef via API
-        const response = await fetch('/api/admin/update-chef', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chefId: editingChef.id,
-            slug,
-            name: formData.name,
-            email: formData.email.toLowerCase().trim(),
-            phone: formData.phone || null,
-            city: formData.city || null,
-            postal_code: formData.postal_code || null,
-            profile_picture: profilePictureUrl,
-            menus,
-          }),
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Erreur lors de la mise à jour')
-        }
-      } else {
-        // Créer un nouveau chef via API
-        const response = await fetch('/api/admin/create-chef', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slug,
-            name: formData.name,
-            email: formData.email.toLowerCase().trim(),
-            phone: formData.phone || null,
-            city: formData.city || null,
-            postal_code: formData.postal_code || null,
-            profile_picture: profilePictureUrl,
-            menus,
-          }),
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Erreur lors de la création')
-        }
-      }
-
-      // Réinitialiser le formulaire
-      setFormData({
-        name: '',
-        email: '',
-        emailConfirm: '',
-        phone: '',
-        city: '',
-        postal_code: '',
-        profile_picture: null,
-      })
-      setMenus([])
-      setNewMenu({ name: '', description: '', price: '' })
-      setShowAddModal(false)
-      setEditingChef(null)
-      fetchChefs()
-    } catch (error: any) {
-      console.error('Error saving chef:', error)
-      alert(error.message || 'Erreur lors de la sauvegarde')
-    }
-  }
 
   const handleDelete = async (chefId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce chef ?')) return
@@ -234,18 +93,7 @@ export default function AdminChefs() {
   }
 
   const handleEdit = (chef: Chef) => {
-    setEditingChef(chef)
-    setFormData({
-      name: chef.name,
-      email: chef.email,
-      emailConfirm: chef.email,
-      phone: chef.phone || '',
-      city: chef.city || '',
-      postal_code: chef.postal_code || '',
-      profile_picture: null,
-    })
-    setMenus(chef.menus || [])
-    setShowAddModal(true)
+    router.push(`/admin/chef-form?id=${chef.id}`)
   }
 
   const handleShowLink = (chef: Chef) => {
@@ -259,24 +107,6 @@ export default function AdminChefs() {
     alert('Lien copié dans le presse-papier !')
   }
 
-  const addMenu = () => {
-    if (!newMenu.name.trim()) return
-    setMenus([
-      ...menus,
-      {
-        id: crypto.randomUUID(),
-        chef_id: editingChef?.id || '',
-        name: newMenu.name,
-        description: newMenu.description || null,
-        price: newMenu.price ? parseFloat(newMenu.price) : null,
-      },
-    ])
-    setNewMenu({ name: '', description: '', price: '' })
-  }
-
-  const removeMenu = (index: number) => {
-    setMenus(menus.filter((_, i) => i !== index))
-  }
 
   if (loading) {
     return (
@@ -291,21 +121,7 @@ export default function AdminChefs() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-black">Gestion des chefs</h2>
         <button
-          onClick={() => {
-            setEditingChef(null)
-            setFormData({
-              name: '',
-              email: '',
-              emailConfirm: '',
-              phone: '',
-              city: '',
-              postal_code: '',
-              profile_picture: null,
-            })
-            setMenus([])
-            setNewMenu({ name: '', description: '', price: '' })
-            setShowAddModal(true)
-          }}
+          onClick={() => router.push('/admin/chef-form')}
           className="px-4 py-2 bg-[#FBCF03] text-black font-semibold rounded-lg hover:bg-[#E6BA00] transition-colors"
         >
           Ajouter un chef
@@ -427,193 +243,6 @@ export default function AdminChefs() {
           ))
         )}
       </div>
-
-      {/* Modal Ajouter/Modifier */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-black mb-6">
-                {editingChef ? 'Modifier le chef' : 'Ajouter un chef'}
-              </h3>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Photo de profil
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                  {editingChef?.profile_picture && !formData.profile_picture && (
-                    <img
-                      src={editingChef.profile_picture}
-                      alt="Current"
-                      className="w-20 h-20 rounded-full object-cover mt-2"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmer l&apos;email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.emailConfirm}
-                      onChange={(e) => setFormData({ ...formData, emailConfirm: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Téléphone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Code postal
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.postal_code}
-                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ville
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent"
-                  />
-                </div>
-
-                {/* Menus */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h4 className="font-semibold text-black mb-3">Menus</h4>
-                  {menus.map((menu, index) => (
-                    <div key={index} className="flex items-center gap-2 mb-2 p-2 bg-gray-50 rounded">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{menu.name}</p>
-                        {menu.description && (
-                          <p className="text-xs text-gray-500">{menu.description}</p>
-                        )}
-                        {menu.price && <p className="text-xs text-gray-600">{menu.price} €</p>}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeMenu(index)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <input
-                      type="text"
-                      placeholder="Nom du menu"
-                      value={newMenu.name}
-                      onChange={(e) => setNewMenu({ ...newMenu, name: e.target.value })}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Description"
-                      value={newMenu.description}
-                      onChange={(e) => setNewMenu({ ...newMenu, description: e.target.value })}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        placeholder="Prix"
-                        value={newMenu.price}
-                        onChange={(e) => setNewMenu({ ...newMenu, price: e.target.value })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={addMenu}
-                        className="px-4 py-2 bg-[#FBCF03] text-black font-medium rounded-lg hover:bg-[#E6BA00] transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false)
-                      setEditingChef(null)
-                    }}
-                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className="flex-1 px-4 py-2 bg-[#FBCF03] text-black font-semibold rounded-lg hover:bg-[#E6BA00] transition-colors disabled:opacity-50"
-                  >
-                    {uploading ? 'Upload...' : editingChef ? 'Modifier' : 'Ajouter'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal pour afficher le lien */}
       {showLinkModal && (
