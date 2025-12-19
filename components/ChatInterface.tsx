@@ -21,6 +21,41 @@ interface ChatInterfaceProps {
   isAdmin?: boolean
 }
 
+// Icônes culinaires pour l'animation
+const CULINARY_ICONS = ['🍳', '👨‍🍳', '🍽️', '🥘', '🍲']
+
+// Composant d'animation de chargement avec icônes culinaires
+function LoadingAnimation({ message = 'Chargement...' }: { message?: string }) {
+  const [currentIcon, setCurrentIcon] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIcon((prev) => (prev + 1) % CULINARY_ICONS.length)
+    }, 300)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-6xl mb-4 animate-bounce">
+          {CULINARY_ICONS[currentIcon]}
+        </div>
+        <p className="text-sm text-gray-600 font-medium">{message}</p>
+        <div className="mt-4 flex justify-center gap-1">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-2 h-2 bg-[#FBCF03] rounded-full animate-pulse"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatInterface({
   conversationId,
   initialMessages,
@@ -51,6 +86,14 @@ export default function ChatInterface({
       }
     }
   }, [currentUser, isAdminProp])
+
+  // Animation de chargement initial
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitializing(false)
+    }, 800) // Animation de 800ms
+    return () => clearTimeout(timer)
+  }, [])
   
   const isAdmin = isAdminState
   // Sanitize initial messages (extra safety layer)
@@ -61,6 +104,8 @@ export default function ChatInterface({
   const [messages, setMessages] = useState<Message[]>(sanitizedInitialMessages)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
   const [extras, setExtras] = useState<Array<{ name: string; price: number }>>([])
   const [newExtraName, setNewExtraName] = useState('')
@@ -637,8 +682,25 @@ export default function ChatInterface({
     return null
   }
 
+  // Gestion du retour avec animation
+  const handleBackClick = () => {
+    setIsNavigatingBack(true)
+    setTimeout(() => {
+      if (cameFromAdmin || isAdmin) {
+        router.push('/admin?section=messaging')
+      } else {
+        router.push('/dashboard')
+      }
+    }, 300)
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col bg-white">
+      {/* Animation de chargement initial */}
+      {isInitializing && <LoadingAnimation message="Préparation de la conversation..." />}
+      
+      {/* Animation de navigation retour */}
+      {isNavigatingBack && <LoadingAnimation message="Retour en cours..." />}
       {/* Header - Premium, moderne, avec contraste distinct */}
       <div className="flex-shrink-0 bg-gray-50/95 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200/80 shadow-sm">
         <div className="px-4 sm:px-6 py-3">
@@ -674,19 +736,20 @@ export default function ChatInterface({
           {/* Actions en dessous */}
           <div className="flex items-center justify-between gap-3">
             <button
-              onClick={() => {
-                if (cameFromAdmin || isAdmin) {
-                  router.push('/admin?section=messaging')
-                } else {
-                  router.push('/dashboard')
-                }
-              }}
-              className="flex-shrink-0 p-1.5 -ml-1.5 text-gray-500 hover:text-black hover:bg-black/5 rounded-lg transition-all"
+              onClick={handleBackClick}
+              disabled={isNavigatingBack}
+              className="flex-shrink-0 p-1.5 -ml-1.5 text-gray-500 hover:text-black hover:bg-black/5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Retour"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              {isNavigatingBack ? (
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <span className="text-lg animate-spin">🍳</span>
+                </div>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              )}
             </button>
 
             {/* Right: Actions grouped */}
