@@ -1,9 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function BookingHeader() {
   const [showStepper, setShowStepper] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Bloquer le scroll du body quand la popup est ouverte
   useEffect(() => {
@@ -47,10 +53,10 @@ export default function BookingHeader() {
         </svg>
       </button>
 
-      {/* Popup avec stepper - Centrée professionnellement */}
-      {showStepper && (
+      {/* Popup avec stepper - Rendu via Portal pour être au-dessus de tout */}
+      {mounted && showStepper ? createPortal(
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setShowStepper(false)}
           style={{ 
             position: 'fixed',
@@ -61,7 +67,8 @@ export default function BookingHeader() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'auto'
+            overflow: 'auto',
+            zIndex: 9999
           }}
         >
           <div 
@@ -328,7 +335,9 @@ export default function BookingHeader() {
             </div>
           </div>
         </div>
-      )}
+        ,
+        document.body
+      ) : null}
     </>
   )
 }
