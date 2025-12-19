@@ -77,7 +77,20 @@ export default function AdminMessaging() {
       conv.bookingRequest?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.bookingRequest?.chefName?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = statusFilter === 'all' || conv.bookingRequest?.status === statusFilter
+    let matchesStatus = true
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'ongoing') {
+        // "En cours" regroupe accepted et validated_by_client
+        matchesStatus = conv.bookingRequest?.status === 'accepted' || 
+                       conv.bookingRequest?.status === 'validated_by_client'
+      } else if (statusFilter === 'cancelled') {
+        // "Annulée" regroupe refused et cancelled
+        matchesStatus = conv.bookingRequest?.status === 'refused' || 
+                       conv.bookingRequest?.status === 'cancelled'
+      } else {
+        matchesStatus = conv.bookingRequest?.status === statusFilter
+      }
+    }
 
     return matchesSearch && matchesStatus
   })
@@ -189,14 +202,19 @@ export default function AdminMessaging() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03] transition-all sm:min-w-[180px]"
+                className="w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-black focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03] transition-all sm:min-w-[180px] appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                  backgroundPosition: 'right 0.5rem center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '1.5em 1.5em',
+                  paddingRight: '2.5rem',
+                }}
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente paiement</option>
-                <option value="accepted">En cours</option>
-                <option value="validated_by_client">En cours</option>
+                <option value="ongoing">En cours</option>
                 <option value="completed">Confirmée</option>
-                <option value="refused">Annulée</option>
                 <option value="cancelled">Annulée</option>
               </select>
             </div>

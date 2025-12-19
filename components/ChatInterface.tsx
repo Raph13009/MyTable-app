@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
   bookingRequest: any
   menuDetails?: any
   showAcceptedMessage?: boolean
+  isAdmin?: boolean
 }
 
 export default function ChatInterface({
@@ -28,15 +29,16 @@ export default function ChatInterface({
   bookingRequest,
   menuDetails,
   showAcceptedMessage = false,
+  isAdmin: isAdminProp = false,
 }: ChatInterfaceProps) {
   // Vérifier si l'utilisateur est admin (lecture seule)
   const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
-  const [isAdminState, setIsAdminState] = useState(false)
+  const [isAdminState, setIsAdminState] = useState(isAdminProp)
   const [cameFromAdmin, setCameFromAdmin] = useState(false)
   
   useEffect(() => {
-    // Vérifier si l'utilisateur est l'admin via UID
-    const isAdmin = currentUser?.id === ADMIN_UID
+    // Vérifier si l'utilisateur est l'admin via UID ou via prop
+    const isAdmin = isAdminProp || currentUser?.id === ADMIN_UID
     setIsAdminState(isAdmin)
     
     // Vérifier si on vient de l'admin (via referrer ou sessionStorage)
@@ -48,7 +50,7 @@ export default function ChatInterface({
         sessionStorage.setItem('from_admin', 'true')
       }
     }
-  }, [currentUser])
+  }, [currentUser, isAdminProp])
   
   const isAdmin = isAdminState
   // Sanitize initial messages (extra safety layer)
@@ -646,9 +648,26 @@ export default function ChatInterface({
               {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : 'Conversation'}
             </h1>
             {bookingRequest && (
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-              </p>
+              <>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                  {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                </p>
+                {/* Emails du chef et du client - Uniquement pour l'admin */}
+                {isAdmin && (
+                  <div className="mt-2 space-y-1">
+                    {bookingRequest.chefEmail && (
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Chef:</span> {bookingRequest.chefEmail}
+                      </p>
+                    )}
+                    {bookingRequest.email && (
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Client:</span> {bookingRequest.email}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
           

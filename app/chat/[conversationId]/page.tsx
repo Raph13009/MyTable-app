@@ -86,21 +86,24 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           .maybeSingle()
         
         if (booking) {
-          // Récupérer le nom du chef
+          // Récupérer le nom et l'email du chef
           let chefName = null
+          let chefEmail = null
           if ((booking as any).chef_id) {
             const { data: chef } = await supabaseAdmin
               .from('chefs')
-              .select('name')
+              .select('name, email')
               .eq('id', (booking as any).chef_id)
               .single()
             if (chef) {
               chefName = chef.name
+              chefEmail = (chef as any).email
             }
           }
           bookingRequest = {
             ...booking,
             chefName: chefName,
+            chefEmail: chefEmail,
           }
         }
       }
@@ -123,6 +126,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           bookingRequest={bookingRequest}
           menuDetails={menuDetails}
           showAcceptedMessage={searchParams.accepted === 'true'}
+          isAdmin={isAdmin}
         />
       )
     }
@@ -178,24 +182,28 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         .maybeSingle()
       
       if (!bookingError && booking) {
-        // Récupérer le nom du chef depuis la table chefs
+        // Récupérer le nom et l'email du chef depuis la table chefs
         let chefName = null
+        let chefEmail = null
         if ((booking as any).chef_id) {
           const { data: chef, error: chefError } = await supabaseAdmin
             .from('chefs')
-            .select('name')
+            .select('name, email')
             .eq('id', (booking as any).chef_id)
             .single()
           
           if (!chefError && chef) {
             chefName = chef.name
+            chefEmail = (chef as any).email
             console.log('[ChatPage] ✅ Chef name found:', chefName)
+            console.log('[ChatPage] ✅ Chef email found:', chefEmail)
           }
         }
         
         bookingRequest = {
           ...booking,
           chefName: chefName,
+          chefEmail: chefEmail,
         }
         console.log('[ChatPage] ✅ Booking request found')
         
@@ -246,6 +254,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         bookingRequest={bookingRequest}
         menuDetails={menuDetails}
         showAcceptedMessage={searchParams.accepted === 'true'}
+        isAdmin={isAdmin}
       />
     )
   } catch (error: any) {
