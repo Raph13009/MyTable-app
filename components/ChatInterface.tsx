@@ -776,27 +776,45 @@ export default function ChatInterface({
             <div className="flex flex-col items-center justify-center py-16">
               {/* Message système par défaut pour nouvelle conversation */}
               {bookingRequest && (
-                <div className="flex justify-center my-3 w-full">
-                  <div className="bg-gray-100 rounded-full px-4 py-2.5 max-w-[85%] flex items-center gap-2">
-                    <span className="text-xs">ℹ️</span>
-                    <div className="text-xs text-gray-600 text-center space-y-1">
-                      <p>
-                        Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
-                        <strong>
-                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </strong>
-                        .
-                      </p>
-                      <p>Retrouvez l&apos;état de la prestation dans <strong>&quot;Voir l&apos;offre&quot;</strong>.</p>
-                      {isClient ? (
-                        <p>Une fois que tout est bon de votre côté, appuyez sur <strong>&quot;Finaliser&quot;</strong>.</p>
-                      ) : (
-                        <p>Une fois que tout est bon, le client doit appuyer sur <strong>&quot;Finaliser&quot;</strong>.</p>
-                      )}
+                <div className="flex justify-center my-4 sm:my-6 w-full px-2">
+                  <div className="bg-gradient-to-br from-[#FBCF03] to-[#F9D423] rounded-2xl sm:rounded-3xl px-5 py-6 sm:px-6 sm:py-7 max-w-[90%] sm:max-w-[500px] shadow-lg border-2 border-black">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex items-center justify-center">
+                          <span className="text-white text-base sm:text-lg">💬</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-3 sm:space-y-4">
+                        <div>
+                          <p className="text-sm sm:text-base text-black font-medium leading-relaxed">
+                            Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
+                            <span className="font-bold text-black">
+                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            .
+                          </p>
+                        </div>
+                        <div className="bg-white/60 rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 border border-black/10">
+                          <p className="text-xs sm:text-sm text-black leading-relaxed">
+                            Retrouvez l&apos;état de la prestation dans <span className="font-semibold">&quot;Voir l&apos;offre&quot;</span>.
+                          </p>
+                        </div>
+                        <div className="pt-1">
+                          {isClient ? (
+                            <p className="text-xs sm:text-sm text-black leading-relaxed">
+                              Une fois que tout est bon de votre côté, appuyez sur <span className="font-bold">&quot;Finaliser&quot;</span>.
+                            </p>
+                          ) : (
+                            <p className="text-xs sm:text-sm text-black leading-relaxed">
+                              Une fois que tout est bon, le client doit appuyer sur <span className="font-bold">&quot;Finaliser&quot;</span>.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
