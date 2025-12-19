@@ -160,8 +160,8 @@ export default function ConversationsList({ conversations, currentUser, particip
         </div>
       </div>
 
-      {/* Header fixe sous la bannière */}
-      <div className="fixed top-16 sm:top-20 left-0 right-0 z-40 bg-white/98 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+      {/* Header fixe sous la bannière - Background opaque pour éviter que le contenu passe derrière */}
+      <div className="fixed top-16 sm:top-20 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <h1 className="text-xl font-semibold text-black">Messages</h1>
@@ -223,7 +223,8 @@ export default function ConversationsList({ conversations, currentUser, particip
       </div>
 
       {/* Liste des conversations - style premium Instagram/WhatsApp */}
-      <div className="pt-44 sm:pt-52">
+      {/* Padding calculé : bannière (~80px) + header Messages (64px) + filtres (~48px) = ~192px */}
+      <div className="pt-48 sm:pt-52">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2">
         {filteredConversations.length === 0 ? (
           <div className="py-16 text-center">

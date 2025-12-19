@@ -124,7 +124,7 @@ export default async function HomePage({
       {/* Footer */}
       <footer className="border-t-2 border-gray-300 mt-20 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
-          <p>&copy; 2024 MyTable. Tous droits réservés.</p>
+          <p>&copy; 2025 MyTable. Tous droits réservés.</p>
         </div>
       </footer>
     </div>
