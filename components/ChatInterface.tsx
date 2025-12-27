@@ -939,7 +939,7 @@ export default function ChatInterface({
                       Menu
                     </button>
                   )}
-                  {/* Secondary: Voir l'offre (ghost/outline) */}
+                  {/* Secondary: Voir l&apos;offre (ghost/outline) */}
                   <button
                     onClick={() => setShowOfferModal(true)}
                     className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
@@ -1577,7 +1577,7 @@ export default function ChatInterface({
                         type="text"
                         value={newExtraName}
                         onChange={(e) => setNewExtraName(e.target.value)}
-                        placeholder="Nom de l'extra"
+                        placeholder="Nom de l&apos;extra"
                         className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-sm transition-all duration-150"
                         disabled={savingExtras}
                       />
@@ -1723,7 +1723,7 @@ export default function ChatInterface({
         </div>
       )}
 
-      {/* Modal d'information (client uniquement) */}
+      {/* Modal d&apos;information (client uniquement) */}
       {showInfoModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowInfoModal(false)}>
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -1744,7 +1744,7 @@ export default function ChatInterface({
 
               {/* Actions - Réplique exacte des boutons du header avec explications */}
               <div className="space-y-3 mb-6">
-                {/* Voir l'offre */}
+                {/* Voir l&apos;offre */}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
