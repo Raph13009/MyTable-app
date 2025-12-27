@@ -102,6 +102,7 @@ export interface Database {
           selected_dates: Json | null
           meal_options: string[] | null
           total_price: number | null
+          menu_content: Json | null
           status: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
@@ -131,6 +132,7 @@ export interface Database {
           selected_dates?: Json | null
           meal_options?: string[] | null
           total_price?: number | null
+          menu_content?: Json | null
           status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
@@ -159,6 +161,7 @@ export interface Database {
           selected_dates?: Json | null
           meal_options?: string[] | null
           total_price?: number | null
+          menu_content?: Json | null
           status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string

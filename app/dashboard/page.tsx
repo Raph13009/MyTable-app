@@ -58,7 +58,7 @@ export default async function DashboardPage() {
   // Récupérer TOUS les booking_requests et filtrer côté serveur pour éviter les problèmes de casse
   const { data: allBookingRequests, error: brError } = await supabaseAdmin
     .from('booking_requests')
-    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, children_count, email, service_type, period_days, meal_time')
+    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, children_count, email, service_type, period_days, meal_time, menu_content')
   
   console.log('[Dashboard] All booking requests in DB:', allBookingRequests?.length || 0)
   console.log('[Dashboard] Sample booking requests (first 5):', allBookingRequests?.slice(0, 5).map((br: any) => ({

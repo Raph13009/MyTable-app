@@ -107,10 +107,31 @@ export default function ChatInterface({
   const [isInitializing, setIsInitializing] = useState(true)
   const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
+  const [showMenuModal, setShowMenuModal] = useState(false)
   const [extras, setExtras] = useState<Array<{ name: string; price: number }>>([])
   const [newExtraName, setNewExtraName] = useState('')
   const [newExtraPrice, setNewExtraPrice] = useState('')
   const [savingExtras, setSavingExtras] = useState(false)
+  const [savingMenu, setSavingMenu] = useState(false)
+  
+  // Menu state structure
+  type MenuCategory = 'aperitifs' | 'mise_en_bouche' | 'entree' | 'plat' | 'dessert' | 'mignardises'
+  const [menuCategories, setMenuCategories] = useState<Record<MenuCategory, string[]>>({
+    aperitifs: [],
+    mise_en_bouche: [],
+    entree: [],
+    plat: [],
+    dessert: [],
+    mignardises: [],
+  })
+  const [newMenuItems, setNewMenuItems] = useState<Record<MenuCategory, string>>({
+    aperitifs: '',
+    mise_en_bouche: '',
+    entree: '',
+    plat: '',
+    dessert: '',
+    mignardises: '',
+  })
   const [bookingStatus, setBookingStatus] = useState<string | null>(bookingRequest?.status || null)
   const [processingAction, setProcessingAction] = useState(false)
   const [showFinalizeModal, setShowFinalizeModal] = useState(false)
@@ -427,6 +448,21 @@ export default function ChatInterface({
     }
   }, [bookingRequest?.id])
 
+  // Charger le menu_content au montage
+  useEffect(() => {
+    if (bookingRequest?.menu_content && typeof bookingRequest.menu_content === 'object') {
+      const menuData = bookingRequest.menu_content as any
+      setMenuCategories({
+        aperitifs: menuData.aperitifs || [],
+        mise_en_bouche: menuData.mise_en_bouche || [],
+        entree: menuData.entree || [],
+        plat: menuData.plat || [],
+        dessert: menuData.dessert || [],
+        mignardises: menuData.mignardises || [],
+      })
+    }
+  }, [bookingRequest?.menu_content])
+
   // Vérifier s'il y a des changements non sauvegardés
   useEffect(() => {
     const guestsChanged = guestsCount !== (bookingRequest?.guests_count || 1)
@@ -718,6 +754,81 @@ export default function ChatInterface({
     return 'Chef'
   }
 
+  // Handlers pour le menu
+  const handleAddMenuItem = (category: MenuCategory) => {
+    const item = newMenuItems[category].trim()
+    if (!item) return
+    setMenuCategories(prev => ({
+      ...prev,
+      [category]: [...prev[category], item],
+    }))
+    setNewMenuItems(prev => ({
+      ...prev,
+      [category]: '',
+    }))
+  }
+
+  const handleRemoveMenuItem = (category: MenuCategory, index: number) => {
+    setMenuCategories(prev => ({
+      ...prev,
+      [category]: prev[category].filter((_, i) => i !== index),
+    }))
+  }
+
+  const handleNewMenuItemChange = (category: MenuCategory, value: string) => {
+    setNewMenuItems(prev => ({
+      ...prev,
+      [category]: value,
+    }))
+  }
+
+  const handleSaveMenu = async () => {
+    if (!bookingRequest?.id || !currentUser) {
+      return
+    }
+
+    setSavingMenu(true)
+
+    try {
+      // Filtrer les catégories vides
+      const cleanedMenu: any = {}
+      Object.entries(menuCategories).forEach(([key, items]) => {
+        if (items.length > 0) {
+          cleanedMenu[key] = items
+        }
+      })
+
+      const response = await fetch('/api/booking-menu', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingRequestId: bookingRequest.id,
+          menuContent: cleanedMenu,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la sauvegarde')
+      }
+
+      // Recharger la page pour afficher le nouveau message
+      window.location.reload()
+    } catch (error: any) {
+      console.error('[ChatInterface] Error saving menu:', error)
+      alert(error.message || 'Erreur lors de la sauvegarde du menu')
+    } finally {
+      setSavingMenu(false)
+    }
+  }
+
+  // Vérifier si un menu existe
+  const hasMenu = bookingRequest?.menu_content && typeof bookingRequest.menu_content === 'object' && 
+    Object.values(bookingRequest.menu_content as any).some((items: any) => Array.isArray(items) && items.length > 0)
+
   if (!currentUser) {
     return null
   }
@@ -756,9 +867,27 @@ export default function ChatInterface({
             </div>
             {bookingRequest && (
               <>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                  {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                  </p>
+                  {isChef && bookingRequest.service_type === 'repas_domicile' && bookingRequest.meal_time && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                      </p>
+                    </>
+                  )}
+                  {isChef && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <p className="text-xs sm:text-sm font-medium text-gray-700">
+                        {bookingRequest.first_name} {bookingRequest.last_name}
+                      </p>
+                    </>
+                  )}
+                </div>
                 {/* Emails du chef et du client - Uniquement pour l'admin */}
                 {isAdmin && (
                   <div className="mt-2 space-y-1">
@@ -801,6 +930,15 @@ export default function ChatInterface({
             <div className="flex items-center gap-2 flex-1 justify-end">
               {bookingRequest && (
                 <>
+                  {/* Menu button (chef only) - Yellow for contrast */}
+                  {isChef && (
+                    <button
+                      onClick={() => setShowMenuModal(true)}
+                      className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow"
+                    >
+                      Menu
+                    </button>
+                  )}
                   {/* Secondary: Voir l'offre (ghost/outline) */}
                   <button
                     onClick={() => setShowOfferModal(true)}
@@ -808,6 +946,25 @@ export default function ChatInterface({
                   >
                     Voir l&apos;offre
                   </button>
+                  
+                  {/* Voir le menu (client only, if menu exists) */}
+                  {isClient && hasMenu && (
+                    <button
+                      onClick={() => {
+                        // Scroll to menu message in chat
+                        const menuMessage = messages.find(m => 
+                          m.content.includes('✨ Menu défini') || m.content.includes('Menu défini')
+                        )
+                        if (menuMessage) {
+                          const element = document.querySelector(`[data-message-id="${menuMessage.id}"]`)
+                          element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
+                    >
+                      Voir le menu
+                    </button>
+                  )}
                   
                   {/* Primary: Finaliser (client uniquement, statut accepted) */}
                   {isClient && bookingStatus === 'accepted' && (
@@ -885,43 +1042,39 @@ export default function ChatInterface({
               {/* Message système par défaut pour nouvelle conversation */}
               {bookingRequest && (
                 <div className="flex justify-center my-4 sm:my-6 w-full px-2">
-                  <div className="bg-gradient-to-br from-[#FBCF03] to-[#F9D423] rounded-2xl sm:rounded-3xl px-5 py-6 sm:px-6 sm:py-7 max-w-[90%] sm:max-w-[500px] shadow-lg border-2 border-black">
-                    <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl px-5 py-6 sm:px-6 sm:py-7 max-w-[90%] sm:max-w-[500px] shadow-lg border-2 border-gray-300">
+                    <div className="flex items-start gap-4">
                       <div className="flex-shrink-0 mt-0.5">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex items-center justify-center">
-                          <span className="text-white text-base sm:text-lg">💬</span>
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FBCF03] rounded-full flex items-center justify-center">
+                          <span className="text-black text-lg sm:text-xl">💬</span>
                         </div>
                       </div>
-                      <div className="flex-1 space-y-3 sm:space-y-4">
+                      <div className="flex-1 space-y-3">
                         <div>
-                          <p className="text-sm sm:text-base text-black font-medium leading-relaxed">
-                        Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
-                            <span className="font-bold text-black">
-                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
+                          <p className="text-sm sm:text-base text-gray-900 font-medium leading-relaxed">
+                            Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
+                            <span className="font-semibold text-gray-900">
+                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
                             </span>
-                        .
-                      </p>
-                        </div>
-                        <div className="bg-white/60 rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 border border-black/10">
-                          <p className="text-xs sm:text-sm text-black leading-relaxed">
-                            Retrouvez l&apos;état de la prestation dans <span className="font-semibold">&quot;Voir l&apos;offre&quot;</span>.
+                            .
                           </p>
                         </div>
-                        <div className="pt-1">
-                      {isClient ? (
-                            <p className="text-xs sm:text-sm text-black leading-relaxed">
-                              Une fois que tout est bon de votre côté, appuyez sur <span className="font-bold">&quot;Finaliser&quot;</span>.
-                            </p>
-                      ) : (
-                            <p className="text-xs sm:text-sm text-black leading-relaxed">
-                              Une fois que tout est bon, le client doit appuyer sur <span className="font-bold">&quot;Finaliser&quot;</span>.
-                            </p>
-                      )}
+                        <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            Retrouvez les détails de votre évènement dans <span className="font-semibold text-gray-900">&quot;Voir l&apos;offre&quot;</span>.
+                          </p>
                         </div>
+                        {isClient && (
+                          <div className="pt-1">
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                              Pour confirmer définitivement votre réservation, appuyez sur <span className="font-bold text-gray-900">&quot;Finaliser&quot;</span>.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -951,27 +1104,93 @@ export default function ChatInterface({
                   isOwn: isOwnMessage(message),
                 })
                 
-                // Message système (notification)
+                // Message système (notification) - Très voyant
                 if (isSystem) {
+                  const isMenuMessage = message.content.includes('Menu défini') || message.content.startsWith('✨ Menu')
                   let icon = 'ℹ️'
-                  if (message.content.startsWith('✨')) {
+                  let bgColor = 'bg-[#FBCF03]'
+                  let textColor = 'text-black'
+                  let borderColor = 'border-[#FBCF03]'
+                  
+                  if (isMenuMessage) {
+                    icon = '📋'
+                    bgColor = 'bg-[#FBCF03]'
+                    textColor = 'text-black'
+                    borderColor = 'border-[#FBCF03]'
+                  } else if (message.content.startsWith('✨')) {
                     icon = '✨'
+                    bgColor = 'bg-[#FBCF03]'
+                    textColor = 'text-black'
+                    borderColor = 'border-[#FBCF03]'
                   } else if (message.content.startsWith('🗑️')) {
                     icon = '🗑️'
+                    bgColor = 'bg-red-50'
+                    textColor = 'text-red-700'
+                    borderColor = 'border-red-200'
                   } else if (message.content.toLowerCase().includes('validée')) {
                     icon = '✅'
+                    bgColor = 'bg-green-50'
+                    textColor = 'text-green-700'
+                    borderColor = 'border-green-200'
                   } else if (message.content.toLowerCase().includes('annulée')) {
                     icon = '❌'
+                    bgColor = 'bg-red-50'
+                    textColor = 'text-red-700'
+                    borderColor = 'border-red-200'
+                  } else if (message.content.toLowerCase().includes('extra') || message.content.toLowerCase().includes('convive') || message.content.toLowerCase().includes('modifié')) {
+                    bgColor = 'bg-[#FBCF03]'
+                    textColor = 'text-black'
+                    borderColor = 'border-[#FBCF03]'
                   }
                   
-                  const contentWithoutIcon = message.content.replace(/^[✨🗑️✅❌ℹ️]+\s*/, '')
+                  const contentWithoutIcon = message.content.replace(/^[✨🗑️✅❌ℹ️📋]+\s*/, '')
                   // Sanitize content before rendering (extra safety layer)
                   const sanitizedContent = sanitizeMessage(contentWithoutIcon)
+                  
+                  // Format spécial pour les messages de menu
+                  if (isMenuMessage) {
+                    const menuLines = sanitizedContent.split('\n').filter(line => line.trim())
+                    return (
+                      <div key={message.id} className="flex justify-center my-4" data-message-id={message.id}>
+                        <div className={`${bgColor} ${textColor} border-2 ${borderColor} rounded-xl px-5 py-4 max-w-[90%] shadow-lg`}>
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-lg">{icon}</span>
+                            <p className={`text-sm font-bold ${textColor}`}>
+                              Menu défini
+                            </p>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-black/20 space-y-3">
+                            {menuLines.map((line, idx) => {
+                              if (line.includes(':')) {
+                                const [category, ...rest] = line.split(':')
+                                const itemsText = rest.join(':').trim()
+                                if (itemsText) {
+                                  const items = itemsText.split('\n').filter(l => l.trim().startsWith('•'))
+                                  return (
+                                    <div key={idx} className="text-sm">
+                                      <p className="font-semibold mb-1.5">{category.trim()}</p>
+                                      <div className="pl-3 space-y-1">
+                                        {items.map((item, i) => (
+                                          <p key={i} className="text-sm">{item.trim()}</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )
+                                }
+                              }
+                              return null
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  
                   return (
-                    <div key={message.id} className="flex justify-center my-3">
-                      <div className="bg-gray-100 rounded-full px-4 py-2.5 max-w-[85%] flex items-center gap-2">
-                        <span className="text-xs">{icon}</span>
-                        <p className="text-xs text-gray-600 text-center">
+                    <div key={message.id} className="flex justify-center my-4">
+                      <div className={`${bgColor} ${textColor} border-2 ${borderColor} rounded-xl px-5 py-3 max-w-[90%] flex items-center gap-3 shadow-lg`}>
+                        <span className="text-lg">{icon}</span>
+                        <p className={`text-sm font-semibold text-center ${textColor}`}>
                           {sanitizedContent}
                         </p>
                       </div>
@@ -1539,6 +1758,22 @@ export default function ChatInterface({
                   <p className="text-xs text-gray-500 flex-1">Consulter les détails de votre réservation</p>
                 </div>
 
+                {/* Menu (chef only) */}
+                {isChef && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setShowInfoModal(false)
+                        setShowMenuModal(true)
+                      }}
+                      className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow flex-shrink-0"
+                    >
+                      Menu
+                    </button>
+                    <p className="text-xs text-gray-500 flex-1">Définir et partager le menu détaillé de la prestation (apéritifs, entrées, plats, desserts, etc.)</p>
+                  </div>
+                )}
+
                 {/* Finaliser la réservation */}
                 {isClient && bookingStatus === 'accepted' && (
                   <div className="flex items-center gap-3">
@@ -1869,6 +2104,99 @@ export default function ChatInterface({
                   Pour des raisons de sécurité, merci de ne pas partager d&apos;informations personnelles (email, numéro de téléphone, coordonnées bancaires) dans la messagerie.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Menu (chef uniquement) */}
+      {showMenuModal && isChef && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowMenuModal(false)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
+              <h2 className="text-xl font-semibold text-black">Menu</h2>
+              <button
+                onClick={() => setShowMenuModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Fermer"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 bg-gray-100 space-y-4">
+              {(['aperitifs', 'mise_en_bouche', 'entree', 'plat', 'dessert', 'mignardises'] as MenuCategory[]).map((category) => {
+                const categoryLabels: Record<MenuCategory, string> = {
+                  aperitifs: 'Apéritifs',
+                  mise_en_bouche: 'Mise en bouche',
+                  entree: 'Entrée',
+                  plat: 'Plat',
+                  dessert: 'Dessert',
+                  mignardises: 'Mignardises',
+                }
+                const items = menuCategories[category]
+
+                return (
+                  <div key={category} className="bg-white rounded-xl border border-gray-300 shadow-md p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900">{categoryLabels[category]}</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {items.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                          <span className="flex-1 text-sm text-gray-900">{item}</span>
+                          <button
+                            onClick={() => handleRemoveMenuItem(category, index)}
+                            className="p-1 hover:bg-red-50 rounded transition-colors"
+                            aria-label="Supprimer"
+                          >
+                            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newMenuItems[category]}
+                          onChange={(e) => handleNewMenuItemChange(category, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newMenuItems[category].trim()) {
+                              e.preventDefault()
+                              handleAddMenuItem(category)
+                            }
+                          }}
+                          placeholder={`Ajouter un ${categoryLabels[category].toLowerCase()}...`}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 transition-all"
+                        />
+                        <button
+                          onClick={() => handleAddMenuItem(category)}
+                          disabled={!newMenuItems[category].trim()}
+                          className="px-3 py-2 text-sm font-medium text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer avec bouton sauvegarder */}
+            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+              <button
+                onClick={handleSaveMenu}
+                disabled={savingMenu}
+                className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingMenu ? 'Sauvegarde...' : 'Enregistrer le menu'}
+              </button>
             </div>
           </div>
         </div>

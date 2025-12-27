@@ -305,8 +305,8 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
               ` : ''}
             </div>
             <div class="email-footer">
-              <p>Besoin d'aide ? <a href="mailto:contact@mytable.com">contact@mytable.com</a></p>
-              <p><a href="${appUrl}">MyTable</a> - Votre chef à domicile</p>
+              <p>Besoin d'aide ? <a href="mailto:contact@guidemytable.fr" style="color: #000; text-decoration: underline;">contact@guidemytable.fr</a></p>
+              <p><a href="https://guidemytable.fr/" style="color: #000; text-decoration: underline;">MyTable</a> - Votre chef à domicile</p>
             </div>
           </div>
         </div>
@@ -616,8 +616,8 @@ export const emailTemplates = {
       content,
       cta: {
         text: 'Voir les autres chefs',
-        url: getBaseUrl(baseUrl),
-        variant: 'secondary',
+        url: 'https://guidemytable.fr/',
+        variant: 'yellow',
       },
       baseUrl,
     })
