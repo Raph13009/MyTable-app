@@ -815,6 +815,7 @@ export default function ChatInterface({
         throw new Error(data.error || 'Erreur lors de la sauvegarde')
       }
 
+      // eslint-disable-next-line react/no-unescaped-entities
       // Recharger la page pour afficher le nouveau message
       window.location.reload()
     } catch (error: any) {
@@ -1093,6 +1094,7 @@ export default function ChatInterface({
                 const isOwn = isOwnMessage(message)
                 const isSystem = isSystemMessage(message.content)
                 
+                // eslint-disable-next-line react/no-unescaped-entities
                 // Logs pour chaque message
                 console.log('[ChatInterface] Rendering message:', {
                   messageId: message.id,
