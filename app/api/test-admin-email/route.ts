@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     // Calculer le montant total
     const menuPrice = bookingRequest.menus?.price || 0
     const guestsCount = bookingRequest.guests_count || 0
+    const childrenCount = bookingRequest.children_count || 0
     const menuTotal = menuPrice * guestsCount
 
     // Récupérer les extras
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
           chef?.email || '',
           bookingDate,
           guestsCount,
+          childrenCount,
           totalAmount,
           bookingRequest.menus?.name || null,
           extras,

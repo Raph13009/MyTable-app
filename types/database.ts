@@ -85,14 +85,23 @@ export interface Database {
           last_name: string
           email: string
           phone: string
-          booking_date: string
+          booking_date: string | null
           city: string
           postal_code: string
           guests_count: number
+          children_count: number
           has_allergies: boolean
           allergies_details: string | null
           menu_id: string | null
           notes: string | null
+          service_type: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
+          period_days: string | null
+          meal_time: 'dejeuner' | 'diner' | null
+          budget: number | null
+          course_topic: string | null
+          selected_dates: Json | null
+          meal_options: string[] | null
+          total_price: number | null
           status: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
@@ -105,14 +114,23 @@ export interface Database {
           last_name: string
           email: string
           phone: string
-          booking_date: string
+          booking_date?: string | null
           city: string
           postal_code: string
           guests_count: number
+          children_count?: number
           has_allergies?: boolean
           allergies_details?: string | null
           menu_id?: string | null
           notes?: string | null
+          service_type?: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
+          period_days?: string | null
+          meal_time?: 'dejeuner' | 'diner' | null
+          budget?: number | null
+          course_topic?: string | null
+          selected_dates?: Json | null
+          meal_options?: string[] | null
+          total_price?: number | null
           status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
@@ -125,7 +143,7 @@ export interface Database {
           last_name?: string
           email?: string
           phone?: string
-          booking_date?: string
+          booking_date?: string | null
           city?: string
           postal_code?: string
           guests_count?: number
@@ -133,6 +151,14 @@ export interface Database {
           allergies_details?: string | null
           menu_id?: string | null
           notes?: string | null
+          service_type?: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
+          period_days?: string | null
+          meal_time?: 'dejeuner' | 'diner' | null
+          budget?: number | null
+          course_topic?: string | null
+          selected_dates?: Json | null
+          meal_options?: string[] | null
+          total_price?: number | null
           status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string

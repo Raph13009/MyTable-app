@@ -44,11 +44,11 @@ export default function BookingHeader() {
       {/* Bouton info discret dans le header */}
       <button
         onClick={() => setShowStepper(true)}
-        className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 p-2 text-black/70 hover:text-black hover:bg-black/10 rounded-full transition-all"
+        className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 text-black/70 hover:text-black hover:bg-black/10 rounded-full transition-all"
         aria-label="Comment ça marche ?"
         title="Comment ça marche ?"
       >
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </button>

@@ -12,10 +12,19 @@ export async function POST(request: NextRequest) {
       lastName,
       email,
       phone,
+      serviceType,
       bookingDate,
+      mealTime,
       city,
       postalCode,
       guestsCount,
+      childrenCount,
+      periodDays,
+      budget,
+      courseTopic,
+      selectedDates,
+      mealOptions,
+      totalPrice,
       hasAllergies,
       allergiesDetails,
       menuId,
@@ -23,11 +32,60 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validation basique
-    if (!chefId || !firstName || !lastName || !email || !phone || !bookingDate || !city || !postalCode || !guestsCount) {
+    if (!chefId || !firstName || !lastName || !email || !phone || !serviceType || !city || !postalCode || !guestsCount) {
       return NextResponse.json(
         { error: 'Tous les champs requis doivent être remplis' },
         { status: 400 }
       )
+    }
+
+    // Validation spécifique selon le type de service
+    if (serviceType === 'repas_domicile' && !bookingDate) {
+      return NextResponse.json(
+        { error: 'La date est requise pour un repas à domicile' },
+        { status: 400 }
+      )
+    }
+    if (serviceType === 'repas_domicile' && !mealTime) {
+      return NextResponse.json(
+        { error: 'Le moment du repas est requis pour un repas à domicile' },
+        { status: 400 }
+      )
+    }
+
+    if (serviceType === 'cours_cuisine') {
+      if (!budget || parseFloat(budget) <= 0) {
+        return NextResponse.json(
+          { error: 'Le budget est requis pour un cours de cuisine' },
+          { status: 400 }
+        )
+      }
+      if (!courseTopic || !courseTopic.trim()) {
+        return NextResponse.json(
+          { error: 'Le sujet du cours est requis' },
+          { status: 400 }
+        )
+      }
+    }
+    if (serviceType === 'mise_en_demeure') {
+      if (!selectedDates || !Array.isArray(selectedDates) || selectedDates.length === 0) {
+        return NextResponse.json(
+          { error: 'Au moins une date doit être sélectionnée pour un événement sur plusieurs jours' },
+          { status: 400 }
+        )
+      }
+      if (!mealOptions || !Array.isArray(mealOptions) || mealOptions.length === 0) {
+        return NextResponse.json(
+          { error: 'Au moins une option de repas doit être sélectionnée' },
+          { status: 400 }
+        )
+      }
+      if (!totalPrice || parseFloat(totalPrice) <= 0) {
+        return NextResponse.json(
+          { error: 'Le prix global est requis pour un événement sur plusieurs jours' },
+          { status: 400 }
+        )
+      }
     }
 
     // Utiliser le client admin pour bypass RLS dans les opérations serveur
@@ -86,10 +144,19 @@ export async function POST(request: NextRequest) {
         last_name: lastName,
         email,
         phone,
-        booking_date: bookingDate,
+        service_type: serviceType,
+        booking_date: bookingDate || null,
+        meal_time: mealTime || null,
         city,
         postal_code: postalCode,
         guests_count: parseInt(guestsCount),
+        children_count: parseInt(childrenCount) || 0,
+        period_days: periodDays || null,
+        budget: budget ? parseFloat(budget) : null,
+        course_topic: courseTopic || null,
+        selected_dates: selectedDates && Array.isArray(selectedDates) ? selectedDates : null,
+        meal_options: mealOptions && Array.isArray(mealOptions) ? mealOptions : null,
+        total_price: totalPrice ? parseFloat(totalPrice) : null,
         has_allergies: hasAllergies || false,
         allergies_details: hasAllergies ? allergiesDetails : null,
         menu_id: menuId || null,
@@ -285,19 +352,51 @@ export async function POST(request: NextRequest) {
     const acceptUrl = `${baseUrl}/decision?token=${acceptToken}&action=accept`
     const refuseUrl = `${baseUrl}/decision?token=${refuseToken}&action=refuse`
 
-    // Préparer les détails de réservation
-    const bookingDetails = {
+    // Préparer les détails de réservation selon le type de service
+    const getServiceTypeLabel = (type: string) => {
+      switch (type) {
+        case 'repas_domicile':
+          return 'Repas à domicile'
+        case 'cours_cuisine':
+          return 'Cours de Cuisine'
+        case 'mise_en_demeure':
+          return 'Événement sur plusieurs jours'
+        default:
+          return 'Réservation'
+      }
+    }
+
+    const bookingDetails: any = {
       firstName,
       lastName,
       phone,
-      bookingDate: new Date(bookingDate).toLocaleDateString('fr-FR'),
+      serviceType,
+      serviceTypeLabel: getServiceTypeLabel(serviceType),
       city,
       postalCode,
       guestsCount,
+      childrenCount: parseInt(childrenCount) || 0,
       hasAllergies,
       allergiesDetails: allergiesDetails || '',
-      menuName,
       notes: notes || '',
+    }
+
+    // Ajouter les champs spécifiques selon le type de service
+    if (serviceType === 'repas_domicile') {
+      bookingDetails.bookingDate = bookingDate ? new Date(bookingDate).toLocaleDateString('fr-FR') : null
+      bookingDetails.mealTime = mealTime || null
+      bookingDetails.mealTimeLabel = mealTime === 'dejeuner' ? 'Déjeuner' : mealTime === 'diner' ? 'Dîner' : null
+      bookingDetails.menuName = menuName || null
+    } else if (serviceType === 'cours_cuisine') {
+      bookingDetails.budget = budget ? parseFloat(budget) : null
+      bookingDetails.courseTopic = courseTopic || null
+    } else if (serviceType === 'mise_en_demeure') {
+      bookingDetails.selectedDates = selectedDates && Array.isArray(selectedDates) ? selectedDates : null
+      bookingDetails.mealOptions = mealOptions && Array.isArray(mealOptions) ? mealOptions : null
+      bookingDetails.mealOptionsLabel = mealOptions && Array.isArray(mealOptions) 
+        ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
+        : null
+      bookingDetails.totalPrice = totalPrice ? parseFloat(totalPrice) : null
     }
 
     // Envoyer l'email de confirmation au client

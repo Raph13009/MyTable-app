@@ -117,6 +117,7 @@ export default function ChatInterface({
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [guestsCount, setGuestsCount] = useState(bookingRequest?.guests_count || 1)
+  const [childrenCount, setChildrenCount] = useState(bookingRequest?.children_count || 0)
   const [updatingGuests, setUpdatingGuests] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [localExtras, setLocalExtras] = useState<Array<{ name: string; price: number }>>([])
@@ -363,12 +364,15 @@ export default function ChatInterface({
     }
   }, [bookingRequest?.status])
 
-  // Mettre à jour guestsCount si bookingRequest change
+  // Mettre à jour guestsCount et childrenCount si bookingRequest change
   useEffect(() => {
     if (bookingRequest?.guests_count) {
       setGuestsCount(bookingRequest.guests_count)
     }
-  }, [bookingRequest?.guests_count])
+    if (bookingRequest?.children_count !== undefined) {
+      setChildrenCount(bookingRequest.children_count || 0)
+    }
+  }, [bookingRequest?.guests_count, bookingRequest?.children_count])
 
   // Handler pour modifier le nombre de convives (mise à jour locale uniquement)
   const handleGuestsChange = (newCount: number) => {
@@ -381,13 +385,29 @@ export default function ChatInterface({
       return
     }
 
-    // Optionnel : max guests si défini par le chef (à implémenter si nécessaire)
-    // const maxGuests = bookingRequest.max_guests
-    // if (maxGuests && newCount > maxGuests) {
-    //   return
-    // }
+    // S'assurer que childrenCount ne dépasse pas guestsCount
+    if (childrenCount > newCount) {
+      setChildrenCount(newCount)
+    }
 
     setGuestsCount(newCount)
+  }
+
+  // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
+  const handleChildrenChange = (newCount: number) => {
+    if (!bookingRequest?.id || !isClient || !canModifyBooking) {
+      return
+    }
+
+    // Contraintes : minimum 0, maximum guestsCount
+    if (newCount < 0) {
+      return
+    }
+    if (newCount > guestsCount) {
+      return
+    }
+
+    setChildrenCount(newCount)
   }
 
   // Charger les extras au montage
@@ -410,9 +430,10 @@ export default function ChatInterface({
   // Vérifier s'il y a des changements non sauvegardés
   useEffect(() => {
     const guestsChanged = guestsCount !== (bookingRequest?.guests_count || 1)
+    const childrenChanged = childrenCount !== (bookingRequest?.children_count || 0)
     const extrasChanged = JSON.stringify(extras) !== JSON.stringify(localExtras)
-    setHasUnsavedChanges(guestsChanged || extrasChanged)
-  }, [guestsCount, extras, bookingRequest?.guests_count, localExtras])
+    setHasUnsavedChanges(guestsChanged || childrenChanged || extrasChanged)
+  }, [guestsCount, childrenCount, extras, bookingRequest?.guests_count, bookingRequest?.children_count, localExtras])
 
   const handleAddExtra = async () => {
     if (!newExtraName.trim() || !newExtraPrice.trim()) {
@@ -496,9 +517,14 @@ export default function ChatInterface({
         setLocalExtras(extras)
       }
 
-      // Sauvegarder le nombre de convives si modifié (client uniquement)
-      if (isClient && guestsCount !== (bookingRequest?.guests_count || 1)) {
-        const previousCount = bookingRequest?.guests_count || 1
+      // Sauvegarder le nombre de convives et d'enfants si modifié (client uniquement)
+      const guestsChanged = isClient && guestsCount !== (bookingRequest?.guests_count || 1)
+      const childrenChanged = isClient && childrenCount !== (bookingRequest?.children_count || 0)
+      
+      if (guestsChanged || childrenChanged) {
+        const previousGuestsCount = bookingRequest?.guests_count || 1
+        const previousChildrenCount = bookingRequest?.children_count || 0
+        
         const response = await fetch('/api/booking-guests', {
           method: 'POST',
           headers: {
@@ -507,6 +533,7 @@ export default function ChatInterface({
           body: JSON.stringify({
             bookingRequestId: bookingRequest.id,
             guestsCount: guestsCount,
+            childrenCount: childrenCount,
           }),
         })
 
@@ -518,22 +545,35 @@ export default function ChatInterface({
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
           (bookingRequest as any).guests_count = guestsCount
+          (bookingRequest as any).children_count = childrenCount
         }
 
         // Envoyer un message dans le chat pour notifier le changement
-        const changeType = guestsCount > previousCount ? 'augmenté' : 'diminué'
-        const changeAmount = Math.abs(guestsCount - previousCount)
-        const notificationMessage = `✨ Nombre de convives ${changeType} : ${previousCount} → ${guestsCount} (${changeAmount} ${changeAmount === 1 ? 'convive' : 'convives'})`
-        // Sanitize notification message before saving
-        const sanitizedNotification = sanitizeMessage(notificationMessage)
-        try {
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            sender_email: currentUser.email!,
-            content: sanitizedNotification,
-          } as any)
-        } catch (e) {
-          console.error('[ChatInterface] Error sending guests change notification:', e)
+        let notificationMessage = ''
+        if (guestsChanged) {
+          const changeType = guestsCount > previousGuestsCount ? 'augmenté' : 'diminué'
+          const changeAmount = Math.abs(guestsCount - previousGuestsCount)
+          notificationMessage = `✨ Nombre de convives ${changeType} : ${previousGuestsCount} → ${guestsCount} (${changeAmount} ${changeAmount === 1 ? 'convive' : 'convives'})`
+        }
+        if (childrenChanged) {
+          const changeType = childrenCount > previousChildrenCount ? 'augmenté' : 'diminué'
+          const changeAmount = Math.abs(childrenCount - previousChildrenCount)
+          const childrenMsg = `✨ Nombre d'enfants ${changeType} : ${previousChildrenCount} → ${childrenCount} (${changeAmount} ${changeAmount === 1 ? 'enfant' : 'enfants'})`
+          notificationMessage = notificationMessage ? `${notificationMessage}\n${childrenMsg}` : childrenMsg
+        }
+        
+        if (notificationMessage) {
+          // Sanitize notification message before saving
+          const sanitizedNotification = sanitizeMessage(notificationMessage)
+          try {
+            await supabase.from('messages').insert({
+              conversation_id: conversationId,
+              sender_email: currentUser.email!,
+              content: sanitizedNotification,
+            } as any)
+          } catch (e) {
+            console.error('[ChatInterface] Error sending guests/children change notification:', e)
+          }
         }
       }
 
@@ -713,6 +753,11 @@ export default function ChatInterface({
               <>
                 <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                   {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                  {bookingRequest.children_count > 0 && (
+                    <span className="text-gray-400 ml-1">
+                      (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
+                    </span>
+                  )}
                 </p>
                 {/* Emails du chef et du client - Uniquement pour l'admin */}
                 {isAdmin && (
@@ -1031,7 +1076,28 @@ export default function ChatInterface({
           <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             {/* Header fixe */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
+              <div className="flex-1">
+                {bookingRequest?.service_type && (() => {
+                  const getServiceTypeLabel = (type: string) => {
+                    switch (type) {
+                      case 'repas_domicile':
+                        return 'Repas à domicile'
+                      case 'cours_cuisine':
+                        return 'Cours de Cuisine'
+                      case 'mise_en_demeure':
+                        return 'Mise en demeure'
+                      default:
+                        return 'Détails de l\'offre'
+                    }
+                  }
+                  return (
+                    <h2 className="text-xl font-semibold text-black">{getServiceTypeLabel(bookingRequest.service_type)}</h2>
+                  )
+                })()}
+                {!bookingRequest?.service_type && (
+                  <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
+                )}
+              </div>
               <button
                 onClick={() => setShowOfferModal(false)}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1051,22 +1117,155 @@ export default function ChatInterface({
                   <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Informations</h3>
                   <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-2">
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Date</p>
-                        <p className="text-sm font-medium text-black">
-                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
-                        </p>
-                      </div>
+                      {/* Date ou Période selon le type de service */}
+                      {(bookingRequest.service_type === 'repas_domicile' && bookingRequest.booking_date) ? (
+                        <>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">Date</p>
+                            <p className="text-sm font-medium text-black">
+                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
+                                day: 'numeric', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                          {bookingRequest.meal_time && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Moment du repas</p>
+                              <p className="text-sm font-medium text-black">
+                                {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : bookingRequest.service_type === 'cours_cuisine' ? (
+                        <>
+                          {bookingRequest.budget && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Budget global</p>
+                              <p className="text-sm font-medium text-black">
+                                {typeof bookingRequest.budget === 'number' 
+                                  ? `${bookingRequest.budget.toFixed(2)} €`
+                                  : `${parseFloat(bookingRequest.budget).toFixed(2)} €`}
+                              </p>
+                            </div>
+                          )}
+                          {bookingRequest.course_topic && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Sujet du cours</p>
+                              <p className="text-sm font-medium text-black">{bookingRequest.course_topic}</p>
+                            </div>
+                          )}
+                        </>
+                      ) : bookingRequest.service_type === 'mise_en_demeure' ? (
+                        <>
+                          {bookingRequest.selected_dates && Array.isArray(bookingRequest.selected_dates) && bookingRequest.selected_dates.length > 0 && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Dates sélectionnées</p>
+                              <p className="text-sm font-medium text-black">
+                                {bookingRequest.selected_dates.map((date: string) => 
+                                  new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                                ).join(', ')}
+                              </p>
+                            </div>
+                          )}
+                          {bookingRequest.meal_options && Array.isArray(bookingRequest.meal_options) && bookingRequest.meal_options.length > 0 && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Options de repas</p>
+                              <p className="text-sm font-medium text-black">
+                                {bookingRequest.meal_options.map((opt: string) => 
+                                  opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+                                ).join(', ')}
+                              </p>
+                            </div>
+                          )}
+                          {bookingRequest.total_price && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Prix global</p>
+                              <p className="text-sm font-medium text-black">
+                                {typeof bookingRequest.total_price === 'number' 
+                                  ? `${bookingRequest.total_price.toFixed(2)} €`
+                                  : `${parseFloat(bookingRequest.total_price).toFixed(2)} €`}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : null}
                       <div>
                         <p className="text-xs text-gray-500 mb-0.5">Lieu</p>
                         <p className="text-sm font-medium text-black">{bookingRequest.city} {bookingRequest.postal_code}</p>
                       </div>
                     </div>
-                    {bookingRequest.has_allergies && bookingRequest.allergies_details && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Nombre de convives</p>
+                      {isClient && canModifyBooking ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleGuestsChange(currentGuestsCount - 1)}
+                              disabled={currentGuestsCount <= 1 || updatingGuests}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Diminuer"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <span className="font-medium text-black min-w-[2rem] text-center">
+                              {updatingGuests ? '...' : `${currentGuestsCount} ${currentGuestsCount === 1 ? 'convive' : 'convives'}`}
+                            </span>
+                            <button
+                              onClick={() => handleGuestsChange(currentGuestsCount + 1)}
+                              disabled={updatingGuests}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Augmenter"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Enfants :</span>
+                            <button
+                              onClick={() => handleChildrenChange(Math.max(0, childrenCount - 1))}
+                              disabled={childrenCount <= 0 || updatingGuests}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Diminuer enfants"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <span className="font-medium text-black min-w-[2rem] text-center text-sm">
+                              {updatingGuests ? '...' : childrenCount}
+                            </span>
+                            <button
+                              onClick={() => handleChildrenChange(Math.min(currentGuestsCount, childrenCount + 1))}
+                              disabled={childrenCount >= currentGuestsCount || updatingGuests}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Augmenter enfants"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium text-black">
+                          {bookingRequest.guests_count}
+                          {bookingRequest.children_count > 0 && (
+                            <span className="text-gray-500 ml-1">
+                              (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                    {/* Allergies uniquement pour repas à domicile */}
+                    {bookingRequest.service_type === 'repas_domicile' && bookingRequest.has_allergies && bookingRequest.allergies_details && (
                       <div className="pt-2 border-t border-gray-200">
                         <p className="text-xs text-gray-500 mb-0.5">Allergies</p>
                         <p className="text-sm text-black">{bookingRequest.allergies_details}</p>
@@ -1082,8 +1281,8 @@ export default function ChatInterface({
                 </div>
               )}
 
-              {/* Menu sélectionné */}
-              {menuDetails ? (
+              {/* Menu sélectionné - uniquement pour repas à domicile */}
+              {bookingRequest?.service_type === 'repas_domicile' && menuDetails ? (
                 <div>
                   <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Menu</h3>
                   <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
@@ -1135,14 +1334,14 @@ export default function ChatInterface({
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : bookingRequest?.service_type === 'repas_domicile' ? (
                 <div>
                   <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Menu</h3>
                   <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
                     <p className="text-sm text-gray-500">Aucun menu sélectionné</p>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Extras */}
               <div>
@@ -1256,13 +1455,28 @@ export default function ChatInterface({
                       })}
                     </span>
                   </div>
+                  {bookingRequest.meal_time && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Moment du repas</span>
+                      <span className="font-medium text-black">
+                        {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Chef</span>
                     <span className="font-medium text-black">{getChefName()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Nombre de convives</span>
-                    <span className="font-medium text-black">{bookingRequest.guests_count}</span>
+                    <span className="font-medium text-black">
+                      {bookingRequest.guests_count}
+                      {bookingRequest.children_count > 0 && (
+                        <span className="text-gray-500 ml-1 text-sm">
+                          (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
                     <span className="text-base font-semibold text-black">Total</span>

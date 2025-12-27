@@ -77,7 +77,9 @@ export async function GET(request: NextRequest) {
   // Créer une réponse pour pouvoir set les cookies
   // IMPORTANT: Il faut créer la réponse AVANT de créer le client Supabase
   // pour que les cookies puissent être set correctement
+  console.log('[auth/callback] Creating redirect URL from next:', next)
   const redirectUrl = new URL(next, request.url)
+  console.log('[auth/callback] Final redirect URL will be:', redirectUrl.toString())
   
   // Créer une réponse de redirection qui sera mise à jour avec les cookies
   let response = NextResponse.redirect(redirectUrl)
@@ -239,6 +241,9 @@ export async function GET(request: NextRequest) {
     
     console.log('[auth/callback] ✅✅✅ USER VERIFIED SUCCESSFULLY ✅✅✅')
     console.log('[auth/callback] User email:', user.email)
+    console.log('[auth/callback] User ID:', user.id)
+    console.log('[auth/callback] Next parameter:', next)
+    console.log('[auth/callback] Decoded next:', decodeURIComponent(next))
     console.log('[auth/callback] Redirecting to:', next)
     
     // La réponse devrait déjà contenir tous les cookies de session grâce à setAll
@@ -248,8 +253,26 @@ export async function GET(request: NextRequest) {
     console.log('[auth/callback] Session access token present:', !!data.session?.access_token)
     console.log('[auth/callback] ========== CALLBACK SUCCESS ==========')
     
-    // La réponse est déjà une redirection avec les cookies, on la retourne directement
-    return response
+    // S'assurer que la redirection utilise bien le paramètre next
+    const finalRedirectUrl = new URL(next, request.url)
+    console.log('[auth/callback] Final redirect URL:', finalRedirectUrl.toString())
+    
+    // Créer une nouvelle réponse de redirection avec les cookies
+    const finalResponse = NextResponse.redirect(finalRedirectUrl)
+    
+    // Copier tous les cookies de la réponse précédente
+    responseCookies.forEach(cookie => {
+      finalResponse.cookies.set(cookie.name, cookie.value, {
+        path: cookie.path || '/',
+        sameSite: cookie.sameSite as 'lax' | 'strict' | 'none' || 'lax',
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        maxAge: cookie.maxAge,
+        expires: cookie.expires,
+      })
+    })
+    
+    return finalResponse
   } else {
     console.log('[auth/callback] ⚠️ No code provided, redirecting to next')
     return NextResponse.redirect(new URL(next, request.url))

@@ -18,11 +18,15 @@ interface Conversation {
     booking_date?: string
     city?: string
     guests_count?: number
+    children_count?: number
     chef_id?: string
     chefName?: string | null
     menuPrice?: number | null
     extras?: Array<{ name: string; price: number }>
     totalPrice?: number
+    service_type?: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
+    period_days?: string | null
+    meal_time?: 'dejeuner' | 'diner' | null
   } | null
   participants: Array<{ email: string; role: string }>
   lastMessage: { content: string; created_at: string; sender_email: string } | null
@@ -146,94 +150,97 @@ export default function ConversationsList({ conversations, currentUser, particip
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Bannière jaune avec logo - Fixe */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b-2 border-black shadow-lg">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
-          <div className="flex items-center justify-center">
-            <img 
-              src="/logo-banner.jpeg" 
-              alt="MyTable" 
-              className="h-12 sm:h-14 w-auto object-contain"
-            />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header fixe (sticky) - Premium et compact */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="max-w-2xl mx-auto">
+          {/* Bannière jaune compacte */}
+          <div className="bg-[#FBCF03] border-b border-black/10">
+            <div className="px-4 sm:px-6 py-2.5">
+              <div className="flex items-center justify-center">
+                <img 
+                  src="/logo-banner.jpeg" 
+                  alt="MyTable" 
+                  className="h-10 sm:h-12 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Header principal avec titre et actions */}
+          <div className="px-4 sm:px-6">
+            <div className="flex items-center justify-between h-14">
+              <h1 className="text-lg font-semibold text-gray-900 tracking-tight">Messages</h1>
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                title="Se déconnecter"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Filtres subtils et élégants */}
+            <div className="flex gap-1.5 pb-3.5">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 text-xs font-medium transition-all rounded-md ${
+                  filter === 'all'
+                    ? 'text-gray-900 bg-gray-100'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Toutes
+              </button>
+              <button
+                onClick={() => setFilter('ongoing')}
+                className={`px-3 py-1.5 text-xs font-medium transition-all rounded-md ${
+                  filter === 'ongoing'
+                    ? 'text-gray-900 bg-gray-100'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                En cours
+              </button>
+              <button
+                onClick={() => setFilter('pending')}
+                className={`px-3 py-1.5 text-xs font-medium transition-all rounded-md ${
+                  filter === 'pending'
+                    ? 'text-gray-900 bg-gray-100'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                En attente
+              </button>
+              <button
+                onClick={() => setFilter('closed')}
+                className={`px-3 py-1.5 text-xs font-medium transition-all rounded-md ${
+                  filter === 'closed'
+                    ? 'text-gray-900 bg-gray-100'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Terminées
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Header fixe sous la bannière */}
-      <div className="fixed top-16 sm:top-20 left-0 right-0 z-40 bg-white/98 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-semibold text-black">Messages</h1>
-            <button
-              onClick={handleSignOut}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/60 rounded-lg transition-all"
-              title="Se déconnecter"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Filtres subtils */}
-          <div className="flex gap-2 pb-4">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
-                filter === 'all'
-                  ? 'text-black bg-gray-100'
-                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
-              }`}
-            >
-              Toutes
-            </button>
-            <button
-              onClick={() => setFilter('ongoing')}
-              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
-                filter === 'ongoing'
-                  ? 'text-black bg-gray-100'
-                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
-              }`}
-            >
-              En cours
-            </button>
-            <button
-              onClick={() => setFilter('pending')}
-              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
-                filter === 'pending'
-                  ? 'text-black bg-gray-100'
-                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
-              }`}
-            >
-              En attente
-            </button>
-            <button
-              onClick={() => setFilter('closed')}
-              className={`px-3.5 py-1.5 text-sm font-medium transition-all rounded-lg ${
-                filter === 'closed'
-                  ? 'text-black bg-gray-100'
-                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
-              }`}
-            >
-              Terminées
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Liste des conversations - style premium Instagram/WhatsApp */}
-      <div className="pt-32 sm:pt-36">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2">
+      {/* Liste des conversations - commence EN DESSOUS du header */}
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
         {filteredConversations.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-gray-400 text-sm">Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.</p>
+          <div className="py-20 text-center">
+            <p className="text-sm text-gray-400">
+              Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.
+            </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredConversations.map((conversation) => {
               const otherParticipant = getOtherParticipantInfo(conversation)
-              const isActive = conversation.status === 'ongoing'
               
               // Format date pour meta
               const eventDate = conversation.bookingRequest?.booking_date
@@ -252,70 +259,79 @@ export default function ConversationsList({ conversations, currentUser, particip
                 <button
                   key={conversation.id}
                   onClick={() => router.push(`/chat/${conversation.id}`)}
-                  className={`w-full px-4 py-3.5 rounded-xl transition-all text-left ${
-                    isActive 
-                      ? 'bg-gray-50/80 hover:bg-gray-100/80 shadow-sm' 
-                      : 'bg-white hover:bg-gray-50/60 shadow-sm hover:shadow'
-                  }`}
+                  className="w-full bg-white rounded-2xl p-4 text-left transition-all hover:shadow-sm border border-gray-100 hover:border-gray-200 active:scale-[0.99]"
                 >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar - cercle avec initiales */}
-                    <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center shadow-sm">
-                      <span className="text-base font-semibold text-gray-700">
+                  <div className="flex items-start gap-3">
+                    {/* Avatar - minimal et élégant */}
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <span className="text-sm font-medium text-gray-600">
                         {otherParticipant.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     
                     {/* Contenu principal */}
                     <div className="flex-1 min-w-0">
-                      {/* Ligne 1: Nom + Badge statut + Prix */}
-                      <div className="flex items-center justify-between gap-2 mb-1">
+                      {/* Ligne 1: Nom + Badge statut */}
+                      <div className="flex items-start justify-between gap-3 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <h3 className="text-[15px] font-semibold text-black truncate">
+                          <h3 className="text-[15px] font-semibold text-gray-900 truncate">
                             {otherParticipant.name}
                           </h3>
-                          {/* Badge statut */}
-                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          {/* Badge statut - subtil */}
+                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium leading-tight ${
                             conversation.status === 'ongoing'
-                              ? 'bg-[#FBCF03]/20 text-[#FBCF03]'
+                              ? 'bg-[#FBCF03]/10 text-[#E6BA00]'
                               : conversation.status === 'pending'
-                              ? 'bg-gray-200 text-gray-600'
-                              : 'bg-gray-100 text-gray-500'
+                              ? 'bg-gray-100 text-gray-500'
+                              : 'bg-gray-50 text-gray-400'
                           }`}>
                             {getStatusLabel(conversation.status)}
                           </span>
                         </div>
-                        {/* Prix aligné à droite */}
+                        {/* Prix - visuellement secondaire */}
                         {conversation.bookingRequest?.totalPrice !== undefined && conversation.bookingRequest.totalPrice > 0 && (
-                          <p className="text-sm font-semibold text-black whitespace-nowrap">
-                            {conversation.bookingRequest.totalPrice.toFixed(2)} €
+                          <p className="text-xs font-medium text-gray-400 whitespace-nowrap flex-shrink-0">
+                            {conversation.bookingRequest.totalPrice.toFixed(0)} €
                           </p>
                         )}
                       </div>
                       
                       {/* Ligne 2: Dernier message */}
                       {lastMessagePreview ? (
-                        <p className="text-sm text-gray-500 line-clamp-1 mb-1.5">
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-2 leading-relaxed">
                           {lastMessagePreview}
                         </p>
                       ) : (
-                        <p className="text-sm text-gray-400 italic mb-1.5">Aucun message</p>
+                        <p className="text-sm text-gray-400 italic mb-2">Aucun message</p>
                       )}
                       
-                      {/* Ligne 3: Meta info (Date + Convives) */}
+                      {/* Ligne 3: Meta info (Date + Convives + Ville) - subtile */}
                       {conversation.bookingRequest && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {eventDate && (
-                            <p className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400">
                               {eventDate}
-                            </p>
+                            </span>
                           )}
                           {conversation.bookingRequest.guests_count && (
                             <>
-                              {eventDate && <span className="text-xs text-gray-300">•</span>}
-                              <p className="text-xs text-gray-400">
+                              {eventDate && <span className="text-xs text-gray-300">·</span>}
+                              <span className="text-xs text-gray-400">
                                 {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                              </p>
+                                {conversation.bookingRequest.children_count && conversation.bookingRequest.children_count > 0 && (
+                                  <span className="text-gray-400 ml-0.5">
+                                    ({conversation.bookingRequest.children_count} {conversation.bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
+                                  </span>
+                                )}
+                              </span>
+                            </>
+                          )}
+                          {conversation.bookingRequest.city && (
+                            <>
+                              {(eventDate || conversation.bookingRequest.guests_count) && <span className="text-xs text-gray-300">·</span>}
+                              <span className="text-xs text-gray-400">
+                                {conversation.bookingRequest.city}
+                              </span>
                             </>
                           )}
                         </div>
@@ -327,8 +343,7 @@ export default function ConversationsList({ conversations, currentUser, particip
             })}
           </div>
         )}
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

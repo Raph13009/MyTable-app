@@ -102,6 +102,13 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
           }
+          a {
+            color: #000 !important;
+            text-decoration: none;
+          }
+          a:hover {
+            color: #FBCF03 !important;
+          }
           .email-wrapper {
             width: 100%;
             padding: 20px;
@@ -208,18 +215,27 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
           }
           .email-button-secondary {
             display: inline-block;
-            padding: 12px 24px;
+            padding: 14px 32px;
             text-decoration: none;
             border-radius: 999px;
-            font-weight: 500;
-            font-size: 15px;
-            margin-left: 12px;
-            background-color: #f5f5f5;
-            color: #000;
-            border: 1px solid #ddd;
+            font-weight: 600;
+            font-size: 16px;
+            margin-left: 24px;
+            background-color: #000 !important;
+            color: #FFFFFF !important;
+            border: 2px solid #000 !important;
           }
           .email-button-secondary:hover {
-            background-color: #e8e8e8;
+            background-color: #000 !important;
+            color: #FFFFFF !important;
+          }
+          .email-button-secondary:active {
+            background-color: #000 !important;
+            color: #FFFFFF !important;
+          }
+          .email-button-secondary:visited {
+            background-color: #000 !important;
+            color: #FFFFFF !important;
           }
           .email-footer {
             background-color: #f9f9f9;
@@ -266,6 +282,7 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
             .email-button-secondary {
               display: block;
               margin-left: 0;
+              margin-top: 16px;
             }
           }
         </style>
@@ -334,22 +351,62 @@ export const emailTemplates = {
   },
 
   bookingRequestToChef: (chefName: string, bookingDetails: any, acceptUrl: string, refuseUrl: string, baseUrl?: string) => {
-    const detailsHtml = `
+    // Construire les détails selon le type de service
+    let detailsHtml = `
       <div class="email-details">
+        <p><strong>Type de prestation :</strong> ${bookingDetails.serviceTypeLabel || 'Réservation'}</p>
         <p><strong>Client :</strong> ${bookingDetails.firstName} ${bookingDetails.lastName}</p>
         <p><strong>Téléphone :</strong> ${bookingDetails.phone}</p>
-        <p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>
         <p><strong>Ville :</strong> ${bookingDetails.city} (${bookingDetails.postalCode})</p>
-        <p><strong>Nombre de convives :</strong> ${bookingDetails.guestsCount}</p>
-        ${bookingDetails.hasAllergies ? `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>` : ''}
-        ${bookingDetails.menuName ? `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>` : ''}
-        ${bookingDetails.notes ? `<p><strong>Notes :</strong> ${bookingDetails.notes}</p>` : ''}
-      </div>
+        <p><strong>Nombre de convives :</strong> ${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}</p>
     `
+
+    // Détails spécifiques selon le type de service
+    if (bookingDetails.serviceType === 'repas_domicile') {
+      if (bookingDetails.bookingDate) {
+        detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
+      }
+      if (bookingDetails.mealTimeLabel) {
+        detailsHtml += `<p><strong>Moment du repas :</strong> ${bookingDetails.mealTimeLabel}</p>`
+      }
+      if (bookingDetails.menuName) {
+        detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
+      }
+      if (bookingDetails.hasAllergies) {
+        detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
+      }
+    } else if (bookingDetails.serviceType === 'cours_cuisine') {
+      if (bookingDetails.budget) {
+        detailsHtml += `<p><strong>Budget global :</strong> ${bookingDetails.budget.toFixed(2)} €</p>`
+      }
+      if (bookingDetails.courseTopic) {
+        detailsHtml += `<p><strong>Sujet du cours :</strong> ${bookingDetails.courseTopic}</p>`
+      }
+    } else if (bookingDetails.serviceType === 'mise_en_demeure') {
+      if (bookingDetails.selectedDates && Array.isArray(bookingDetails.selectedDates) && bookingDetails.selectedDates.length > 0) {
+        const datesFormatted = bookingDetails.selectedDates.map((date: string) => 
+          new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        ).join(', ')
+        detailsHtml += `<p><strong>Dates sélectionnées :</strong> ${datesFormatted}</p>`
+      }
+      if (bookingDetails.mealOptionsLabel) {
+        detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
+      }
+      if (bookingDetails.totalPrice) {
+        detailsHtml += `<p><strong>Prix global :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
+      }
+    }
+
+    // Notes communes à tous les types
+    if (bookingDetails.notes) {
+      detailsHtml += `<p><strong>Notes :</strong> ${bookingDetails.notes}</p>`
+    }
+
+    detailsHtml += `</div>`
     
     const content = `
       <p>Bonjour ${chefName},</p>
-      <p>Vous avez reçu une nouvelle demande de réservation :</p>
+      <p>Vous avez reçu une nouvelle demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'} de la part de <strong>${bookingDetails.firstName} ${bookingDetails.lastName}</strong> :</p>
       ${detailsHtml}
       <p>Veuillez accepter ou refuser cette demande :</p>
     `
@@ -363,7 +420,7 @@ export const emailTemplates = {
     `
     
     return emailLayout({
-      title: 'Nouvelle demande de réservation',
+      title: `Nouvelle demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
       content: contentWithButtons,
       baseUrl,
     })
@@ -440,14 +497,15 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, totalAmount: number, baseUrl?: string) => {
+  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, baseUrl?: string) => {
+    const childrenText = childrenCount > 0 ? ` (dont ${childrenCount} ${childrenCount === 1 ? 'enfant' : 'enfants'})` : ''
     const content = `
       <p>Bonjour ${chefName},</p>
       <p>La réservation de <strong>${clientName}</strong> a été validée par le client.</p>
       <p><strong>Détails de la réservation :</strong></p>
       <ul style="list-style: none; padding-left: 0;">
         <li>📅 Date : ${bookingDate}</li>
-        <li>👥 Nombre de convives : ${guestsCount}</li>
+        <li>👥 Nombre de convives : ${guestsCount}${childrenText}</li>
         <li>💰 Montant total : ${totalAmount.toFixed(2)} €</li>
       </ul>
       <p>Le paiement est attendu dans les 48 prochaines heures.</p>
@@ -459,7 +517,7 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToAdmin: (clientName: string, clientEmail: string, chefName: string, chefEmail: string, bookingDate: string, guestsCount: number, totalAmount: number, menuName: string | null, extras: Array<{ name: string; price: number }>, baseUrl?: string) => {
+  bookingValidatedToAdmin: (clientName: string, clientEmail: string, chefName: string, chefEmail: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, menuName: string | null, extras: Array<{ name: string; price: number }>, baseUrl?: string) => {
     const extrasList = extras.length > 0 
       ? extras.map(e => `<li>${e.name} : ${e.price.toFixed(2)} €</li>`).join('')
       : '<li>Aucun extra</li>'
@@ -494,7 +552,9 @@ export const emailTemplates = {
         
         <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
           <p style="margin: 0; color: #666; font-size: 13px;"><strong>Nombre de convives :</strong></p>
-          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${guestsCount} ${guestsCount === 1 ? 'convive' : 'convives'}</p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">
+            ${guestsCount} ${guestsCount === 1 ? 'convive' : 'convives'}${childrenCount > 0 ? ` (dont ${childrenCount} ${childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}
+          </p>
         </div>
         
         <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">

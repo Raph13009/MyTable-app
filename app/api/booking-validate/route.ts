@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     // Calculer le montant total
     const menuPrice = (bookingRequest as any).menus?.price || 0
     const guestsCount = (bookingRequest as any).guests_count || 0
+    const childrenCount = (bookingRequest as any).children_count || 0
     const menuTotal = menuPrice * guestsCount
     
     // Récupérer les extras
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
             `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
             bookingDate,
             guestsCount,
+            childrenCount,
             totalAmount,
             baseUrl
           ),
@@ -161,6 +163,7 @@ export async function POST(request: NextRequest) {
             chef?.email || '',
             bookingDate,
             guestsCount,
+            childrenCount,
             totalAmount,
             (bookingRequest as any).menus?.name || null,
             extras,

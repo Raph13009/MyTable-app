@@ -7,14 +7,28 @@ Pour que les magic links fonctionnent correctement, vous devez configurer Supaba
 ### 1. Authentication > URL Configuration
 
 1. Allez dans **Supabase Dashboard** > **Authentication** > **URL Configuration**
-2. Dans **Redirect URLs**, ajoutez :
+2. Dans **Redirect URLs**, ajoutez **TOUTES** ces URLs (une par ligne) :
+
+   **Pour le développement local :**
    ```
    http://localhost:3000/auth/callback
+   http://localhost:3000/login
+   http://localhost:3000/
    ```
-   Pour la production, ajoutez aussi :
+
+   **Pour la production :**
    ```
-   https://your-domain.com/auth/callback
+   https://app.guidemytable.fr/auth/callback
+   https://app.guidemytable.fr/login
+   https://app.guidemytable.fr/
    ```
+
+   ⚠️ **IMPORTANT** : 
+   - Ajoutez `/login` car Supabase peut rediriger vers cette page avec des tokens dans le hash
+   - Ajoutez `/auth/callback` pour le flux PKCE standard
+   - Ajoutez `/` (racine) comme fallback
+   - Chaque URL doit être sur une ligne séparée
+   - Pas d'espaces avant ou après les URLs
 
 ### 2. Vérifier que l'URL est bien autorisée
 

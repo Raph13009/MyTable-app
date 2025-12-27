@@ -1,10 +1,12 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 
 export default function BookingAcceptedPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isChef = searchParams.get('chef') === 'true'
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
@@ -25,17 +27,22 @@ export default function BookingAcceptedPage() {
           </svg>
         </div>
         <h1 className="text-3xl font-bold text-black mb-4">
-          Réservation acceptée !
+          {isChef ? 'Réservation acceptée !' : 'Réservation acceptée !'}
         </h1>
         <p className="text-gray-600 mb-8">
-          Vous avez bien accepté la réservation. Vous pouvez maintenant vous connecter pour accéder au chat.
+          {isChef 
+            ? 'Un lien de connexion a été envoyé à votre adresse email. Vérifiez votre boîte de réception et cliquez sur le lien pour accéder au chat.'
+            : 'Vous avez bien accepté la réservation. Vous pouvez maintenant vous connecter pour accéder au chat.'
+          }
         </p>
-        <Button
-          onClick={() => router.push('/login')}
-          className="min-w-[200px]"
-        >
-          Aller à la page de connexion
-        </Button>
+        {!isChef && (
+          <Button
+            onClick={() => router.push('/login')}
+            className="min-w-[200px]"
+          >
+            Aller à la page de connexion
+          </Button>
+        )}
       </div>
     </div>
   )

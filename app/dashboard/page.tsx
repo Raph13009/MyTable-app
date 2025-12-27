@@ -10,30 +10,55 @@ export default async function DashboardPage() {
   // Vérifier l'authentification
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   
-  if (!user) {
+  // BYPASS AUTH EN LOCALHOST POUR TEST (à retirer en production)
+  const isLocalhost = process.env.NODE_ENV === 'development' || 
+                      (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  
+  if (!user && !isLocalhost) {
     redirect('/login')
   }
+  
+  // Si pas d'utilisateur en localhost, créer un utilisateur mock
+  const currentUser = user || {
+    id: 'test-user-localhost',
+    email: 'test@localhost.com',
+    created_at: new Date().toISOString(),
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    confirmation_sent_at: null,
+    recovery_sent_at: null,
+    email_confirmed_at: new Date().toISOString(),
+    invited_at: null,
+    action_link: null,
+    last_sign_in_at: new Date().toISOString(),
+    phone: null,
+    phone_confirmed_at: null,
+    confirmed_at: new Date().toISOString(),
+    is_anonymous: false,
+  } as any
 
   console.log('[Dashboard] ========== START ==========')
   console.log('[Dashboard] User authenticated:', {
-    email: user.email,
-    id: user.id,
+    email: currentUser.email,
+    id: currentUser.id,
+    isMock: !user,
   })
 
   // Récupérer toutes les conversations où l'utilisateur est participant
-  const normalizedUserEmail = user.email?.toLowerCase().trim() || ''
+  const normalizedUserEmail = currentUser.email?.toLowerCase().trim() || ''
   
   console.log('[Dashboard] ========== FETCHING CONVERSATIONS ==========')
-  console.log('[Dashboard] User email:', user.email)
+  console.log('[Dashboard] User email:', currentUser.email)
   console.log('[Dashboard] Normalized user email:', normalizedUserEmail)
-  console.log('[Dashboard] User ID:', user.id)
+  console.log('[Dashboard] User ID:', currentUser.id)
   
   // APPROACH 1: Récupérer les conversations via booking_requests (plus fiable pour les clients)
   console.log('[Dashboard] ========== APPROACH 1: VIA BOOKING_REQUESTS ==========')
   // Récupérer TOUS les booking_requests et filtrer côté serveur pour éviter les problèmes de casse
   const { data: allBookingRequests, error: brError } = await supabaseAdmin
     .from('booking_requests')
-    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, email')
+    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, children_count, email, service_type, period_days, meal_time')
   
   console.log('[Dashboard] All booking requests in DB:', allBookingRequests?.length || 0)
   console.log('[Dashboard] Sample booking requests (first 5):', allBookingRequests?.slice(0, 5).map((br: any) => ({
@@ -104,7 +129,7 @@ export default async function DashboardPage() {
   const userParticipants = (allParticipants || []).filter((p: any) => {
     const participantEmail = p.email?.toLowerCase().trim() || ''
     const emailMatch = participantEmail === normalizedUserEmail
-    const userIdMatch = p.user_id === user.id
+    const userIdMatch = p.user_id === currentUser.id
     const matches = emailMatch || userIdMatch
     
     if (matches) {
@@ -113,7 +138,7 @@ export default async function DashboardPage() {
         normalizedEmail: participantEmail,
         userEmail: normalizedUserEmail,
         user_id: p.user_id,
-        userId: user.id,
+        userId: currentUser.id,
         emailMatch,
         userIdMatch,
         role: p.role,
@@ -127,8 +152,8 @@ export default async function DashboardPage() {
           userEmail: normalizedUserEmail,
           emailsEqual: participantEmail === normalizedUserEmail,
           participantUserId: p.user_id,
-          userUserId: user.id,
-          userIdsEqual: p.user_id === user.id,
+          userUserId: currentUser.id,
+          userIdsEqual: p.user_id === currentUser.id,
         })
       }
     }
@@ -150,9 +175,9 @@ export default async function DashboardPage() {
   // Si aucun participant trouvé, afficher un warning détaillé
   if (userParticipants.length === 0 && (allParticipants || []).length > 0) {
     console.error('[Dashboard] ❌❌❌ NO PARTICIPANTS FOUND FOR USER ❌❌❌')
-    console.error('[Dashboard] User email:', user.email)
+    console.error('[Dashboard] User email:', currentUser.email)
     console.error('[Dashboard] Normalized user email:', normalizedUserEmail)
-    console.error('[Dashboard] User ID:', user.id)
+    console.error('[Dashboard] User ID:', currentUser.id)
     console.error('[Dashboard] Total participants in DB:', (allParticipants || []).length)
     console.error('[Dashboard] All participant emails:', (allParticipants || []).map((p: any) => ({
       original: p.email,
@@ -186,9 +211,9 @@ export default async function DashboardPage() {
   if (allConversationIds.length === 0) {
     console.error('[Dashboard] ❌❌❌ NO CONVERSATION IDs - RETURNING EMPTY STATE ❌❌❌')
     console.error('[Dashboard] This means no participants matched the user')
-    console.error('[Dashboard] User email:', user.email)
+    console.error('[Dashboard] User email:', currentUser.email)
     console.error('[Dashboard] Normalized email:', normalizedUserEmail)
-    console.error('[Dashboard] User ID:', user.id)
+    console.error('[Dashboard] User ID:', currentUser.id)
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -196,7 +221,7 @@ export default async function DashboardPage() {
           <div className="text-center py-12">
             <p className="text-gray-600">Aucune conversation pour le moment.</p>
             <p className="text-sm text-gray-500 mt-2">
-              Email: {user.email} | ID: {user.id}
+              Email: {currentUser.email} | ID: {currentUser.id}
             </p>
           </div>
         </div>
@@ -227,7 +252,11 @@ export default async function DashboardPage() {
           last_name,
           booking_date,
           city,
-          guests_count
+          guests_count,
+          children_count,
+          service_type,
+          period_days,
+          meal_time
         )
       `)
       .in('id', allConversationIds)
@@ -253,7 +282,7 @@ export default async function DashboardPage() {
           conversations.map(async (conv: any) => {
             const { data: bookingReqs } = await supabaseAdmin
               .from('booking_requests')
-              .select('id, status, first_name, last_name, booking_date, city, guests_count, menu_id, chef_id, extras')
+              .select('id, status, first_name, last_name, booking_date, city, guests_count, children_count, menu_id, chef_id, extras, service_type, period_days, meal_time')
               .eq('conversation_id', conv.id)
             
             return {
@@ -491,6 +520,8 @@ export default async function DashboardPage() {
           menuPrice,
           extras,
           totalPrice,
+          service_type: bookingRequest.service_type,
+          period_days: bookingRequest.period_days,
         } : null,
         participants: convParticipants || [],
         lastMessage: lastMessage || null,
@@ -549,7 +580,7 @@ export default async function DashboardPage() {
   console.log('[Dashboard] Participants map keys:', Array.from(participantsMap.keys()))
   
   console.log('[Dashboard] ========== FINAL SUMMARY ==========')
-  console.log('[Dashboard] User:', { email: user.email, id: user.id })
+  console.log('[Dashboard] User:', { email: currentUser.email, id: currentUser.id })
   console.log('[Dashboard] User participants found:', userParticipants.length)
   console.log('[Dashboard] Conversation IDs extracted:', allConversationIds.length)
   console.log('[Dashboard] Conversations fetched:', (conversations || []).length)
@@ -572,7 +603,7 @@ export default async function DashboardPage() {
   return (
     <ConversationsList
       conversations={enrichedConversations}
-      currentUser={user}
+      currentUser={currentUser}
       participantsMap={participantsMap}
     />
   )

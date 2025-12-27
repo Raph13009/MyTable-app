@@ -101,15 +101,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/?error=no_conversation_id', request.url))
       }
       const chatUrl = `${baseUrl}/chat/${conversationId}`
-      const confirmationUrl = `${baseUrl}/booking-accepted`
 
-      // Envoyer emails au client et au chef
+      // Récupérer les infos du chef
       const { data: chef } = await supabase
         .from('chefs')
         .select('email, name')
         .eq('id', bookingRequest.chef_id)
         .single()
 
+      console.log('[decision] ========== ACCEPT ACTION ==========')
+      console.log('[decision] Booking request ID:', bookingRequest.id)
+      console.log('[decision] Chef found:', chef ? 'YES' : 'NO')
+      if (chef) {
+        console.log('[decision] Chef email:', (chef as any).email)
+        console.log('[decision] Chef name:', (chef as any).name)
+      }
+
+      // Envoyer email uniquement au client (pas au chef)
+      console.log('[decision] Sending email to CLIENT only:', bookingRequest.email)
       await sendEmail({
         to: bookingRequest.email,
         subject: emailSubjects.bookingAcceptedToClient,
@@ -119,19 +128,60 @@ export async function GET(request: NextRequest) {
           baseUrl
         ),
       })
+      console.log('[decision] ✅ Email sent to client')
 
+      // ⚠️ IMPORTANT: NE PAS ENVOYER D'EMAIL bookingAcceptedToChef AU CHEF
+      // Le chef recevra UNIQUEMENT le magic link via Supabase Auth
+      console.log('[decision] ⚠️ NOT sending bookingAcceptedToChef email to chef')
+      console.log('[decision] ⚠️ Chef will ONLY receive magic link from Supabase')
+
+      // IMPORTANT: Envoyer UNIQUEMENT le magic link au chef via Supabase
+      // AUCUN email bookingAcceptedToChef ne doit être envoyé
       if (chef) {
-        // Envoyer un email au chef avec un lien vers la page de confirmation
-        // Le chef devra ensuite aller sur /login pour recevoir le magic link
-        await sendEmail({
-          to: (chef as any).email,
-          subject: emailSubjects.bookingAcceptedToChef,
-          html: emailTemplates.bookingAcceptedToChef((chef as any).name, confirmationUrl, baseUrl),
+        const chefEmail = (chef as any).email.toLowerCase().trim()
+        // Rediriger directement vers le dashboard (liste de toutes les conversations)
+        const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
+        
+        console.log('[decision] ========== SENDING MAGIC LINK TO CHEF ==========')
+        console.log('[decision] Chef email:', chefEmail)
+        console.log('[decision] Chef name:', (chef as any).name)
+        console.log('[decision] Redirect URL:', redirectUrl)
+        console.log('[decision] Conversation ID:', conversationId)
+        console.log('[decision] Base URL:', baseUrl)
+        
+        // IMPORTANT: Ne PAS envoyer d'email bookingAcceptedToChef
+        // Seul le magic link Supabase doit être envoyé
+        
+        // Envoyer le magic link via Supabase Auth (c'est Supabase qui envoie l'email automatiquement)
+        console.log('[decision] Calling supabase.auth.signInWithOtp...')
+        const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
+          email: chefEmail,
+          options: {
+            emailRedirectTo: redirectUrl,
+            shouldCreateUser: true,
+          },
         })
-        console.log('[decision] Confirmation email sent to chef:', (chef as any).email)
+
+        if (otpError) {
+          console.error('[decision] ❌❌❌ ERROR sending magic link to chef ❌❌❌')
+          console.error('[decision] Error message:', otpError.message)
+          console.error('[decision] Error status:', otpError.status)
+          console.error('[decision] Error details:', JSON.stringify(otpError, null, 2))
+          // En cas d'erreur, rediriger vers une page d'erreur
+          return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
+        }
+
+        console.log('[decision] ✅✅✅ Magic link sent successfully to chef via Supabase ✅✅✅')
+        console.log('[decision] OTP data:', JSON.stringify(otpData, null, 2))
+        console.log('[decision] Magic link email should be sent by Supabase to:', chefEmail)
+        console.log('[decision] ========== MAGIC LINK SENT ==========')
+        
+        // Rediriger vers une page de confirmation simple qui dit que le magic link a été envoyé
+        // Le chef n'a pas besoin de redirection, il reste sur ses mails
+        return NextResponse.redirect(new URL('/booking-accepted?chef=true', request.url))
       }
 
-      // Rediriger vers la page de confirmation
+      // Rediriger vers la page de confirmation si pas de chef (ne devrait pas arriver)
       return NextResponse.redirect(new URL('/booking-accepted', request.url))
 
       // Fallback si pas de chef (ne devrait pas arriver)
