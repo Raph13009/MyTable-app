@@ -221,7 +221,7 @@ export default function LoginPage() {
     
     // Attendre un peu pour laisser le magic link handler s'exécuter en premier
     const timeoutId = setTimeout(() => {
-      checkAuth()
+    checkAuth()
     }, 500)
     
     return () => clearTimeout(timeoutId)
@@ -321,12 +321,12 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-bold text-black mb-2">
-                Connexion
-              </h1>
-              <p className="text-gray-600 mb-6">
-                Entrez votre email pour recevoir un lien de connexion
-              </p>
+          <h1 className="text-2xl font-bold text-black mb-2">
+            Connexion
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Entrez votre email pour recevoir un lien de connexion
+          </p>
             </>
           )}
 

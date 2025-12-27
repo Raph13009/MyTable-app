@@ -71,13 +71,24 @@ export async function GET(request: NextRequest) {
         .update({ status: 'refused' })
         .eq('id', bookingRequest.id)
 
+      // Récupérer les infos du chef pour l'email
+      const { data: chef } = await supabase
+        .from('chefs')
+        .select('name')
+        .eq('id', bookingRequest.chef_id)
+        .single()
+
+      // Extraire le prénom du chef (premier mot du nom)
+      const chefFirstName = chef ? ((chef as any).name?.split(' ')[0] || (chef as any).name) : 'Chef'
+      const clientFirstName = bookingRequest.first_name || ''
+
       // Envoyer email au client
       await sendEmail({
         to: bookingRequest.email,
         subject: emailSubjects.bookingRefusedToClient,
         html: emailTemplates.bookingRefusedToClient(
-          `${bookingRequest.first_name} ${bookingRequest.last_name}`,
-          siteUrl,
+          clientFirstName,
+          chefFirstName,
           baseUrl
         ),
       })
@@ -119,11 +130,19 @@ export async function GET(request: NextRequest) {
 
       // Envoyer email uniquement au client (pas au chef)
       console.log('[decision] Sending email to CLIENT only:', bookingRequest.email)
+      // Extraire prénom et nom du chef
+      const chefFullName = chef ? (chef as any).name : 'Chef'
+      const chefNameParts = chefFullName.split(' ')
+      const chefFirstName = chefNameParts[0] || chefFullName
+      const chefLastName = chefNameParts.slice(1).join(' ') || ''
+      
       await sendEmail({
         to: bookingRequest.email,
         subject: emailSubjects.bookingAcceptedToClient,
         html: emailTemplates.bookingAcceptedToClient(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,
+          chefFirstName,
+          chefLastName,
           chatUrl,
           baseUrl
         ),

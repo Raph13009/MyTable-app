@@ -319,9 +319,9 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
  * Subjects standardisés pour tous les emails
  */
 export const emailSubjects = {
-  bookingConfirmationToClient: 'Votre demande de réservation a été reçue',
+  bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
-  bookingRefusedToClient: 'Votre demande de réservation',
+  bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée',
   bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
@@ -338,10 +338,18 @@ export const emailTemplates = {
   bookingConfirmationToClient: (clientName: string, chefName: string, baseUrl?: string) => {
     const content = `
       <p>Bonjour ${clientName},</p>
-      <p>Votre demande de réservation a bien été prise en compte.</p>
-      <p>Le chef <strong>${chefName}</strong> va examiner votre demande et vous répondra prochainement.</p>
-      <p>Vous recevrez un email dès qu'une décision aura été prise.</p>
-      <p>Merci de votre confiance !</p>
+      <p>Votre demande de réservation a été transmise au Chef avec succès.</p>
+      <p>Un email de confirmation vous a été envoyé.</p>
+      <p>Le Chef va examiner votre demande et vous recevrez une réponse par mail sous 24h.</p>
+      <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
+        <strong>Merci de votre confiance auprès du Guide MyTable !</strong>
+      </p>
+      <p style="margin-top: 16px; font-size: 14px; color: #666;">
+        Besoins d'aide ? <a href="mailto:contact@guidemytable.fr" style="color: #000; text-decoration: underline;">contact@guidemytable.fr</a>
+      </p>
+      <p style="margin-top: 8px; font-size: 13px; color: #666; font-style: italic;">
+        MyTable - L'art culinaire privé sélectionné avec soin pour vous
+      </p>
     `
     return emailLayout({
       title: 'Demande de réservation reçue',
@@ -426,29 +434,36 @@ export const emailTemplates = {
     })
   },
 
-  bookingRefusedToClient: (clientName: string, siteUrl: string, baseUrl?: string) => {
+  bookingRefusedToClient: (clientFirstName: string, chefFirstName: string, baseUrl?: string) => {
     const content = `
-      <p>Bonjour ${clientName},</p>
-      <p>Nous sommes désolés, mais votre demande de réservation n'a pas pu être acceptée.</p>
-      <p>N'hésitez pas à consulter nos autres chefs disponibles.</p>
+      <p>Bonjour ${clientFirstName},</p>
+      <p>Votre demande avec le Chef <strong>${chefFirstName}</strong> n'a malheureusement pas pu être acceptée, mais nous avons d'autres profils de Chefs talentueux qui pourraient parfaitement correspondre à votre expérience.</p>
+      <p>Vous pouvez les découvrir ici :</p>
+      <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
+        Nous restons à votre disposition pour toute question,<br>
+        À très vite autour de votre table !
+      </p>
+      <p style="margin-top: 8px; font-size: 13px; color: #666; font-style: italic;">
+        L'équipe MyTable
+      </p>
     `
     return emailLayout({
-      title: 'Demande de réservation',
+      title: 'Votre demande MyTable - disponibilité du chef',
       content,
       cta: {
-        text: 'Voir les autres chefs',
-        url: siteUrl,
-        variant: 'secondary',
+        text: 'Découvrir les autres Chefs',
+        url: 'https://guidemytable.fr/',
+        variant: 'yellow',
       },
       baseUrl,
     })
   },
 
-  bookingAcceptedToClient: (clientName: string, chatUrl: string, baseUrl?: string) => {
+  bookingAcceptedToClient: (clientName: string, chefFirstName: string, chefLastName: string, chatUrl: string, baseUrl?: string) => {
     const dashboardUrl = `${baseUrl}/dashboard`
     const content = `
       <p>Bonjour ${clientName},</p>
-      <p>Excellente nouvelle ! Votre demande de réservation a été acceptée.</p>
+      <p>Excellente nouvelle ! Votre demande de réservation a été acceptée par le Chef <strong>${chefFirstName} ${chefLastName}</strong>.</p>
       <p>Vous pouvez maintenant accéder à vos conversations pour échanger avec le chef.</p>
     `
     // Utiliser un CTA jaune personnalisé au lieu du système par défaut

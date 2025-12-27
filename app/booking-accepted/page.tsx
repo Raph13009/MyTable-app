@@ -36,12 +36,12 @@ export default function BookingAcceptedPage() {
           }
         </p>
         {!isChef && (
-          <Button
-            onClick={() => router.push('/login')}
-            className="min-w-[200px]"
-          >
-            Aller à la page de connexion
-          </Button>
+        <Button
+          onClick={() => router.push('/login')}
+          className="min-w-[200px]"
+        >
+          Aller à la page de connexion
+        </Button>
         )}
       </div>
     </div>

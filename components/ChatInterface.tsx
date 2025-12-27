@@ -563,15 +563,15 @@ export default function ChatInterface({
         }
         
         if (notificationMessage) {
-          // Sanitize notification message before saving
-          const sanitizedNotification = sanitizeMessage(notificationMessage)
-          try {
-            await supabase.from('messages').insert({
-              conversation_id: conversationId,
-              sender_email: currentUser.email!,
-              content: sanitizedNotification,
-            } as any)
-          } catch (e) {
+        // Sanitize notification message before saving
+        const sanitizedNotification = sanitizeMessage(notificationMessage)
+        try {
+          await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            sender_email: currentUser.email!,
+            content: sanitizedNotification,
+          } as any)
+        } catch (e) {
             console.error('[ChatInterface] Error sending guests/children change notification:', e)
           }
         }
@@ -742,22 +742,22 @@ export default function ChatInterface({
       {/* Animation de navigation retour */}
       {isNavigatingBack && <LoadingAnimation message="Retour en cours..." />}
       {/* Header - Premium, moderne, avec contraste distinct */}
-      <div className="flex-shrink-0 bg-gray-50/95 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200/80 shadow-sm">
-        <div className="px-4 sm:px-6 py-3">
+      <div className="flex-shrink-0 bg-white sticky top-0 z-10 border-b border-gray-300">
+        <div className="px-4 sm:px-6 py-3.5">
           {/* Titre sur sa propre ligne, bien visible */}
           <div className="mb-2.5">
-            <h1 className="text-base sm:text-lg font-semibold text-black">
-              {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : 'Conversation'}
-            </h1>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900">
+                {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : 'Conversation'}
+              </h1>
+              {bookingStatus && bookingStatus === 'accepted' && (
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FBCF03]"></span>
+              )}
+            </div>
             {bookingRequest && (
               <>
                 <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                   {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                  {bookingRequest.children_count > 0 && (
-                    <span className="text-gray-400 ml-1">
-                      (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
-                    </span>
-                  )}
                 </p>
                 {/* Emails du chef et du client - Uniquement pour l'admin */}
                 {isAdmin && (
@@ -874,12 +874,12 @@ export default function ChatInterface({
       {/* Messages - Style premium */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto overscroll-contain bg-white"
+        className="flex-1 overflow-y-auto overscroll-contain bg-gray-100"
         style={{
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div className="px-4 py-6 sm:px-6 sm:py-8 min-h-full flex flex-col justify-end">
+        <div className="px-4 py-4 sm:px-6 sm:py-5 min-h-full flex flex-col justify-end">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               {/* Message système par défaut pour nouvelle conversation */}
@@ -983,11 +983,11 @@ export default function ChatInterface({
                 return (
                   <div
                     key={message.id}
-                    className={`flex mb-4 ${isChefMessage ? 'justify-start' : 'justify-end'}`}
+                    className={`flex mb-3 ${isChefMessage ? 'justify-start' : 'justify-end'}`}
                   >
-                    <div className={`max-w-[70%] sm:max-w-[65%] flex flex-col ${isChefMessage ? 'items-start' : 'items-end'}`}>
+                    <div className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isChefMessage ? 'items-start' : 'items-end'}`}>
                       {/* Nom de l'expéditeur - discret */}
-                      <span className="text-[11px] text-gray-400 mb-1 px-1">
+                      <span className="text-[10px] text-gray-400 mb-0.5 px-1.5">
                         {getParticipantName(message.sender_email)}
                       </span>
                       
@@ -995,19 +995,19 @@ export default function ChatInterface({
                       <div
                         className={`rounded-2xl px-4 py-2.5 ${
                           isChefMessage
-                            ? 'bg-[#FBCF03] text-black rounded-bl-sm'
-                            : 'bg-gray-900 text-white rounded-br-sm'
+                            ? 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
+                            : 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
                         }`}
                       >
                         <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${
-                          isChefMessage ? 'text-black' : 'text-white'
+                          isChefMessage ? 'text-black font-medium' : 'text-gray-900'
                         }`}>
                           {sanitizeMessage(message.content)}
                         </div>
                       </div>
                       
                       {/* Timestamp - très discret */}
-                      <span className="text-[10px] text-gray-400 mt-1 px-1">
+                      <span className="text-[10px] text-gray-400 mt-0.5 px-1.5">
                         {new Date(message.created_at).toLocaleTimeString('fr-FR', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -1025,16 +1025,16 @@ export default function ChatInterface({
 
       {/* Input - Style moderne premium (désactivé si réservation annulée ou si admin) */}
       {!isBookingCancelled && !isAdmin && (
-      <div className="flex-shrink-0 bg-white border-t border-gray-100 pb-safe">
-        <form onSubmit={handleSendMessage} className="px-4 py-4">
-          <div className="flex items-center gap-2">
+      <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
+        <form onSubmit={handleSendMessage} className="px-4 sm:px-6 py-3.5">
+          <div className="flex items-end gap-2.5">
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Message"
+              placeholder="Tapez un message..."
               disabled={loading}
-              className="flex-1 px-5 py-3 bg-gray-50 rounded-full text-[15px] focus:outline-none focus:bg-white focus:ring-1 focus:ring-gray-300 transition-all disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 minHeight: '44px',
               }}
@@ -1042,7 +1042,7 @@ export default function ChatInterface({
             <button
               type="submit"
               disabled={loading || !newMessage.trim()}
-              className="flex-shrink-0 w-11 h-11 rounded-full bg-black text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              className="flex-shrink-0 w-11 h-11 rounded-full bg-[#FBCF03] text-black hover:bg-[#FBCF03]/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center shadow-sm hover:shadow disabled:shadow-none"
               style={{
                 minHeight: '44px',
                 minWidth: '44px',
@@ -1054,8 +1054,8 @@ export default function ChatInterface({
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
               )}
             </button>
@@ -1073,9 +1073,9 @@ export default function ChatInterface({
       {/* Modal d'offre - Design premium, compact pour tenir sur une page */}
       {showOfferModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowOfferModal(false)}>
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Header fixe */}
-            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
               <div className="flex-1">
                 {bookingRequest?.service_type && (() => {
                   const getServiceTypeLabel = (type: string) => {
@@ -1095,7 +1095,7 @@ export default function ChatInterface({
                   )
                 })()}
                 {!bookingRequest?.service_type && (
-                  <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
+              <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
                 )}
               </div>
               <button
@@ -1110,26 +1110,26 @@ export default function ChatInterface({
             </div>
 
             {/* Contenu scrollable compact */}
-            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-3.5 space-y-3 bg-gray-100">
               {/* Informations de la réservation */}
               {bookingRequest && (
                 <div>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Informations</h3>
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-2">
+                  <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Informations</h3>
+                  <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3 space-y-2">
                     <div className="grid grid-cols-2 gap-3">
                       {/* Date ou Période selon le type de service */}
                       {(bookingRequest.service_type === 'repas_domicile' && bookingRequest.booking_date) ? (
                         <>
-                          <div>
-                            <p className="text-xs text-gray-500 mb-0.5">Date</p>
-                            <p className="text-sm font-medium text-black">
-                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
-                                day: 'numeric', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
-                            </p>
-                          </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-0.5">Date</p>
+                        <p className="text-sm font-medium text-black">
+                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
+                            day: 'numeric', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })}
+                        </p>
+                      </div>
                           {bookingRequest.meal_time && (
                             <div>
                               <p className="text-xs text-gray-500 mb-0.5">Moment du repas</p>
@@ -1199,82 +1199,77 @@ export default function ChatInterface({
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 mb-0.5">Nombre de convives</p>
-                      {isClient && canModifyBooking ? (
-                        <div className="space-y-2">
+                          {isClient && canModifyBooking ? (
+                        <div className="space-y-2.5">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleGuestsChange(currentGuestsCount - 1)}
                               disabled={currentGuestsCount <= 1 || updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer"
                             >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
                               </svg>
                             </button>
-                            <span className="font-medium text-black min-w-[2rem] text-center">
+                            <span className="font-bold text-black min-w-[3rem] text-center text-sm">
                               {updatingGuests ? '...' : `${currentGuestsCount} ${currentGuestsCount === 1 ? 'convive' : 'convives'}`}
                             </span>
                             <button
                               onClick={() => handleGuestsChange(currentGuestsCount + 1)}
                               disabled={updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Augmenter"
                             >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                               </svg>
                             </button>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Enfants :</span>
+                            <span className="text-xs text-gray-600 font-semibold min-w-[4rem]">Enfants :</span>
                             <button
                               onClick={() => handleChildrenChange(Math.max(0, childrenCount - 1))}
                               disabled={childrenCount <= 0 || updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer enfants"
                             >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
                               </svg>
                             </button>
-                            <span className="font-medium text-black min-w-[2rem] text-center text-sm">
+                            <span className="font-bold text-black min-w-[2.5rem] text-center text-sm">
                               {updatingGuests ? '...' : childrenCount}
                             </span>
                             <button
                               onClick={() => handleChildrenChange(Math.min(currentGuestsCount, childrenCount + 1))}
                               disabled={childrenCount >= currentGuestsCount || updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Augmenter enfants"
                             >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                               </svg>
                             </button>
                           </div>
                         </div>
                       ) : (
                         <p className="text-sm font-medium text-black">
-                          {bookingRequest.guests_count}
-                          {bookingRequest.children_count > 0 && (
-                            <span className="text-gray-500 ml-1">
-                              (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
-                            </span>
-                          )}
+                          {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
                         </p>
                       )}
                     </div>
                     {/* Allergies uniquement pour repas à domicile */}
                     {bookingRequest.service_type === 'repas_domicile' && bookingRequest.has_allergies && bookingRequest.allergies_details && (
-                      <div className="pt-2 border-t border-gray-200">
+                      <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">Allergies</p>
-                        <p className="text-sm text-black">{bookingRequest.allergies_details}</p>
+                        <p className="text-sm text-black leading-relaxed">{bookingRequest.allergies_details}</p>
                       </div>
                     )}
                     {bookingRequest.notes && (
-                      <div className="pt-2 border-t border-gray-200">
+                      <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">Notes</p>
-                        <p className="text-sm text-black">{bookingRequest.notes}</p>
+                        <p className="text-sm text-black leading-relaxed">{bookingRequest.notes}</p>
                       </div>
                     )}
                   </div>
@@ -1284,60 +1279,32 @@ export default function ChatInterface({
               {/* Menu sélectionné - uniquement pour repas à domicile */}
               {bookingRequest?.service_type === 'repas_domicile' && menuDetails ? (
                 <div>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Menu</h3>
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                  <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Menu</h3>
+                  <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3.5">
                     <p className="text-base font-semibold text-black mb-1">{menuDetails.name}</p>
                     {menuDetails.description && (
                       <p className="text-xs text-gray-600 mb-3 line-clamp-2">{menuDetails.description}</p>
                     )}
-                    <div className="pt-2 border-t border-gray-200 space-y-1.5">
+                    <div className="pt-2.5 border-t border-gray-300 space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600">Prix par menu</span>
-                        <span className="font-medium text-black">{menuPrice.toFixed(2)} €</span>
+                        <span className="text-gray-600 font-medium">Prix par menu</span>
+                        <span className="font-semibold text-black">{menuPrice.toFixed(2)} €</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600">Nombre de menus</span>
-                        {isClient && canModifyBooking ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleGuestsChange(currentGuestsCount - 1)}
-                              disabled={currentGuestsCount <= 1 || updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              aria-label="Diminuer"
-                            >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                              </svg>
-                            </button>
-                            <span className="font-medium text-black min-w-[2rem] text-center">
-                              {updatingGuests ? '...' : `${currentGuestsCount} ${currentGuestsCount === 1 ? 'menu' : 'menus'}`}
-                            </span>
-                            <button
-                              onClick={() => handleGuestsChange(currentGuestsCount + 1)}
-                              disabled={updatingGuests}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              aria-label="Augmenter"
-                            >
-                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-black">{currentGuestsCount} {currentGuestsCount === 1 ? 'menu' : 'menus'}</span>
-                        )}
+                        <span className="text-gray-600 font-medium">Nombre de menus</span>
+                        <span className="font-semibold text-black">{currentGuestsCount} {currentGuestsCount === 1 ? 'menu' : 'menus'}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm font-semibold pt-2 border-t border-gray-200">
+                      <div className="flex items-center justify-between text-sm font-semibold pt-2.5 border-t border-gray-300">
                         <span className="text-black">Sous-total</span>
-                        <span className="text-black">{menuTotal.toFixed(2)} €</span>
+                        <span className="text-black font-bold">{menuTotal.toFixed(2)} €</span>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : bookingRequest?.service_type === 'repas_domicile' ? (
                 <div>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Menu</h3>
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                  <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Menu</h3>
+                  <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3.5">
                     <p className="text-sm text-gray-500">Aucun menu sélectionné</p>
                   </div>
                 </div>
@@ -1345,11 +1312,11 @@ export default function ChatInterface({
 
               {/* Extras */}
               <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Extras</h3>
+                <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Extras</h3>
                 {extras.length > 0 ? (
                   <div className="space-y-1.5 mb-3">
                     {extras.map((extra, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg border border-gray-200 p-2.5">
+                      <div key={index} className="flex items-center justify-between bg-white rounded-lg border border-gray-300 shadow-md p-2.5">
                         <span className="text-sm font-medium text-black flex-1">{extra.name}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-black">{extra.price.toFixed(2)} €</span>
@@ -1375,13 +1342,13 @@ export default function ChatInterface({
 
                 {/* Formulaire d'ajout d'extra (chef uniquement, si réservation modifiable) */}
                 {isChef && canModifyBooking && (
-                  <div className="bg-[#FBCF03]/10 rounded-lg border border-[#FBCF03]/20 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-medium text-black">Ajouter un extra</p>
+                  <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-xs font-semibold text-black">Ajouter un extra</p>
                       <button
                         onClick={handleAddExtra}
                         disabled={!newExtraName.trim() || !newExtraPrice.trim() || savingExtras}
-                        className="px-3 py-1 text-xs font-medium text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 text-xs font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-md transition-all duration-150 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {savingExtras ? '...' : 'Ajouter'}
                       </button>
@@ -1392,7 +1359,7 @@ export default function ChatInterface({
                         value={newExtraName}
                         onChange={(e) => setNewExtraName(e.target.value)}
                         placeholder="Nom de l'extra"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-sm transition-all duration-150"
                         disabled={savingExtras}
                       />
                       <input
@@ -1402,7 +1369,7 @@ export default function ChatInterface({
                         placeholder="Prix (€)"
                         step="0.01"
                         min="0"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-sm transition-all duration-150"
                         disabled={savingExtras}
                       />
                     </div>
@@ -1411,21 +1378,21 @@ export default function ChatInterface({
               </div>
 
               {/* Total */}
-              <div className="pt-3 border-t border-gray-200">
+              <div className="pt-3.5 border-t border-gray-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold text-black">Total</span>
-                  <span className="text-xl font-bold text-black">{totalPrice.toFixed(2)} €</span>
+                  <span className="text-base font-semibold text-black tracking-tight">Total</span>
+                  <span className="text-xl font-bold text-black tracking-tight">{totalPrice.toFixed(2)} €</span>
                 </div>
               </div>
             </div>
 
             {/* Bouton Valider en bas (si modifications) */}
             {hasUnsavedChanges && canModifyBooking && (
-              <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-200 bg-white">
+              <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
                 <button
                   onClick={handleSaveChanges}
                   disabled={savingExtras || updatingGuests}
-                  className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingExtras || updatingGuests ? 'Sauvegarde...' : 'Valider les modifications'}
                 </button>
@@ -1470,12 +1437,7 @@ export default function ChatInterface({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Nombre de convives</span>
                     <span className="font-medium text-black">
-                      {bookingRequest.guests_count}
-                      {bookingRequest.children_count > 0 && (
-                        <span className="text-gray-500 ml-1 text-sm">
-                          (dont {bookingRequest.children_count} {bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
-                        </span>
-                      )}
+                      {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
                     </span>
                   </div>
                   <div className="pt-3 border-t border-gray-200 flex items-center justify-between">

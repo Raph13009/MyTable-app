@@ -670,7 +670,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 placeholder="0"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d&apos;enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
+                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
               </p>
             </div>
 
@@ -733,7 +733,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 placeholder="0"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d&apos;enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
+                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
               </p>
             </div>
 
@@ -815,7 +815,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 placeholder="0"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d&apos;enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
+                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
               </p>
             </div>
 
@@ -962,7 +962,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           />
           <span className="text-sm sm:text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
             <span className="whitespace-normal">
-              J&apos;accepte les{' '}
+              J'accepte les{' '}
               <button
                 type="button"
                 onClick={(e) => {
@@ -1075,7 +1075,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 <div className="space-y-3">
                   <h3 className="font-semibold text-black text-lg">Vos droits</h3>
                   <p className="text-base">
-                    Conformément au RGPD, vous disposez d&apos;un droit d&apos;accès, de rectification, de suppression et d&apos;opposition concernant vos données personnelles. Pour exercer ces droits, vous pouvez nous contacter à tout moment.
+                    Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition concernant vos données personnelles. Pour exercer ces droits, vous pouvez nous contacter à tout moment.
                   </p>
                 </div>
 
@@ -1093,7 +1093,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onClick={() => setShowTermsPopup(false)}
                 className="w-full rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                J&apos;ai compris
+                J'ai compris
               </Button>
             </div>
           </div>

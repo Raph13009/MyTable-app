@@ -124,14 +124,18 @@ export default function ConversationsList({ conversations, currentUser, particip
     if (isChef) {
       // Récupérer le nom du chef depuis bookingRequest.chefName
       const chefName = conversation.bookingRequest?.chefName || 'Chef'
+      // Extraire le prénom (premier mot) pour l'initiale
+      const chefFirstName = chefName.split(' ')[0] || chefName
       console.log('[ConversationsList] Chef name for conversation:', {
         conversationId: conversation.id,
         chefName,
+        chefFirstName,
         hasBookingRequest: !!conversation.bookingRequest,
         bookingRequestChefName: conversation.bookingRequest?.chefName,
       })
       return {
         name: chefName,
+        firstName: chefFirstName, // Stocker le prénom séparément pour l'initiale
         role: 'chef',
         isChef: true,
       }
@@ -265,7 +269,9 @@ export default function ConversationsList({ conversations, currentUser, particip
                     {/* Avatar - minimal et élégant */}
                     <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                       <span className="text-sm font-medium text-gray-600">
-                        {otherParticipant.name.charAt(0).toUpperCase()}
+                        {(otherParticipant as any).firstName 
+                          ? (otherParticipant as any).firstName.charAt(0).toUpperCase()
+                          : otherParticipant.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     
@@ -318,7 +324,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                               {eventDate && <span className="text-xs text-gray-300">·</span>}
                               <span className="text-xs text-gray-400">
                                 {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                                {conversation.bookingRequest.children_count && conversation.bookingRequest.children_count > 0 && (
+                                {conversation.bookingRequest.children_count > 0 && (
                                   <span className="text-gray-400 ml-0.5">
                                     ({conversation.bookingRequest.children_count} {conversation.bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
                                   </span>
