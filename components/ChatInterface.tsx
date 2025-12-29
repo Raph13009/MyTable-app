@@ -800,12 +800,10 @@ export default function ChatInterface({
 
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
-          // CRITICAL: Ensure primitive number types before assignment
-          // TypeScript may still infer Number object type, so use unary + again
-          const finalGuests: number = +safeGuestsCount
-          const finalChildren: number = +safeChildrenCount
-          (bookingRequest as any).guests_count = finalGuests
-          (bookingRequest as any).children_count = finalChildren
+          // CRITICAL: safeGuestsCount and safeChildrenCount are already primitive numbers
+          // Use type assertion to satisfy TypeScript's strict checking
+          (bookingRequest as any).guests_count = safeGuestsCount as unknown as number
+          (bookingRequest as any).children_count = safeChildrenCount as unknown as number
         }
 
         // Envoyer un message dans le chat pour notifier le changement
