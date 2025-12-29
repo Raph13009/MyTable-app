@@ -780,8 +780,8 @@ export default function ChatInterface({
           },
           body: JSON.stringify({
             bookingRequestId: bookingRequest.id,
-            guestsCount: Number(safeGuestsCount), // Use safe value, ensure primitive
-            childrenCount: Number(safeChildrenCount), // Use safe value, ensure primitive
+            guestsCount: +safeGuestsCount, // Use safe value, ensure primitive with unary +
+            childrenCount: +safeChildrenCount, // Use safe value, ensure primitive with unary +
           }),
         })
 
