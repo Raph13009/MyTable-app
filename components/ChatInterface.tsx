@@ -680,9 +680,10 @@ export default function ChatInterface({
       ? childrenCount 
       : (typeof childrenCountRef.current === 'number' ? childrenCountRef.current : 0)
     
-    // Force primitive number types using unary + operator and type assertion
-    const safeGuestsCount = (+safeGuestsCountRaw) as number
-    const safeChildrenCount = (+safeChildrenCountRaw) as number
+    // Force primitive number types using unary + operator
+    // The unary + operator always returns a primitive number, even from Number objects
+    const safeGuestsCount = +safeGuestsCountRaw
+    const safeChildrenCount = +safeChildrenCountRaw
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
