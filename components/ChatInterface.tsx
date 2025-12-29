@@ -673,12 +673,16 @@ export default function ChatInterface({
     // Ensure we have valid numbers before proceeding
     // CRITICAL: Convert to primitive number to avoid Number object issues
     // Use unary + operator to force primitive number type (works even if value is Number object)
-    const safeGuestsCount: number = typeof guestsCount === 'number' 
-      ? +guestsCount 
-      : (typeof guestsCountRef.current === 'number' ? +guestsCountRef.current : 1)
-    const safeChildrenCount: number = typeof childrenCount === 'number' 
-      ? +childrenCount 
-      : (typeof childrenCountRef.current === 'number' ? +childrenCountRef.current : 0)
+    const safeGuestsCountRaw = typeof guestsCount === 'number' 
+      ? guestsCount 
+      : (typeof guestsCountRef.current === 'number' ? guestsCountRef.current : 1)
+    const safeChildrenCountRaw = typeof childrenCount === 'number' 
+      ? childrenCount 
+      : (typeof childrenCountRef.current === 'number' ? childrenCountRef.current : 0)
+    
+    // Force primitive number types using unary + operator and type assertion
+    const safeGuestsCount = (+safeGuestsCountRaw) as number
+    const safeChildrenCount = (+safeChildrenCountRaw) as number
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
