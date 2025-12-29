@@ -672,12 +672,12 @@ export default function ChatInterface({
 
     // Ensure we have valid numbers before proceeding
     // CRITICAL: Convert to primitive number to avoid Number object issues
-    const safeGuestsCount: number = typeof guestsCount === 'number' 
+    const safeGuestsCount = (typeof guestsCount === 'number' 
       ? Number(guestsCount) 
-      : (typeof guestsCountRef.current === 'number' ? Number(guestsCountRef.current) : 1)
-    const safeChildrenCount: number = typeof childrenCount === 'number' 
+      : (typeof guestsCountRef.current === 'number' ? Number(guestsCountRef.current) : 1)) as number
+    const safeChildrenCount = (typeof childrenCount === 'number' 
       ? Number(childrenCount) 
-      : (typeof childrenCountRef.current === 'number' ? Number(childrenCountRef.current) : 0)
+      : (typeof childrenCountRef.current === 'number' ? Number(childrenCountRef.current) : 0)) as number
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
@@ -786,8 +786,12 @@ export default function ChatInterface({
 
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
-          (bookingRequest as any).guests_count = Number(safeGuestsCount) // Use safe value, ensure primitive
-          (bookingRequest as any).children_count = Number(safeChildrenCount) // Use safe value, ensure primitive
+          // CRITICAL: Ensure primitive number types to avoid TypeScript errors
+          // Use unary + operator to force primitive number type
+          const guestsCountValue = +safeGuestsCount
+          const childrenCountValue = +safeChildrenCount
+          (bookingRequest as any).guests_count = guestsCountValue
+          (bookingRequest as any).children_count = childrenCountValue
         }
 
         // Envoyer un message dans le chat pour notifier le changement
