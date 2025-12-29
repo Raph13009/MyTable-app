@@ -324,9 +324,9 @@ export default function ConversationsList({ conversations, currentUser, particip
                               {eventDate && <span className="text-xs text-gray-300">·</span>}
                               <span className="text-xs text-gray-400">
                                 {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
-                                {conversation.bookingRequest.children_count > 0 && (
+                                {(conversation.bookingRequest.children_count ?? 0) > 0 && (
                                   <span className="text-gray-400 ml-0.5">
-                                    ({conversation.bookingRequest.children_count} {conversation.bookingRequest.children_count === 1 ? 'enfant' : 'enfants'})
+                                    ({(conversation.bookingRequest.children_count ?? 0)} {(conversation.bookingRequest.children_count ?? 0) === 1 ? 'enfant' : 'enfants'})
                                   </span>
                                 )}
                               </span>

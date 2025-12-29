@@ -211,9 +211,9 @@ export default async function DashboardPage() {
   if (allConversationIds.length === 0) {
     console.error('[Dashboard] ❌❌❌ NO CONVERSATION IDs - RETURNING EMPTY STATE ❌❌❌')
     console.error('[Dashboard] This means no participants matched the user')
-    console.error('[Dashboard] User email:', user.email)
-    console.error('[Dashboard] Normalized email:', normalizedUserEmail)
-    console.error('[Dashboard] User ID:', user.id)
+      console.error('[Dashboard] User email:', user?.email)
+      console.error('[Dashboard] Normalized email:', normalizedUserEmail)
+      console.error('[Dashboard] User ID:', user?.id)
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-4xl mx-auto px-4 py-8">
