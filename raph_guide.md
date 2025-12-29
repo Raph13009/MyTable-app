@@ -1,28 +1,13 @@
-# Raph's Next.js + TypeScript Guide
+# Raph's Next.js Project Setup Guide
 
-**Guide personnel pour éviter les erreurs courantes de déploiement**
+Quick reference guide to avoid common deployment issues with Next.js, TypeScript, and ESLint.
 
----
+## 🚀 Initial Setup Checklist
 
-## 🚀 Checklist Avant Chaque Push
+### 1. ESLint Configuration
 
-### 1. Tester le Build Localement
-```bash
-npm run build
-```
-**⚠️ Ne jamais push si le build local échoue !**
+**File:** `.eslintrc.json`
 
-### 2. Vérifier TypeScript
-```bash
-npx tsc --noEmit
-```
-**⚠️ Corriger toutes les erreurs TypeScript avant de push**
-
----
-
-## ⚙️ Configuration Initiale (À Faire en Début de Projet)
-
-### ESLint - `.eslintrc.json`
 ```json
 {
   "extends": "next/core-web-vitals",
@@ -31,124 +16,165 @@ npx tsc --noEmit
   }
 }
 ```
-**Pourquoi :** Évite les erreurs avec les apostrophes dans le texte JSX
 
-### TypeScript - `tsconfig.json`
-Vérifier que `strict: true` est activé pour détecter les erreurs tôt.
+**Why:** Prevents apostrophe errors in JSX comments and text. Next.js ESLint is strict about HTML entities.
 
----
+### 2. TypeScript Best Practices
 
-## 🐛 Erreurs Courantes et Solutions
+#### Use `undefined` instead of `null` for optional fields
 
-### ❌ Erreur : Apostrophes dans JSX
-```
-Error: `'` can be escaped with `&apos;`
-```
-**Solution :**
-- Utiliser `&apos;` dans le texte JSX
-- OU désactiver la règle dans `.eslintrc.json` (recommandé)
-
-### ❌ Erreur : Type 'null' is not assignable to type 'string | undefined'
-```
-Type 'null' is not assignable to type 'string | undefined'
-```
-**Solution :**
-- Utiliser `undefined` au lieu de `null` pour les champs optionnels
-- Exemple : `booking_date: undefined` (pas `null`)
-
-### ❌ Erreur : Property is possibly 'null' or 'undefined'
-```
-'user' is possibly 'null'
-```
-**Solution :**
-- Utiliser l'optional chaining : `user?.email` au lieu de `user.email`
-- OU vérifier avant : `if (user) { ... }`
-
----
-
-## 📝 Bonnes Pratiques
-
-### 1. Types Optionnels
 ```typescript
-// ✅ BON
-const data = {
-  name: 'John',
-  email: undefined,  // Pour les champs optionnels
+// ❌ BAD
+const user: User = {
+  email: 'test@example.com',
+  phone: null,  // TypeScript error!
+  confirmation_sent_at: null
 }
 
-// ❌ MAUVAIS
-const data = {
-  name: 'John',
-  email: null,  // Ne pas utiliser null
+// ✅ GOOD
+const user: User = {
+  email: 'test@example.com',
+  phone: undefined,  // Correct
+  confirmation_sent_at: undefined
 }
 ```
 
-### 2. Optional Chaining
-```typescript
-// ✅ BON
-const email = user?.email
-const id = user?.id
+**Why:** TypeScript optional fields expect `string | undefined`, not `string | null`.
 
-// ❌ MAUVAIS
-const email = user.email  // Peut crasher si user est null
+#### Handle nullable values properly
+
+```typescript
+// ❌ BAD
+if (user.email) { ... }  // Error if user can be null
+
+// ✅ GOOD
+if (user?.email) { ... }  // Safe with optional chaining
+
+// ✅ GOOD
+const email = user?.email ?? 'default@example.com'
 ```
 
-### 3. Fichiers de Test
-Si vous créez des fichiers de test (`*-test.tsx`), soit :
-- Les exclure du build de production
-- OU s'assurer qu'ils respectent tous les types TypeScript
+### 3. Mock Data for Testing
 
----
+When creating mock objects for tests, always match the exact type:
 
-## 🔍 Commandes Utiles
+```typescript
+// ✅ GOOD - Match exact type structure
+const mockUser: User = {
+  id: 'test-id',
+  email: 'test@example.com',
+  created_at: new Date().toISOString(),
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  confirmation_sent_at: undefined,  // Not null!
+  recovery_sent_at: undefined,
+  email_confirmed_at: new Date().toISOString(),
+  invited_at: undefined,
+  action_link: undefined,
+  last_sign_in_at: new Date().toISOString(),
+  phone: undefined,
+  phone_confirmed_at: undefined,
+  confirmed_at: new Date().toISOString(),
+  is_anonymous: false,
+} as User
+```
+
+### 4. Pre-Deployment Checklist
+
+Before pushing to production:
 
 ```bash
-# Build local
-npm run build
-
-# Vérifier TypeScript
+# 1. Check TypeScript errors
 npx tsc --noEmit
 
-# Linter
-npm run lint
+# 2. Run build locally
+npm run build
 
-# Vérifier les erreurs avant push
-npm run build && npx tsc --noEmit
+# 3. Fix all errors before pushing
+git add .
+git commit -m "fix: ..."
+git push
 ```
 
----
+**Never push if `npm run build` fails locally!**
 
-## 📦 Structure Recommandée
+### 5. Common TypeScript Errors & Fixes
 
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Type 'null' is not assignable to type 'string \| undefined'` | Using `null` instead of `undefined` | Replace `null` with `undefined` |
+| `'user' is possibly 'null'` | Not checking for null | Use `user?.property` or `user ?? defaultValue` |
+| `Property 'X' is possibly 'undefined'` | Not handling optional fields | Use `property ?? defaultValue` or optional chaining |
+
+### 6. ESLint Warnings to Watch
+
+- **`react/no-unescaped-entities`**: Apostrophes in JSX text
+  - Fix: Use `&apos;` or disable rule globally
+- **`@next/next/no-img-element`**: Using `<img>` instead of `<Image />`
+  - Fix: Use Next.js `<Image />` component or disable if intentional
+- **`react-hooks/exhaustive-deps`**: Missing dependencies in useEffect
+  - Fix: Add missing dependencies or use `// eslint-disable-next-line`
+
+### 7. Vercel Deployment Tips
+
+1. **Always test build locally first**
+   ```bash
+   npm run build
+   ```
+
+2. **If deployment fails, check:**
+   - TypeScript errors (`npx tsc --noEmit`)
+   - ESLint errors (shown in build output)
+   - Missing environment variables
+
+3. **Clear Vercel cache if needed:**
+   - Go to Vercel dashboard → Settings → Clear Build Cache
+   - Or redeploy after fixing errors
+
+### 8. Quick Fixes Reference
+
+#### Fix apostrophe errors
+```typescript
+// In .eslintrc.json
+"rules": {
+  "react/no-unescaped-entities": "off"
+}
 ```
-project/
-├── .eslintrc.json          # Config ESLint (désactiver règles strictes)
-├── tsconfig.json           # Config TypeScript (strict: true)
-├── next.config.js          # Config Next.js
-└── app/                    # Pages Next.js
-    └── (test)/             # Fichiers de test (exclure du build si possible)
+
+#### Fix null/undefined errors
+```typescript
+// Replace all null with undefined in optional fields
+const obj = {
+  field: undefined  // not null
+}
 ```
 
+#### Fix optional chaining
+```typescript
+// Always use ?. for potentially null/undefined values
+const value = obj?.property?.nested ?? defaultValue
+```
+
+## 📝 Project Template
+
+When starting a new Next.js project:
+
+1. ✅ Configure `.eslintrc.json` with relaxed rules
+2. ✅ Set up TypeScript strict mode (or configure as needed)
+3. ✅ Create test files with proper type casting
+4. ✅ Add pre-commit hook to run `npm run build` (optional but recommended)
+5. ✅ Document environment variables in `.env.example`
+
+## 🎯 Golden Rules
+
+1. **Test locally before pushing** - Always run `npm run build`
+2. **Use `undefined` not `null`** - For TypeScript optional fields
+3. **Use optional chaining** - `?.` for potentially null values
+4. **Configure ESLint early** - Disable problematic rules upfront
+5. **Match types exactly** - Mock data must match real type structure
+
 ---
 
-## 🎯 Workflow Recommandé
-
-1. **Développer** → Faire les changements
-2. **Tester localement** → `npm run build` + `npx tsc --noEmit`
-3. **Corriger les erreurs** → Avant de commit
-4. **Commit** → Seulement si tout passe
-5. **Push** → Vercel buildera automatiquement
-
----
-
-## 💡 Astuces
-
-- **Toujours tester le build local avant de push**
-- **Utiliser `undefined` pour les champs optionnels TypeScript**
-- **Configurer ESLint dès le début du projet**
-- **Vérifier les types avec `tsc --noEmit` régulièrement**
-
----
-
-**Dernière mise à jour :** 2024  
-**Version :** 1.0
+**Last updated:** 2024  
+**For:** Next.js 14+ projects with TypeScript and ESLint
