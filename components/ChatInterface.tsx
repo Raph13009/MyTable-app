@@ -415,8 +415,8 @@ export default function ChatInterface({
   }, [bookingRequest?.guests_count, bookingRequest?.children_count])
 
   // Handler pour modifier le nombre de convives (mise à jour locale uniquement)
-  // Using useCallback to prevent minification issues and ensure stable reference
-  // Note: canModifyBooking is calculated later, so we check bookingStatus directly
+  // SINGLE SOURCE OF TRUTH: This handler ONLY updates guestsCount
+  // It clamps childrenCount down if needed, but does NOT trigger childrenCount updates
   const handleGuestsChange = useCallback((newCountOrUpdater: number | ((prev: number) => number)) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
@@ -434,36 +434,44 @@ export default function ChatInterface({
       return
     }
 
-    // S'assurer que childrenCount ne dépasse pas guestsCount
-    // Use functional update to get current childrenCount value
+    // ONE-DIRECTIONAL UPDATE: If guests_count decreases below children_count, clamp children_count down
+    // This is the ONLY place where guests_count update affects children_count
+    // It does NOT trigger any children_count handler, just a direct state update
     setChildrenCount((currentChildren: number) => {
       if (currentChildren > newCount) {
-        return newCount
+        return newCount // Clamp down, no handler call
       }
-      return currentChildren
+      return currentChildren // No change needed
     })
 
+    // Update guestsCount - this is the single source of truth for guests_count
     setGuestsCount(newCount)
   }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
-  // Use ref to get current guestsCount and avoid stale closure issues
+  // SINGLE SOURCE OF TRUTH: This handler ONLY updates childrenCount
+  // If children_count > guests_count, it increases guests_count ONCE (no recursion)
   const handleChildrenChange = useCallback((newCount: number) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
 
-    // Contraintes : minimum 0, maximum guestsCount
+    // Contraintes : minimum 0
     if (newCount < 0) {
       return
     }
     
-    // Use ref to get current guestsCount value (avoids stale closure)
-    if (newCount > guestsCountRef.current) {
-      return // Don't update if exceeds guestsCount
+    // ONE-DIRECTIONAL UPDATE: If children_count exceeds guests_count, increase guests_count ONCE
+    // This is the ONLY place where children_count update affects guests_count
+    // It does NOT trigger handleGuestsChange (which would create a loop), just a direct state update
+    const currentGuests = guestsCountRef.current
+    if (newCount > currentGuests) {
+      // Increase guests_count to match children_count - direct update, no handler call
+      setGuestsCount(newCount)
     }
     
+    // Update childrenCount - this is the single source of truth for children_count
     setChildrenCount(newCount)
   }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
@@ -1535,12 +1543,13 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Use functional update to get current value and avoid stale closure
+                                // Direct update: calculate new value and call handler
+                                // Handler will update state, no need for setState here
                                 setChildrenCount((currentChildren: number) => {
                                   const newCount = Math.max(0, currentChildren - 1)
-                                  // handleChildrenChange will call setChildrenCount, so we return current to avoid double update
+                                  // Call handler which will update state (single source of truth)
                                   handleChildrenChange(newCount)
-                                  return currentChildren
+                                  return currentChildren // Return current to prevent double update
                                 })
                               }}
                               disabled={updatingGuests}
@@ -1558,12 +1567,13 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Use functional update to get current childrenCount and calculate new value
+                                // Direct update: calculate new value and call handler
+                                // Handler will handle the constraint (children_count can exceed guests_count, which increases guests_count)
                                 setChildrenCount((currentChildren: number) => {
-                                  const newCount = Math.min(guestsCountRef.current, currentChildren + 1)
-                                  // handleChildrenChange will call setChildrenCount, so we return current to avoid double update
+                                  const newCount = currentChildren + 1
+                                  // Call handler which will update state and handle guests_count constraint
                                   handleChildrenChange(newCount)
-                                  return currentChildren
+                                  return currentChildren // Return current to prevent double update
                                 })
                               }}
                               disabled={updatingGuests}
