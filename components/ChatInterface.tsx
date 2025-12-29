@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
@@ -410,8 +410,11 @@ export default function ChatInterface({
   }, [bookingRequest?.guests_count, bookingRequest?.children_count])
 
   // Handler pour modifier le nombre de convives (mise à jour locale uniquement)
-  const handleGuestsChange = (newCount: number) => {
-    if (!bookingRequest?.id || !isClient || !canModifyBooking) {
+  // Using useCallback to prevent minification issues and ensure stable reference
+  // Note: canModifyBooking is calculated later, so we check bookingStatus directly
+  const handleGuestsChange = useCallback((newCount: number) => {
+    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
+    if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
 
@@ -426,11 +429,12 @@ export default function ChatInterface({
     }
 
     setGuestsCount(newCount)
-  }
+  }, [bookingRequest?.id, bookingRequest?.status, isClient, childrenCount])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
-  const handleChildrenChange = (newCount: number) => {
-    if (!bookingRequest?.id || !isClient || !canModifyBooking) {
+  const handleChildrenChange = useCallback((newCount: number) => {
+    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
+    if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
 
@@ -443,7 +447,7 @@ export default function ChatInterface({
     }
 
     setChildrenCount(newCount)
-  }
+  }, [bookingRequest?.id, bookingRequest?.status, isClient, guestsCount])
 
   // Charger les extras au montage
   useEffect(() => {
@@ -965,35 +969,7 @@ export default function ChatInterface({
                   {/* Voir le menu (client only, if menu exists) */}
                   {isClient && hasMenu && (
                     <button
-                      onClick={() => {
-                        // Scroll to menu message in chat
-                        const menuMessage = messages.find(m => 
-                          m.content.includes('✨ Menu défini') || m.content.includes('Menu défini') || m.content.startsWith('✨ Menu')
-                        )
-                        if (menuMessage) {
-                          // Try multiple selectors to find the menu message
-                          let element = document.querySelector(`[data-message-id="${menuMessage.id}"]`)
-                          if (!element) {
-                            // Fallback: find by message content or try to find the system message
-                            const allMessages = document.querySelectorAll('[data-message-id]')
-                            allMessages.forEach((el) => {
-                              if (el.textContent?.includes('Menu défini')) {
-                                element = el
-                              }
-                            })
-                          }
-                          if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                            // Highlight briefly
-                            element.classList.add('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
-                            setTimeout(() => {
-                              element?.classList.remove('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
-                            }, 2000)
-                          } else {
-                            console.error('[ChatInterface] Menu message element not found')
-                          }
-                        }
-                      }}
+                      onClick={() => setShowMenuModal(true)}
                       className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                     >
                       Voir le menu
@@ -1190,16 +1166,8 @@ export default function ChatInterface({
                         <div 
                           className={`${bgColor} ${textColor} border-2 ${borderColor} rounded-xl px-5 py-4 max-w-[90%] shadow-lg cursor-pointer hover:shadow-xl transition-shadow`}
                           onClick={() => {
-                            // Scroll to menu message (same logic as "Voir le menu" button)
-                            const element = document.querySelector(`[data-message-id="${message.id}"]`)
-                            if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              // Highlight briefly
-                              element.classList.add('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
-                              setTimeout(() => {
-                                element?.classList.remove('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
-                              }, 2000)
-                            }
+                            // Open menu modal when clicking on menu card
+                            setShowMenuModal(true)
                           }}
                         >
                           <div className="flex items-center gap-3 mb-3">
@@ -1710,9 +1678,9 @@ export default function ChatInterface({
               </div>
             </div>
 
-            {/* Bouton Valider en bas (si modifications) */}
-            {hasUnsavedChanges && canModifyBooking && (
-              <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+            {/* Footer avec CTA clair */}
+            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+              {hasUnsavedChanges && canModifyBooking ? (
                 <button
                   onClick={handleSaveChanges}
                   disabled={savingExtras || updatingGuests}
@@ -1720,8 +1688,96 @@ export default function ChatInterface({
                 >
                   {savingExtras || updatingGuests ? 'Sauvegarde...' : 'Valider les modifications'}
                 </button>
-              </div>
-            )}
+              ) : (
+                <button
+                  onClick={() => setShowOfferModal(false)}
+                  className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg"
+                >
+                  Fermer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Menu - Affiche le menu défini par le chef */}
+      {showMenuModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowMenuModal(false)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
+              <h2 className="text-xl font-semibold text-black">Menu</h2>
+              <button
+                onClick={() => setShowMenuModal(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors sm:p-1.5 sm:bg-transparent sm:hover:bg-gray-100"
+                aria-label="Fermer"
+              >
+                <span className="sm:hidden">Retour</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+              {(() => {
+                const categoryLabels: Record<string, string> = {
+                  aperitifs: 'Apéritifs',
+                  mise_en_bouche: 'Mise en bouche',
+                  entree: 'Entrée',
+                  plat: 'Plat',
+                  dessert: 'Dessert',
+                  mignardises: 'Mignardises',
+                }
+
+                const hasAnyItems = Object.values(menuCategories).some(items => Array.isArray(items) && items.length > 0)
+
+                if (!hasAnyItems) {
+                  return (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">Aucun menu défini pour le moment.</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {Object.entries(categoryLabels).map(([key, label]) => {
+                      const items = menuCategories[key as keyof typeof menuCategories]
+                      if (!Array.isArray(items) || items.length === 0) {
+                        return null
+                      }
+
+                      return (
+                        <div key={key} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                          <h3 className="text-sm font-semibold text-black mb-3 uppercase tracking-wide">{label}</h3>
+                          <ul className="space-y-2">
+                            {items.map((item: string, index: number) => (
+                              <li key={index} className="flex items-start gap-2">
+                                <span className="text-[#FBCF03] mt-1">•</span>
+                                <span className="text-sm text-black flex-1">{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+              <button
+                onClick={() => setShowMenuModal(false)}
+                className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
