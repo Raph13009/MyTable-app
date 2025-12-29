@@ -682,8 +682,9 @@ export default function ChatInterface({
     
     // Force primitive number types using unary + operator
     // The unary + operator always returns a primitive number, even from Number objects
-    const safeGuestsCount = +safeGuestsCountRaw
-    const safeChildrenCount = +safeChildrenCountRaw
+    // Explicitly type as number to satisfy TypeScript
+    const safeGuestsCount: number = +safeGuestsCountRaw
+    const safeChildrenCount: number = +safeChildrenCountRaw
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
