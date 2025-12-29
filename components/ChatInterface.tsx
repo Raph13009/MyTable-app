@@ -424,12 +424,16 @@ export default function ChatInterface({
     }
 
     // S'assurer que childrenCount ne dépasse pas guestsCount
-    if (childrenCount > newCount) {
-      setChildrenCount(newCount)
-    }
+    // Use functional update to get current childrenCount value
+    setChildrenCount((currentChildren) => {
+      if (currentChildren > newCount) {
+        return newCount
+      }
+      return currentChildren
+    })
 
     setGuestsCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient, childrenCount])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
   const handleChildrenChange = useCallback((newCount: number) => {
@@ -1481,8 +1485,12 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                const newCount = Math.max(1, guestsCount - 1)
-                                handleGuestsChange(newCount)
+                                // Use functional update to get current value and avoid stale closure
+                                setGuestsCount((currentCount) => {
+                                  const newCount = Math.max(1, currentCount - 1)
+                                  handleGuestsChange(newCount)
+                                  return newCount
+                                })
                               }}
                               disabled={guestsCount <= 1 || updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
@@ -1499,7 +1507,12 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                handleGuestsChange(guestsCount + 1)
+                                // Use functional update to get current value and avoid stale closure
+                                setGuestsCount((currentCount) => {
+                                  const newCount = currentCount + 1
+                                  handleGuestsChange(newCount)
+                                  return newCount
+                                })
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
