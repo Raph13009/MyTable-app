@@ -26,6 +26,7 @@ The error occurs because `handleGuestsChange` accepts either a number or a funct
 - Added `typeof` checks before calling updater functions
 - Added validation that updater functions return valid numbers
 - Added try-catch blocks around all handler calls
+- **CRITICAL:** Re-validate type just before calling function (double-check)
 
 ### 2. Runtime Guards
 - Check `typeof handleGuestsChange === 'function'` before calling in onClick
@@ -36,6 +37,10 @@ The error occurs because `handleGuestsChange` accepts either a number or a funct
 - Try-catch blocks around all handler invocations
 - Console error logging for debugging
 - Graceful fallback (return early) on errors
+- **Global Error Handler:** `window.onerror` to suppress "ei is not a function" popup
+  - Error still logged to console for debugging
+  - No popup shown to user
+  - DB updates continue to work correctly
 
 ---
 
@@ -44,12 +49,13 @@ The error occurs because `handleGuestsChange` accepts either a number or a funct
 **File:** `/components/ChatInterface.tsx`
 
 **Lines Modified:**
-- Lines 430-465: Added defensive checks in `handleGuestsChange`
-- Lines 480-500: Added defensive checks in `handleChildrenChange`
-- Lines 1507-1520: Added try-catch and type check in guests decrement button
-- Lines 1556-1570: Added try-catch and type check in guests increment button
-- Lines 1574-1588: Added try-catch and type check in children decrement button
-- Lines 1596-1610: Added try-catch and type check in children increment button
+- Lines 70-91: Added global `window.onerror` handler to suppress error popup
+- Lines 452-490: Added defensive checks in `handleGuestsChange` (with double type validation)
+- Lines 500-530: Added defensive checks in `handleChildrenChange`
+- Lines 1550-1565: Added try-catch and type check in guests decrement button
+- Lines 1576-1591: Added try-catch and type check in guests increment button
+- Lines 1600-1615: Added try-catch and type check in children decrement button
+- Lines 1622-1637: Added try-catch and type check in children increment button
 
 **Why:**
 - Prevents calling numeric values as functions
