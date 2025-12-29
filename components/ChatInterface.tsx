@@ -447,8 +447,8 @@ export default function ChatInterface({
   }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
-  // Use functional update pattern to avoid stale closure issues
-  const handleChildrenChange = useCallback((newCount: number, currentGuests?: number) => {
+  // Use ref to get current guestsCount and avoid stale closure issues
+  const handleChildrenChange = useCallback((newCount: number) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
@@ -459,22 +459,12 @@ export default function ChatInterface({
       return
     }
     
-    // If currentGuests provided, use it; otherwise get it via functional update
-    if (currentGuests !== undefined) {
-      if (newCount > currentGuests) {
-        return // Don't update if exceeds guestsCount
-      }
-      setChildrenCount(newCount)
-    } else {
-      // Fallback: use functional update to get current guestsCount
-      setGuestsCount((currentGuestsValue: number) => {
-        if (newCount > currentGuestsValue) {
-          return currentGuestsValue // Don't update guestsCount, just prevent childrenCount update
-        }
-        setChildrenCount(newCount)
-        return currentGuestsValue // Return unchanged
-      })
+    // Use ref to get current guestsCount value (avoids stale closure)
+    if (newCount > guestsCountRef.current) {
+      return // Don't update if exceeds guestsCount
     }
+    
+    setChildrenCount(newCount)
   }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Charger les extras au montage
@@ -1567,14 +1557,11 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Use functional updates to get current values and avoid stale closures
-                                setGuestsCount((currentGuests: number) => {
-                                  setChildrenCount((currentChildren: number) => {
-                                    const newCount = Math.min(currentGuests, currentChildren + 1)
-                                    handleChildrenChange(newCount, currentGuests)
-                                    return newCount
-                                  })
-                                  return currentGuests
+                                // Use functional update to get current childrenCount and calculate new value
+                                setChildrenCount((currentChildren: number) => {
+                                  const newCount = Math.min(guestsCountRef.current, currentChildren + 1)
+                                  handleChildrenChange(newCount)
+                                  return newCount
                                 })
                               }}
                               disabled={updatingGuests}
