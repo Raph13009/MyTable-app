@@ -792,11 +792,11 @@ export default function ChatInterface({
 
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
-          // CRITICAL: Ensure primitive number types before assignment
-          // Use explicit conversion with Number() constructor to ensure primitives
-          // The unary + operator already converted to primitive, but TypeScript needs explicit typing
-          const finalGuestsCount: number = Number(safeGuestsCount)
-          const finalChildrenCount: number = Number(safeChildrenCount)
+          // CRITICAL: safeGuestsCount and safeChildrenCount are already primitive numbers
+          // (converted with unary + operator above). Use explicit primitive conversion to satisfy TypeScript
+          // TypeScript may infer Number object type, so we use unary + again to ensure primitive
+          const finalGuestsCount = +safeGuestsCount
+          const finalChildrenCount = +safeChildrenCount
           (bookingRequest as any).guests_count = finalGuestsCount
           (bookingRequest as any).children_count = finalChildrenCount
         }
