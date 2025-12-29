@@ -152,6 +152,11 @@ export default function ChatInterface({
   const [guestsCount, setGuestsCount] = useState(bookingRequest?.guests_count || 1)
   const [childrenCount, setChildrenCount] = useState(bookingRequest?.children_count || 0)
   const [updatingGuests, setUpdatingGuests] = useState(false)
+  // Use ref to store current guestsCount to avoid closure issues
+  const guestsCountRef = useRef(guestsCount)
+  useEffect(() => {
+    guestsCountRef.current = guestsCount
+  }, [guestsCount])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [localExtras, setLocalExtras] = useState<Array<{ name: string; price: number }>>([])
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -419,8 +424,9 @@ export default function ChatInterface({
     }
 
     // Get the new count value (either direct number or from updater function)
+    // Use ref to get current value and avoid stale closure
     const newCount = typeof newCountOrUpdater === 'function' 
-      ? newCountOrUpdater(guestsCount)
+      ? newCountOrUpdater(guestsCountRef.current)
       : newCountOrUpdater
 
     // Contraintes : minimum 1
@@ -438,7 +444,7 @@ export default function ChatInterface({
     })
 
     setGuestsCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient, guestsCount])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
   // Use functional update pattern to avoid stale closure issues
