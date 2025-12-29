@@ -672,19 +672,26 @@ export default function ChatInterface({
 
     // Ensure we have valid numbers before proceeding
     // CRITICAL: Convert to primitive number to avoid Number object issues
-    // Use unary + operator to force primitive number type (works even if value is Number object)
-    const safeGuestsCountRaw = typeof guestsCount === 'number' 
+    // Get raw values first
+    const guestsCountValue = typeof guestsCount === 'number' 
       ? guestsCount 
       : (typeof guestsCountRef.current === 'number' ? guestsCountRef.current : 1)
-    const safeChildrenCountRaw = typeof childrenCount === 'number' 
+    const childrenCountValue = typeof childrenCount === 'number' 
       ? childrenCount 
       : (typeof childrenCountRef.current === 'number' ? childrenCountRef.current : 0)
     
-    // Force primitive number types using unary + operator
-    // The unary + operator always returns a primitive number, even from Number objects
-    // Explicitly type as number to satisfy TypeScript
-    const safeGuestsCount: number = +safeGuestsCountRaw
-    const safeChildrenCount: number = +safeChildrenCountRaw
+    // Force primitive number types using explicit conversion
+    // Use valueOf() if it's a Number object, otherwise use the value directly
+    const safeGuestsCount: number = typeof guestsCountValue === 'number' 
+      ? guestsCountValue 
+      : (typeof guestsCountValue === 'object' && guestsCountValue !== null && 'valueOf' in guestsCountValue 
+        ? (guestsCountValue as any).valueOf() 
+        : Number(guestsCountValue) || 1)
+    const safeChildrenCount: number = typeof childrenCountValue === 'number' 
+      ? childrenCountValue 
+      : (typeof childrenCountValue === 'object' && childrenCountValue !== null && 'valueOf' in childrenCountValue 
+        ? (childrenCountValue as any).valueOf() 
+        : Number(childrenCountValue) || 0)
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
