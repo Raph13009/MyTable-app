@@ -412,11 +412,16 @@ export default function ChatInterface({
   // Handler pour modifier le nombre de convives (mise à jour locale uniquement)
   // Using useCallback to prevent minification issues and ensure stable reference
   // Note: canModifyBooking is calculated later, so we check bookingStatus directly
-  const handleGuestsChange = useCallback((newCount: number) => {
+  const handleGuestsChange = useCallback((newCountOrUpdater: number | ((prev: number) => number)) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
+
+    // Get the new count value (either direct number or from updater function)
+    const newCount = typeof newCountOrUpdater === 'function' 
+      ? newCountOrUpdater(guestsCount)
+      : newCountOrUpdater
 
     // Contraintes : minimum 1
     if (newCount < 1) {
@@ -433,7 +438,7 @@ export default function ChatInterface({
     })
 
     setGuestsCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient, guestsCount])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
   // Use functional update pattern to avoid stale closure issues
@@ -1498,14 +1503,8 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Use functional update to get current value and avoid stale closure
-                                setGuestsCount((currentCount: number) => {
-                                  const newCount = Math.max(1, currentCount - 1)
-                                  // Call handler which will validate and update childrenCount if needed
-                                  // Note: handleGuestsChange will call setGuestsCount again, but React will batch it
-                                  handleGuestsChange(newCount)
-                                  return currentCount // Return current to avoid double update
-                                })
+                                // Pass updater function to handleGuestsChange to avoid stale closure
+                                handleGuestsChange((currentCount: number) => Math.max(1, currentCount - 1))
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
@@ -1522,14 +1521,8 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Use functional update to get current value and avoid stale closure
-                                setGuestsCount((currentCount: number) => {
-                                  const newCount = currentCount + 1
-                                  // Call handler which will validate and update childrenCount if needed
-                                  // Note: handleGuestsChange will call setGuestsCount again, but React will batch it
-                                  handleGuestsChange(newCount)
-                                  return currentCount // Return current to avoid double update
-                                })
+                                // Pass updater function to handleGuestsChange to avoid stale closure
+                                handleGuestsChange((currentCount: number) => currentCount + 1)
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
