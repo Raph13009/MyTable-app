@@ -415,8 +415,8 @@ export default function ChatInterface({
   }, [bookingRequest?.guests_count, bookingRequest?.children_count])
 
   // Handler pour modifier le nombre de convives (mise à jour locale uniquement)
-  // SINGLE SOURCE OF TRUTH: This handler ONLY updates guestsCount
-  // It clamps childrenCount down if needed, but does NOT trigger childrenCount updates
+  // ARCHITECTURAL FIX: This handler ONLY updates guestsCount
+  // NO automatic updates of childrenCount - constraints are enforced at user action point only
   const handleGuestsChange = useCallback((newCountOrUpdater: number | ((prev: number) => number)) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
@@ -434,23 +434,21 @@ export default function ChatInterface({
       return
     }
 
-    // ONE-DIRECTIONAL UPDATE: If guests_count decreases below children_count, clamp children_count down
-    // This is the ONLY place where guests_count update affects children_count
-    // It does NOT trigger any children_count handler, just a direct state update
-    setChildrenCount((currentChildren: number) => {
-      if (currentChildren > newCount) {
-        return newCount // Clamp down, no handler call
-      }
-      return currentChildren // No change needed
-    })
+    // BREAK LOOP: If guests_count decreases below children_count, clamp children_count down
+    // This is a ONE-TIME synchronous update, NOT reactive
+    // We do this BEFORE updating guestsCount to ensure consistency
+    const currentChildren = childrenCount
+    if (currentChildren > newCount) {
+      setChildrenCount(newCount) // Direct update, no handler, no loop
+    }
 
     // Update guestsCount - this is the single source of truth for guests_count
     setGuestsCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient, childrenCount])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
-  // SINGLE SOURCE OF TRUTH: This handler ONLY updates childrenCount
-  // If children_count > guests_count, it increases guests_count ONCE (no recursion)
+  // ARCHITECTURAL FIX: This handler ONLY updates childrenCount
+  // NO automatic updates of guestsCount - constraints are enforced at user action point only
   const handleChildrenChange = useCallback((newCount: number) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
@@ -462,13 +460,12 @@ export default function ChatInterface({
       return
     }
     
-    // ONE-DIRECTIONAL UPDATE: If children_count exceeds guests_count, increase guests_count ONCE
-    // This is the ONLY place where children_count update affects guests_count
-    // It does NOT trigger handleGuestsChange (which would create a loop), just a direct state update
+    // BREAK LOOP: If children_count exceeds guests_count, increase guests_count ONCE
+    // This is a ONE-TIME synchronous update, NOT reactive
+    // We do this BEFORE updating childrenCount to ensure consistency
     const currentGuests = guestsCountRef.current
     if (newCount > currentGuests) {
-      // Increase guests_count to match children_count - direct update, no handler call
-      setGuestsCount(newCount)
+      setGuestsCount(newCount) // Direct update, no handler, no loop
     }
     
     // Update childrenCount - this is the single source of truth for children_count
@@ -1543,14 +1540,11 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Direct update: calculate new value and call handler
-                                // Handler will update state, no need for setState here
-                                setChildrenCount((currentChildren: number) => {
-                                  const newCount = Math.max(0, currentChildren - 1)
-                                  // Call handler which will update state (single source of truth)
-                                  handleChildrenChange(newCount)
-                                  return currentChildren // Return current to prevent double update
-                                })
+                                // BREAK LOOP: Calculate new value and call handler directly
+                                // Handler will update state (single source of truth)
+                                // NO setState wrapper - handler manages all updates
+                                const newCount = Math.max(0, childrenCount - 1)
+                                handleChildrenChange(newCount)
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
@@ -1567,14 +1561,11 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // Direct update: calculate new value and call handler
-                                // Handler will handle the constraint (children_count can exceed guests_count, which increases guests_count)
-                                setChildrenCount((currentChildren: number) => {
-                                  const newCount = currentChildren + 1
-                                  // Call handler which will update state and handle guests_count constraint
-                                  handleChildrenChange(newCount)
-                                  return currentChildren // Return current to prevent double update
-                                })
+                                // BREAK LOOP: Calculate new value and call handler directly
+                                // Handler will update state and handle guests_count constraint if needed
+                                // NO setState wrapper - handler manages all updates
+                                const newCount = childrenCount + 1
+                                handleChildrenChange(newCount)
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
