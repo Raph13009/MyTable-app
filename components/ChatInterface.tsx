@@ -1261,20 +1261,29 @@ export default function ChatInterface({
       {/* Input - Style moderne premium (désactivé si réservation annulée ou si admin) */}
       {!isBookingCancelled && !isAdmin && (
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
-        <form onSubmit={handleSendMessage} className="px-4 sm:px-6 py-3.5">
+        <form onSubmit={(e) => {
+          e.preventDefault()
+          if (!isDesktop) {
+            // Sur mobile, le formulaire envoie avec Entrée
+            handleSendMessage(e)
+          }
+          // Sur desktop, on envoie uniquement avec le bouton ou Shift+Entrée
+        }} className="px-4 sm:px-6 py-3.5">
           <div className="flex items-end gap-2.5">
             {isDesktop ? (
               <textarea
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => {
-                  // Sur desktop : Entrée = nouvelle ligne, Shift+Entrée ou Cmd+Entrée = envoyer
-                  if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                  // Sur desktop : Entrée = nouvelle ligne (comportement par défaut du textarea)
+                  // Shift+Entrée ou Cmd+Entrée = envoyer
+                  if (e.key === 'Enter' && (e.shiftKey || e.metaKey || e.ctrlKey)) {
                     e.preventDefault()
                     handleSendMessage()
                   }
+                  // Sinon, laisser Entrée créer une nouvelle ligne (comportement par défaut)
                 }}
-                placeholder="Tapez un message... (Entrée pour nouvelle ligne, Shift+Entrée pour envoyer)"
+                placeholder="Tapez un message... (Entrée pour nouvelle ligne)"
                 disabled={loading}
                 rows={1}
                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden"
