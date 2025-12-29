@@ -1501,11 +1501,12 @@ export default function ChatInterface({
                                 // Use functional update to get current value and avoid stale closure
                                 setGuestsCount((currentCount: number) => {
                                   const newCount = Math.max(1, currentCount - 1)
+                                  // Call handler which will validate and update childrenCount if needed
                                   handleGuestsChange(newCount)
                                   return newCount
                                 })
                               }}
-                              disabled={guestsCount <= 1 || updatingGuests}
+                              disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer"
                             >
@@ -1523,6 +1524,7 @@ export default function ChatInterface({
                                 // Use functional update to get current value and avoid stale closure
                                 setGuestsCount((currentCount: number) => {
                                   const newCount = currentCount + 1
+                                  // Call handler which will validate and update childrenCount if needed
                                   handleGuestsChange(newCount)
                                   return newCount
                                 })
