@@ -1538,8 +1538,9 @@ export default function ChatInterface({
                                 // Use functional update to get current value and avoid stale closure
                                 setChildrenCount((currentChildren: number) => {
                                   const newCount = Math.max(0, currentChildren - 1)
+                                  // handleChildrenChange will call setChildrenCount, so we return current to avoid double update
                                   handleChildrenChange(newCount)
-                                  return newCount
+                                  return currentChildren
                                 })
                               }}
                               disabled={updatingGuests}
@@ -1560,8 +1561,9 @@ export default function ChatInterface({
                                 // Use functional update to get current childrenCount and calculate new value
                                 setChildrenCount((currentChildren: number) => {
                                   const newCount = Math.min(guestsCountRef.current, currentChildren + 1)
+                                  // handleChildrenChange will call setChildrenCount, so we return current to avoid double update
                                   handleChildrenChange(newCount)
-                                  return newCount
+                                  return currentChildren
                                 })
                               }}
                               disabled={updatingGuests}
