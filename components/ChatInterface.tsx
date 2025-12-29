@@ -968,11 +968,30 @@ export default function ChatInterface({
                       onClick={() => {
                         // Scroll to menu message in chat
                         const menuMessage = messages.find(m => 
-                          m.content.includes('✨ Menu défini') || m.content.includes('Menu défini')
+                          m.content.includes('✨ Menu défini') || m.content.includes('Menu défini') || m.content.startsWith('✨ Menu')
                         )
                         if (menuMessage) {
-                          const element = document.querySelector(`[data-message-id="${menuMessage.id}"]`)
-                          element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          // Try multiple selectors to find the menu message
+                          let element = document.querySelector(`[data-message-id="${menuMessage.id}"]`)
+                          if (!element) {
+                            // Fallback: find by message content or try to find the system message
+                            const allMessages = document.querySelectorAll('[data-message-id]')
+                            allMessages.forEach((el) => {
+                              if (el.textContent?.includes('Menu défini')) {
+                                element = el
+                              }
+                            })
+                          }
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            // Highlight briefly
+                            element.classList.add('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
+                            setTimeout(() => {
+                              element?.classList.remove('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
+                            }, 2000)
+                          } else {
+                            console.error('[ChatInterface] Menu message element not found')
+                          }
                         }
                       }}
                       className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
@@ -1168,7 +1187,21 @@ export default function ChatInterface({
                     const menuLines = sanitizedContent.split('\n').filter(line => line.trim())
                     return (
                       <div key={message.id} className="flex justify-center my-4" data-message-id={message.id}>
-                        <div className={`${bgColor} ${textColor} border-2 ${borderColor} rounded-xl px-5 py-4 max-w-[90%] shadow-lg`}>
+                        <div 
+                          className={`${bgColor} ${textColor} border-2 ${borderColor} rounded-xl px-5 py-4 max-w-[90%] shadow-lg cursor-pointer hover:shadow-xl transition-shadow`}
+                          onClick={() => {
+                            // Scroll to menu message (same logic as "Voir le menu" button)
+                            const element = document.querySelector(`[data-message-id="${message.id}"]`)
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              // Highlight briefly
+                              element.classList.add('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
+                              setTimeout(() => {
+                                element?.classList.remove('ring-2', 'ring-[#FBCF03]', 'ring-offset-2')
+                              }, 2000)
+                            }
+                          }}
+                        >
                           <div className="flex items-center gap-3 mb-3">
                             <span className="text-lg">{icon}</span>
                             <p className={`text-sm font-bold ${textColor}`}>
@@ -1370,11 +1403,13 @@ export default function ChatInterface({
               <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
                 )}
               </div>
+              {/* Bouton fermer - Plus visible sur mobile */}
               <button
                 onClick={() => setShowOfferModal(false)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors sm:p-1.5 sm:bg-transparent sm:hover:bg-gray-100"
                 aria-label="Fermer"
               >
+                <span className="sm:hidden">Retour</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1475,8 +1510,13 @@ export default function ChatInterface({
                         <div className="space-y-2.5">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => handleGuestsChange(currentGuestsCount - 1)}
-                              disabled={currentGuestsCount <= 1 || updatingGuests}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                const newCount = Math.max(1, guestsCount - 1)
+                                handleGuestsChange(newCount)
+                              }}
+                              disabled={guestsCount <= 1 || updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer"
                             >
@@ -1485,10 +1525,14 @@ export default function ChatInterface({
                               </svg>
                             </button>
                             <span className="font-bold text-black min-w-[3rem] text-center text-sm">
-                              {updatingGuests ? '...' : `${currentGuestsCount} ${currentGuestsCount === 1 ? 'convive' : 'convives'}`}
+                              {updatingGuests ? '...' : `${guestsCount} ${guestsCount === 1 ? 'convive' : 'convives'}`}
                             </span>
                             <button
-                              onClick={() => handleGuestsChange(currentGuestsCount + 1)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleGuestsChange(guestsCount + 1)
+                              }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Augmenter"
@@ -1501,7 +1545,11 @@ export default function ChatInterface({
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-600 font-semibold min-w-[4rem]">Enfants :</span>
                             <button
-                              onClick={() => handleChildrenChange(Math.max(0, childrenCount - 1))}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleChildrenChange(Math.max(0, childrenCount - 1))
+                              }}
                               disabled={childrenCount <= 0 || updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer enfants"
@@ -1514,8 +1562,12 @@ export default function ChatInterface({
                               {updatingGuests ? '...' : childrenCount}
                             </span>
                             <button
-                              onClick={() => handleChildrenChange(Math.min(currentGuestsCount, childrenCount + 1))}
-                              disabled={childrenCount >= currentGuestsCount || updatingGuests}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleChildrenChange(Math.min(guestsCount, childrenCount + 1))
+                              }}
+                              disabled={childrenCount >= guestsCount || updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Augmenter enfants"
                             >
@@ -1535,13 +1587,13 @@ export default function ChatInterface({
                     {bookingRequest.service_type === 'repas_domicile' && bookingRequest.has_allergies && bookingRequest.allergies_details && (
                       <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">Allergies</p>
-                        <p className="text-sm text-black leading-relaxed">{bookingRequest.allergies_details}</p>
+                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.allergies_details}</p>
                       </div>
                     )}
                     {bookingRequest.notes && (
                       <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">Notes</p>
-                        <p className="text-sm text-black leading-relaxed">{bookingRequest.notes}</p>
+                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.notes}</p>
                       </div>
                     )}
                   </div>
