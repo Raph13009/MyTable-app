@@ -3,6 +3,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 
+/**
+ * ============================================
+ * RESPONSIBILITY SEPARATION:
+ * ============================================
+ * - Supabase Auth: Magic link generation and sending (authentication only)
+ * - Resend: Transactional emails (notifications, confirmations - NO auth)
+ * 
+ * When chef accepts a booking:
+ * 1. Both client and chef receive magic links via Supabase Auth
+ * 2. Client receives informational email via Resend (transactional)
+ * 3. Magic links redirect to /auth/callback?next=/dashboard
+ * 4. No duplicate users (shouldCreateUser: false for existing users)
+ */
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -128,14 +142,64 @@ export async function GET(request: NextRequest) {
         console.log('[decision] Chef name:', (chef as any).name)
       }
 
-      // Envoyer email uniquement au client (pas au chef)
-      console.log('[decision] Sending email to CLIENT only:', bookingRequest.email)
+      // ============================================
+      // PHASE 1: Send magic links to BOTH client and chef
+      // ============================================
+      // Responsibilities:
+      // - Supabase Auth: Magic link generation and sending (authentication)
+      // - Resend: Transactional notification email (informational only)
+      
+      const clientEmail = bookingRequest.email.toLowerCase().trim()
+      const redirectUrlForClient = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
+      const redirectUrlForChef = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
+
+      console.log('[decision] ========== SENDING MAGIC LINKS ==========')
+      console.log('[decision] Client email:', clientEmail)
+      console.log('[decision] Client redirect URL:', redirectUrlForClient)
+      
+      // Send magic link to CLIENT via Supabase Auth
+      // Security: Client already exists (created during booking submission)
+      // Redirect URL: /auth/callback?next=/dashboard (secure, goes through callback handler)
+      console.log('[decision] Sending magic link to CLIENT via Supabase Auth...')
+      const { data: clientOtpData, error: clientOtpError } = await supabase.auth.signInWithOtp({
+        email: clientEmail,
+        options: {
+          emailRedirectTo: redirectUrlForClient,
+          shouldCreateUser: false, // Client already exists from booking submission - prevents duplicates
+        },
+      })
+
+      if (clientOtpError) {
+        console.error('[decision] ❌ ERROR sending magic link to client:', clientOtpError.message)
+        console.error('[decision] Error details:', JSON.stringify(clientOtpError, null, 2))
+        // If user doesn't exist, try with shouldCreateUser: true as fallback
+        if (clientOtpError.message?.includes('not found') || clientOtpError.message?.includes('does not exist')) {
+          console.log('[decision] ⚠️ Client user not found, trying with shouldCreateUser: true...')
+          const { error: retryError } = await supabase.auth.signInWithOtp({
+            email: clientEmail,
+            options: {
+              emailRedirectTo: redirectUrlForClient,
+              shouldCreateUser: true, // Fallback: create if doesn't exist
+            },
+          })
+          if (retryError) {
+            console.error('[decision] ❌ Retry also failed:', retryError.message)
+          } else {
+            console.log('[decision] ✅ Magic link sent to client (user created)')
+          }
+        }
+      } else {
+        console.log('[decision] ✅ Magic link sent to client via Supabase Auth')
+      }
+
+      // Send informational email to CLIENT via Resend (transactional, no auth responsibility)
       // Extraire prénom et nom du chef
       const chefFullName = chef ? (chef as any).name : 'Chef'
       const chefNameParts = chefFullName.split(' ')
       const chefFirstName = chefNameParts[0] || chefFullName
       const chefLastName = chefNameParts.slice(1).join(' ') || ''
       
+      console.log('[decision] Sending informational email to CLIENT via Resend...')
       await sendEmail({
         to: bookingRequest.email,
         subject: emailSubjects.bookingAcceptedToClient,
@@ -147,56 +211,56 @@ export async function GET(request: NextRequest) {
           baseUrl
         ),
       })
-      console.log('[decision] ✅ Email sent to client')
+      console.log('[decision] ✅ Informational email sent to client via Resend')
 
-      // ⚠️ IMPORTANT: NE PAS ENVOYER D'EMAIL bookingAcceptedToChef AU CHEF
-      // Le chef recevra UNIQUEMENT le magic link via Supabase Auth
-      console.log('[decision] ⚠️ NOT sending bookingAcceptedToChef email to chef')
-      console.log('[decision] ⚠️ Chef will ONLY receive magic link from Supabase')
-
-      // IMPORTANT: Envoyer UNIQUEMENT le magic link au chef via Supabase
-      // AUCUN email bookingAcceptedToChef ne doit être envoyé
+      // Send magic link to CHEF via Supabase Auth
       if (chef) {
         const chefEmail = (chef as any).email.toLowerCase().trim()
-        // Rediriger directement vers le dashboard (liste de toutes les conversations)
-        const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
         
-        console.log('[decision] ========== SENDING MAGIC LINK TO CHEF ==========')
         console.log('[decision] Chef email:', chefEmail)
-        console.log('[decision] Chef name:', (chef as any).name)
-        console.log('[decision] Redirect URL:', redirectUrl)
-        console.log('[decision] Conversation ID:', conversationId)
-        console.log('[decision] Base URL:', baseUrl)
+        console.log('[decision] Chef redirect URL:', redirectUrlForChef)
+        console.log('[decision] Sending magic link to CHEF via Supabase Auth...')
         
-        // IMPORTANT: Ne PAS envoyer d'email bookingAcceptedToChef
-        // Seul le magic link Supabase doit être envoyé
-        
-        // Envoyer le magic link via Supabase Auth (c'est Supabase qui envoie l'email automatiquement)
-        console.log('[decision] Calling supabase.auth.signInWithOtp...')
-        const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
+        // Security: Chef already exists (created separately)
+        // Redirect URL: /auth/callback?next=/dashboard (secure, goes through callback handler)
+        const { data: chefOtpData, error: chefOtpError } = await supabase.auth.signInWithOtp({
           email: chefEmail,
           options: {
-            emailRedirectTo: redirectUrl,
-            shouldCreateUser: true,
+            emailRedirectTo: redirectUrlForChef,
+            shouldCreateUser: false, // Chef already exists - prevents duplicates
           },
         })
 
-        if (otpError) {
+        if (chefOtpError) {
           console.error('[decision] ❌❌❌ ERROR sending magic link to chef ❌❌❌')
-          console.error('[decision] Error message:', otpError.message)
-          console.error('[decision] Error status:', otpError.status)
-          console.error('[decision] Error details:', JSON.stringify(otpError, null, 2))
-          // En cas d'erreur, rediriger vers une page d'erreur
-          return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
+          console.error('[decision] Error message:', chefOtpError.message)
+          console.error('[decision] Error status:', chefOtpError.status)
+          console.error('[decision] Error details:', JSON.stringify(chefOtpError, null, 2))
+          // If user doesn't exist, try with shouldCreateUser: true as fallback
+          if (chefOtpError.message?.includes('not found') || chefOtpError.message?.includes('does not exist')) {
+            console.log('[decision] ⚠️ Chef user not found, trying with shouldCreateUser: true...')
+            const { error: retryError } = await supabase.auth.signInWithOtp({
+              email: chefEmail,
+              options: {
+                emailRedirectTo: redirectUrlForChef,
+                shouldCreateUser: true, // Fallback: create if doesn't exist
+              },
+            })
+            if (retryError) {
+              console.error('[decision] ❌ Retry also failed:', retryError.message)
+              return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
+            } else {
+              console.log('[decision] ✅ Magic link sent to chef (user created)')
+            }
+          } else {
+            return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
+          }
         }
 
         console.log('[decision] ✅✅✅ Magic link sent successfully to chef via Supabase ✅✅✅')
-        console.log('[decision] OTP data:', JSON.stringify(otpData, null, 2))
-        console.log('[decision] Magic link email should be sent by Supabase to:', chefEmail)
-        console.log('[decision] ========== MAGIC LINK SENT ==========')
+        console.log('[decision] ========== MAGIC LINKS SENT ==========')
         
-        // Rediriger vers une page de confirmation simple qui dit que le magic link a été envoyé
-        // Le chef n'a pas besoin de redirection, il reste sur ses mails
+        // Rediriger vers une page de confirmation
         return NextResponse.redirect(new URL('/booking-accepted?chef=true', request.url))
       }
 

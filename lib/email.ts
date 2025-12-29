@@ -1,6 +1,24 @@
 import { Resend } from 'resend'
 import { getBaseUrl } from './utils'
 
+/**
+ * ============================================
+ * EMAIL RESPONSIBILITY SEPARATION:
+ * ============================================
+ * 
+ * Resend (this file):
+ * - Transactional emails only (notifications, confirmations)
+ * - NO authentication responsibility
+ * - NO magic links
+ * - Informational content only
+ * 
+ * Supabase Auth:
+ * - Magic link generation and sending (authentication)
+ * - Session creation
+ * - Secure login flow
+ * 
+ * DO NOT mix these responsibilities.
+ */
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export interface EmailOptions {
@@ -460,21 +478,20 @@ export const emailTemplates = {
   },
 
   bookingAcceptedToClient: (clientName: string, chefFirstName: string, chefLastName: string, chatUrl: string, baseUrl?: string) => {
-    const dashboardUrl = `${baseUrl}/dashboard`
+    // IMPORTANT: This is a transactional/informational email only
+    // Authentication is handled separately via Supabase Auth magic link
+    // The client will receive a magic link email from Supabase Auth automatically
     const content = `
       <p>Bonjour ${clientName},</p>
       <p>Excellente nouvelle ! Votre demande de réservation a été acceptée par le Chef <strong>${chefFirstName} ${chefLastName}</strong>.</p>
-      <p>Vous pouvez maintenant accéder à vos conversations pour échanger avec le chef.</p>
-    `
-    // Utiliser un CTA jaune personnalisé au lieu du système par défaut
-    const contentWithCta = content + `
-      <div class="email-cta">
-        <a href="${dashboardUrl}" class="email-button-yellow">Accéder à mes conversations</a>
-      </div>
+      <p>Vous recevrez un lien de connexion par email séparé pour accéder à vos conversations et échanger avec le chef.</p>
+      <p style="margin-top: 16px; font-size: 14px; color: #666;">
+        <strong>Note :</strong> Vérifiez votre boîte de réception (et vos spams) pour le lien de connexion sécurisé.
+      </p>
     `
     return emailLayout({
       title: 'Réservation acceptée',
-      content: contentWithCta,
+      content,
       baseUrl,
     })
   },
