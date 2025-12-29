@@ -436,7 +436,8 @@ export default function ChatInterface({
   }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
-  const handleChildrenChange = useCallback((newCount: number) => {
+  // Use functional update pattern to avoid stale closure issues
+  const handleChildrenChange = useCallback((newCount: number, currentGuests?: number) => {
     const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
@@ -446,12 +447,24 @@ export default function ChatInterface({
     if (newCount < 0) {
       return
     }
-    if (newCount > guestsCount) {
-      return
+    
+    // If currentGuests provided, use it; otherwise get it via functional update
+    if (currentGuests !== undefined) {
+      if (newCount > currentGuests) {
+        return // Don't update if exceeds guestsCount
+      }
+      setChildrenCount(newCount)
+    } else {
+      // Fallback: use functional update to get current guestsCount
+      setGuestsCount((currentGuestsValue: number) => {
+        if (newCount > currentGuestsValue) {
+          return currentGuestsValue // Don't update guestsCount, just prevent childrenCount update
+        }
+        setChildrenCount(newCount)
+        return currentGuestsValue // Return unchanged
+      })
     }
-
-    setChildrenCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient, guestsCount])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Charger les extras au montage
   useEffect(() => {
@@ -1529,9 +1542,14 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                handleChildrenChange(Math.max(0, childrenCount - 1))
+                                // Use functional update to get current value and avoid stale closure
+                                setChildrenCount((currentChildren: number) => {
+                                  const newCount = Math.max(0, currentChildren - 1)
+                                  handleChildrenChange(newCount)
+                                  return newCount
+                                })
                               }}
-                              disabled={childrenCount <= 0 || updatingGuests}
+                              disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Diminuer enfants"
                             >
@@ -1546,9 +1564,17 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                handleChildrenChange(Math.min(guestsCount, childrenCount + 1))
+                                // Use functional updates to get current values and avoid stale closures
+                                setGuestsCount((currentGuests: number) => {
+                                  setChildrenCount((currentChildren: number) => {
+                                    const newCount = Math.min(currentGuests, currentChildren + 1)
+                                    handleChildrenChange(newCount, currentGuests)
+                                    return newCount
+                                  })
+                                  return currentGuests
+                                })
                               }}
-                              disabled={childrenCount >= guestsCount || updatingGuests}
+                              disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
                               aria-label="Augmenter enfants"
                             >
