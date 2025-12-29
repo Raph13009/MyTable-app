@@ -95,6 +95,16 @@ export default function ChatInterface({
     }, 800) // Animation de 800ms
     return () => clearTimeout(timer)
   }, [])
+
+  // Détecter si on est sur desktop
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768) // md breakpoint
+    }
+    checkIsDesktop()
+    window.addEventListener('resize', checkIsDesktop)
+    return () => window.removeEventListener('resize', checkIsDesktop)
+  }, [])
   
   const isAdmin = isAdminState
   // Sanitize initial messages (extra safety layer)
@@ -105,6 +115,7 @@ export default function ChatInterface({
   const [messages, setMessages] = useState<Message[]>(sanitizedInitialMessages)
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
@@ -244,8 +255,10 @@ export default function ChatInterface({
     }
   }, [conversationId, supabase])
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+    }
 
     if (!newMessage.trim() || !currentUser) {
       return
@@ -1250,17 +1263,45 @@ export default function ChatInterface({
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
         <form onSubmit={handleSendMessage} className="px-4 sm:px-6 py-3.5">
           <div className="flex items-end gap-2.5">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Tapez un message..."
-              disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                minHeight: '44px',
-              }}
-            />
+            {isDesktop ? (
+              <textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  // Sur desktop : Entrée = nouvelle ligne, Shift+Entrée ou Cmd+Entrée = envoyer
+                  if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                placeholder="Tapez un message... (Entrée pour nouvelle ligne, Shift+Entrée pour envoyer)"
+                disabled={loading}
+                rows={1}
+                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden"
+                style={{
+                  minHeight: '44px',
+                  maxHeight: '120px',
+                }}
+                onInput={(e) => {
+                  // Auto-resize textarea
+                  const target = e.target as HTMLTextAreaElement
+                  target.style.height = 'auto'
+                  target.style.height = `${Math.min(target.scrollHeight, 120)}px`
+                }}
+              />
+            ) : (
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Tapez un message..."
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  minHeight: '44px',
+                }}
+              />
+            )}
             <button
               type="submit"
               disabled={loading || !newMessage.trim()}
