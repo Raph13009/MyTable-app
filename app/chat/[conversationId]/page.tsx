@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import ChatInterface from '@/components/ChatInterface'
+import AuthTokenHandler from '@/components/AuthTokenHandler'
 
 interface PageProps {
   params: {
@@ -119,16 +120,20 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       }
       
       return (
-        <ChatInterface
-          conversationId={conversationId}
-          initialMessages={messages || []}
-          participants={participants || []}
-          currentUser={user}
-          bookingRequest={bookingRequest}
-          menuDetails={menuDetails}
-          showAcceptedMessage={searchParams.accepted === 'true'}
-          isAdmin={isAdmin}
-        />
+        <>
+          {/* Client component to handle hash tokens from magic links */}
+          <AuthTokenHandler />
+          <ChatInterface
+            conversationId={conversationId}
+            initialMessages={messages || []}
+            participants={participants || []}
+            currentUser={user}
+            bookingRequest={bookingRequest}
+            menuDetails={menuDetails}
+            showAcceptedMessage={searchParams.accepted === 'true'}
+            isAdmin={isAdmin}
+          />
+        </>
       )
     }
     
@@ -247,16 +252,20 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     console.log('[ChatPage] ========== END ==========')
     
     return (
-      <ChatInterface
-        conversationId={conversationId}
-        initialMessages={messages || []}
-        participants={participants || []}
-        currentUser={user}
-        bookingRequest={bookingRequest}
-        menuDetails={menuDetails}
-        showAcceptedMessage={searchParams.accepted === 'true'}
-        isAdmin={isAdmin}
-      />
+      <>
+        {/* Client component to handle hash tokens from magic links */}
+        <AuthTokenHandler />
+        <ChatInterface
+          conversationId={conversationId}
+          initialMessages={messages || []}
+          participants={participants || []}
+          currentUser={user}
+          bookingRequest={bookingRequest}
+          menuDetails={menuDetails}
+          showAcceptedMessage={searchParams.accepted === 'true'}
+          isAdmin={isAdmin}
+        />
+      </>
     )
   } catch (error: any) {
     console.error('[ChatPage] ❌❌❌ FATAL ERROR ❌❌❌')

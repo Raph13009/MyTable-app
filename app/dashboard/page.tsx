@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import ConversationsList from '@/components/ConversationsList'
+import AuthTokenHandler from '@/components/AuthTokenHandler'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -601,11 +602,15 @@ export default async function DashboardPage() {
   console.log('[Dashboard] ========== END PASSING ==========')
 
   return (
-    <ConversationsList
-      conversations={enrichedConversations}
-      currentUser={currentUser}
-      participantsMap={participantsMap}
-    />
+    <>
+      {/* Client component to handle hash tokens from magic links */}
+      <AuthTokenHandler />
+      <ConversationsList
+        conversations={enrichedConversations}
+        currentUser={currentUser}
+        participantsMap={participantsMap}
+      />
+    </>
   )
 }
 

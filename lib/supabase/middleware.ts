@@ -36,7 +36,21 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  // Refresh the session by calling getUser
+  // This will update the session if it's expired or refresh the tokens
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Log for debugging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    const authCookies = request.cookies.getAll().filter(c => 
+      c.name.includes('sb-') && c.name.includes('auth')
+    )
+    console.log('[middleware] Auth cookies found:', authCookies.map(c => c.name))
+    console.log('[middleware] User authenticated:', !!user)
+    if (user) {
+      console.log('[middleware] User email:', user.email)
+    }
+  }
 
   return supabaseResponse
 }
