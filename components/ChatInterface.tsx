@@ -1486,7 +1486,7 @@ export default function ChatInterface({
                                 e.preventDefault()
                                 e.stopPropagation()
                                 // Use functional update to get current value and avoid stale closure
-                                setGuestsCount((currentCount) => {
+                                setGuestsCount((currentCount: number) => {
                                   const newCount = Math.max(1, currentCount - 1)
                                   handleGuestsChange(newCount)
                                   return newCount
