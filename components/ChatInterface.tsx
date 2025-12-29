@@ -425,7 +425,7 @@ export default function ChatInterface({
 
     // S'assurer que childrenCount ne dépasse pas guestsCount
     // Use functional update to get current childrenCount value
-    setChildrenCount((currentChildren) => {
+    setChildrenCount((currentChildren: number) => {
       if (currentChildren > newCount) {
         return newCount
       }
@@ -1508,7 +1508,7 @@ export default function ChatInterface({
                                 e.preventDefault()
                                 e.stopPropagation()
                                 // Use functional update to get current value and avoid stale closure
-                                setGuestsCount((currentCount) => {
+                                setGuestsCount((currentCount: number) => {
                                   const newCount = currentCount + 1
                                   handleGuestsChange(newCount)
                                   return newCount
