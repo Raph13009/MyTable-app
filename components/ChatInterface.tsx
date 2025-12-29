@@ -152,11 +152,15 @@ export default function ChatInterface({
   const [guestsCount, setGuestsCount] = useState(bookingRequest?.guests_count || 1)
   const [childrenCount, setChildrenCount] = useState(bookingRequest?.children_count || 0)
   const [updatingGuests, setUpdatingGuests] = useState(false)
-  // Use ref to store current guestsCount to avoid closure issues
+  // Use refs to store current values and avoid closure issues - BREAKS LOOP
   const guestsCountRef = useRef(guestsCount)
+  const childrenCountRef = useRef(childrenCount)
   useEffect(() => {
     guestsCountRef.current = guestsCount
   }, [guestsCount])
+  useEffect(() => {
+    childrenCountRef.current = childrenCount
+  }, [childrenCount])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [localExtras, setLocalExtras] = useState<Array<{ name: string; price: number }>>([])
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -436,15 +440,15 @@ export default function ChatInterface({
 
     // BREAK LOOP: If guests_count decreases below children_count, clamp children_count down
     // This is a ONE-TIME synchronous update, NOT reactive
-    // We do this BEFORE updating guestsCount to ensure consistency
-    const currentChildren = childrenCount
+    // Use ref to get current value and avoid dependency on childrenCount (which would recreate callback)
+    const currentChildren = childrenCountRef.current
     if (currentChildren > newCount) {
       setChildrenCount(newCount) // Direct update, no handler, no loop
     }
 
     // Update guestsCount - this is the single source of truth for guests_count
     setGuestsCount(newCount)
-  }, [bookingRequest?.id, bookingRequest?.status, isClient, childrenCount])
+  }, [bookingRequest?.id, bookingRequest?.status, isClient])
 
   // Handler pour modifier le nombre d'enfants (mise à jour locale uniquement)
   // ARCHITECTURAL FIX: This handler ONLY updates childrenCount
@@ -1540,10 +1544,10 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // BREAK LOOP: Calculate new value and call handler directly
+                                // BREAK LOOP: Calculate new value using ref to avoid closure
                                 // Handler will update state (single source of truth)
                                 // NO setState wrapper - handler manages all updates
-                                const newCount = Math.max(0, childrenCount - 1)
+                                const newCount = Math.max(0, childrenCountRef.current - 1)
                                 handleChildrenChange(newCount)
                               }}
                               disabled={updatingGuests}
@@ -1561,10 +1565,10 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                // BREAK LOOP: Calculate new value and call handler directly
+                                // BREAK LOOP: Calculate new value using ref to avoid closure
                                 // Handler will update state and handle guests_count constraint if needed
                                 // NO setState wrapper - handler manages all updates
-                                const newCount = childrenCount + 1
+                                const newCount = childrenCountRef.current + 1
                                 handleChildrenChange(newCount)
                               }}
                               disabled={updatingGuests}
