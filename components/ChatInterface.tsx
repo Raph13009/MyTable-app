@@ -672,16 +672,13 @@ export default function ChatInterface({
 
     // Ensure we have valid numbers before proceeding
     // CRITICAL: Convert to primitive number to avoid Number object issues
-    const safeGuestsCountRaw = typeof guestsCount === 'number' 
-      ? guestsCount 
-      : (typeof guestsCountRef.current === 'number' ? guestsCountRef.current : 1)
-    const safeChildrenCountRaw = typeof childrenCount === 'number' 
-      ? childrenCount 
-      : (typeof childrenCountRef.current === 'number' ? childrenCountRef.current : 0)
-    
-    // Force primitive number types using unary + operator
-    const safeGuestsCount: number = +safeGuestsCountRaw
-    const safeChildrenCount: number = +safeChildrenCountRaw
+    // Use unary + operator to force primitive number type (works even if value is Number object)
+    const safeGuestsCount: number = typeof guestsCount === 'number' 
+      ? +guestsCount 
+      : (typeof guestsCountRef.current === 'number' ? +guestsCountRef.current : 1)
+    const safeChildrenCount: number = typeof childrenCount === 'number' 
+      ? +childrenCount 
+      : (typeof childrenCountRef.current === 'number' ? +childrenCountRef.current : 0)
     
     if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
       console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
@@ -790,12 +787,10 @@ export default function ChatInterface({
 
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
-          // CRITICAL: Ensure primitive number types to avoid TypeScript errors
-          // Use explicit Number() conversion with type assertion
-          const finalGuestsCount: number = typeof safeGuestsCount === 'number' ? safeGuestsCount : parseInt(String(safeGuestsCount), 10)
-          const finalChildrenCount: number = typeof safeChildrenCount === 'number' ? safeChildrenCount : parseInt(String(safeChildrenCount), 10)
-          (bookingRequest as any).guests_count = finalGuestsCount
-          (bookingRequest as any).children_count = finalChildrenCount
+          // CRITICAL: safeGuestsCount and safeChildrenCount are already primitive numbers
+          // Use them directly (they were converted with unary + operator above)
+          (bookingRequest as any).guests_count = safeGuestsCount
+          (bookingRequest as any).children_count = safeChildrenCount
         }
 
         // Envoyer un message dans le chat pour notifier le changement
