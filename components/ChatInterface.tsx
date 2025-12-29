@@ -587,8 +587,22 @@ export default function ChatInterface({
 
   // Vérifier s'il y a des changements non sauvegardés
   useEffect(() => {
-    const guestsChanged = guestsCount !== (bookingRequest?.guests_count || 1)
-    const childrenChanged = childrenCount !== (bookingRequest?.children_count || 0)
+    // DEFENSIVE: Ensure guestsCount and childrenCount are numbers, not functions
+    const safeGuestsCount = typeof guestsCount === 'number' ? guestsCount : guestsCountRef.current
+    const safeChildrenCount = typeof childrenCount === 'number' ? childrenCount : childrenCountRef.current
+    
+    if (typeof safeGuestsCount !== 'number' || typeof safeChildrenCount !== 'number') {
+      console.error('[useEffect hasUnsavedChanges] Invalid count values:', {
+        guestsCount: typeof guestsCount,
+        childrenCount: typeof childrenCount,
+        safeGuestsCount: typeof safeGuestsCount,
+        safeChildrenCount: typeof safeChildrenCount,
+      })
+      return
+    }
+    
+    const guestsChanged = safeGuestsCount !== (bookingRequest?.guests_count || 1)
+    const childrenChanged = safeChildrenCount !== (bookingRequest?.children_count || 0)
     const extrasChanged = JSON.stringify(extras) !== JSON.stringify(localExtras)
     setHasUnsavedChanges(guestsChanged || childrenChanged || extrasChanged)
   }, [guestsCount, childrenCount, extras, bookingRequest?.guests_count, bookingRequest?.children_count, localExtras])
@@ -613,9 +627,71 @@ export default function ChatInterface({
 
   // Handler pour sauvegarder les modifications (extras + convives)
   const handleSaveChanges = async () => {
+    console.log('[handleSaveChanges] START - Adding defensive checks and logs')
+    
     if (!bookingRequest?.id || !currentUser) {
+      console.log('[handleSaveChanges] Early return: missing bookingRequest or currentUser')
       return
     }
+
+    // CRITICAL DEFENSIVE CHECK: Ensure guestsCount and childrenCount are numbers, not functions
+    console.log('[handleSaveChanges] Type check - guestsCount:', typeof guestsCount, guestsCount)
+    console.log('[handleSaveChanges] Type check - childrenCount:', typeof childrenCount, childrenCount)
+    
+    if (typeof guestsCount === 'function') {
+      console.error('[handleSaveChanges] CRITICAL: guestsCount is a function! This should never happen.')
+      console.error('[handleSaveChanges] guestsCount value:', guestsCount)
+      // Try to get the actual value from ref
+      const actualGuestsCount = guestsCountRef.current
+      console.log('[handleSaveChanges] Using ref value instead:', actualGuestsCount)
+      if (typeof actualGuestsCount === 'number') {
+        // This is a workaround - we should never reach here
+        console.warn('[handleSaveChanges] Using ref value as workaround')
+      } else {
+        console.error('[handleSaveChanges] Ref value is also invalid:', typeof actualGuestsCount, actualGuestsCount)
+        alert('Erreur: Le nombre de convives est invalide. Veuillez rafraîchir la page.')
+        return
+      }
+    }
+    
+    if (typeof childrenCount === 'function') {
+      console.error('[handleSaveChanges] CRITICAL: childrenCount is a function! This should never happen.')
+      console.error('[handleSaveChanges] childrenCount value:', childrenCount)
+      // Try to get the actual value from ref
+      const actualChildrenCount = childrenCountRef.current
+      console.log('[handleSaveChanges] Using ref value instead:', actualChildrenCount)
+      if (typeof actualChildrenCount === 'number') {
+        // This is a workaround - we should never reach here
+        console.warn('[handleSaveChanges] Using ref value as workaround')
+      } else {
+        console.error('[handleSaveChanges] Ref value is also invalid:', typeof actualChildrenCount, actualChildrenCount)
+        alert('Erreur: Le nombre d\'enfants est invalide. Veuillez rafraîchir la page.')
+        return
+      }
+    }
+
+    // Ensure we have valid numbers before proceeding
+    // CRITICAL: Convert to primitive number to avoid Number object issues
+    const safeGuestsCount: number = typeof guestsCount === 'number' 
+      ? Number(guestsCount) 
+      : (typeof guestsCountRef.current === 'number' ? Number(guestsCountRef.current) : 1)
+    const safeChildrenCount: number = typeof childrenCount === 'number' 
+      ? Number(childrenCount) 
+      : (typeof childrenCountRef.current === 'number' ? Number(childrenCountRef.current) : 0)
+    
+    if (typeof safeGuestsCount !== 'number' || isNaN(safeGuestsCount)) {
+      console.error('[handleSaveChanges] Invalid safeGuestsCount:', safeGuestsCount)
+      alert('Erreur: Le nombre de convives est invalide. Veuillez rafraîchir la page.')
+      return
+    }
+    
+    if (typeof safeChildrenCount !== 'number' || isNaN(safeChildrenCount)) {
+      console.error('[handleSaveChanges] Invalid safeChildrenCount:', safeChildrenCount)
+      alert('Erreur: Le nombre d\'enfants est invalide. Veuillez rafraîchir la page.')
+      return
+    }
+    
+    console.log('[handleSaveChanges] Using safe values - guestsCount:', safeGuestsCount, 'childrenCount:', safeChildrenCount)
 
     setSavingExtras(true)
     setUpdatingGuests(true)
@@ -676,12 +752,20 @@ export default function ChatInterface({
       }
 
       // Sauvegarder le nombre de convives et d'enfants si modifié (client uniquement)
-      const guestsChanged = isClient && guestsCount !== (bookingRequest?.guests_count || 1)
-      const childrenChanged = isClient && childrenCount !== (bookingRequest?.children_count || 0)
+      // CRITICAL: Use safe values instead of potentially function values
+      console.log('[handleSaveChanges] Checking for changes - safeGuestsCount:', safeGuestsCount, 'bookingRequest.guests_count:', bookingRequest?.guests_count)
+      console.log('[handleSaveChanges] Checking for changes - safeChildrenCount:', safeChildrenCount, 'bookingRequest.children_count:', bookingRequest?.children_count)
+      
+      const guestsChanged = isClient && safeGuestsCount !== (bookingRequest?.guests_count || 1)
+      const childrenChanged = isClient && safeChildrenCount !== (bookingRequest?.children_count || 0)
+      
+      console.log('[handleSaveChanges] Changes detected - guestsChanged:', guestsChanged, 'childrenChanged:', childrenChanged)
       
       if (guestsChanged || childrenChanged) {
         const previousGuestsCount = bookingRequest?.guests_count || 1
         const previousChildrenCount = bookingRequest?.children_count || 0
+        
+        console.log('[handleSaveChanges] Sending API request - guestsCount:', safeGuestsCount, 'childrenCount:', safeChildrenCount)
         
         const response = await fetch('/api/booking-guests', {
           method: 'POST',
@@ -690,8 +774,8 @@ export default function ChatInterface({
           },
           body: JSON.stringify({
             bookingRequestId: bookingRequest.id,
-            guestsCount: guestsCount,
-            childrenCount: childrenCount,
+            guestsCount: Number(safeGuestsCount), // Use safe value, ensure primitive
+            childrenCount: Number(safeChildrenCount), // Use safe value, ensure primitive
           }),
         })
 
@@ -702,21 +786,21 @@ export default function ChatInterface({
 
         // Mettre à jour bookingRequest localement
         if (bookingRequest) {
-          (bookingRequest as any).guests_count = guestsCount
-          (bookingRequest as any).children_count = childrenCount
+          (bookingRequest as any).guests_count = Number(safeGuestsCount) // Use safe value, ensure primitive
+          (bookingRequest as any).children_count = Number(safeChildrenCount) // Use safe value, ensure primitive
         }
 
         // Envoyer un message dans le chat pour notifier le changement
         let notificationMessage = ''
         if (guestsChanged) {
-          const changeType = guestsCount > previousGuestsCount ? 'augmenté' : 'diminué'
-          const changeAmount = Math.abs(guestsCount - previousGuestsCount)
-          notificationMessage = `✨ Nombre de convives ${changeType} : ${previousGuestsCount} → ${guestsCount} (${changeAmount} ${changeAmount === 1 ? 'convive' : 'convives'})`
+          const changeType = safeGuestsCount > previousGuestsCount ? 'augmenté' : 'diminué'
+          const changeAmount = Math.abs(safeGuestsCount - previousGuestsCount)
+          notificationMessage = `✨ Nombre de convives ${changeType} : ${previousGuestsCount} → ${safeGuestsCount} (${changeAmount} ${changeAmount === 1 ? 'convive' : 'convives'})`
         }
         if (childrenChanged) {
-          const changeType = childrenCount > previousChildrenCount ? 'augmenté' : 'diminué'
-          const changeAmount = Math.abs(childrenCount - previousChildrenCount)
-          const childrenMsg = `✨ Nombre d'enfants ${changeType} : ${previousChildrenCount} → ${childrenCount} (${changeAmount} ${changeAmount === 1 ? 'enfant' : 'enfants'})`
+          const changeType = safeChildrenCount > previousChildrenCount ? 'augmenté' : 'diminué'
+          const changeAmount = Math.abs(safeChildrenCount - previousChildrenCount)
+          const childrenMsg = `✨ Nombre d'enfants ${changeType} : ${previousChildrenCount} → ${safeChildrenCount} (${changeAmount} ${changeAmount === 1 ? 'enfant' : 'enfants'})`
           notificationMessage = notificationMessage ? `${notificationMessage}\n${childrenMsg}` : childrenMsg
         }
         
