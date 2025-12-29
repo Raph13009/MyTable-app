@@ -1502,8 +1502,9 @@ export default function ChatInterface({
                                 setGuestsCount((currentCount: number) => {
                                   const newCount = Math.max(1, currentCount - 1)
                                   // Call handler which will validate and update childrenCount if needed
+                                  // Note: handleGuestsChange will call setGuestsCount again, but React will batch it
                                   handleGuestsChange(newCount)
-                                  return newCount
+                                  return currentCount // Return current to avoid double update
                                 })
                               }}
                               disabled={updatingGuests}
@@ -1525,8 +1526,9 @@ export default function ChatInterface({
                                 setGuestsCount((currentCount: number) => {
                                   const newCount = currentCount + 1
                                   // Call handler which will validate and update childrenCount if needed
+                                  // Note: handleGuestsChange will call setGuestsCount again, but React will batch it
                                   handleGuestsChange(newCount)
-                                  return newCount
+                                  return currentCount // Return current to avoid double update
                                 })
                               }}
                               disabled={updatingGuests}
