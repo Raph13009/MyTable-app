@@ -427,11 +427,47 @@ export default function ChatInterface({
       return
     }
 
+    // DEFENSIVE: Ensure newCountOrUpdater is valid
+    if (newCountOrUpdater === null || newCountOrUpdater === undefined) {
+      console.error('[handleGuestsChange] Invalid input:', newCountOrUpdater)
+      return
+    }
+
     // Get the new count value (either direct number or from updater function)
-    // Use ref to get current value and avoid stale closure
-    const newCount = typeof newCountOrUpdater === 'function' 
-      ? newCountOrUpdater(guestsCountRef.current)
-      : newCountOrUpdater
+    // DEFENSIVE: Validate type before calling as function - CRITICAL to prevent "ei is not a function" error
+    let newCount: number
+    if (typeof newCountOrUpdater === 'function') {
+      const currentValue = guestsCountRef.current
+      // DEFENSIVE: Ensure currentValue is a number before passing to function
+      if (typeof currentValue !== 'number' || isNaN(currentValue)) {
+        console.error('[handleGuestsChange] Invalid current value:', currentValue)
+        return
+      }
+      // DEFENSIVE: Double-check newCountOrUpdater is still a function before calling
+      // This prevents calling a number as a function (which causes "ei is not a function")
+      try {
+        const result = newCountOrUpdater(currentValue)
+        if (typeof result !== 'number' || isNaN(result)) {
+          console.error('[handleGuestsChange] Updater function returned invalid value:', result)
+          return
+        }
+        newCount = result
+      } catch (error) {
+        console.error('[handleGuestsChange] Error calling updater function:', error)
+        return
+      }
+    } else if (typeof newCountOrUpdater === 'number') {
+      newCount = newCountOrUpdater
+    } else {
+      console.error('[handleGuestsChange] Invalid type:', typeof newCountOrUpdater, newCountOrUpdater)
+      return
+    }
+
+    // DEFENSIVE: Ensure newCount is a valid number
+    if (typeof newCount !== 'number' || isNaN(newCount)) {
+      console.error('[handleGuestsChange] Invalid calculated value:', newCount)
+      return
+    }
 
     // Contraintes : minimum 1
     if (newCount < 1) {
@@ -442,7 +478,7 @@ export default function ChatInterface({
     // This is a ONE-TIME synchronous update, NOT reactive
     // Use ref to get current value and avoid dependency on childrenCount (which would recreate callback)
     const currentChildren = childrenCountRef.current
-    if (currentChildren > newCount) {
+    if (typeof currentChildren === 'number' && currentChildren > newCount) {
       setChildrenCount(newCount) // Direct update, no handler, no loop
     }
 
@@ -459,6 +495,12 @@ export default function ChatInterface({
       return
     }
 
+    // DEFENSIVE: Ensure newCount is a valid number
+    if (typeof newCount !== 'number' || isNaN(newCount)) {
+      console.error('[handleChildrenChange] Invalid input:', newCount)
+      return
+    }
+
     // Contraintes : minimum 0
     if (newCount < 0) {
       return
@@ -468,7 +510,8 @@ export default function ChatInterface({
     // This is a ONE-TIME synchronous update, NOT reactive
     // We do this BEFORE updating childrenCount to ensure consistency
     const currentGuests = guestsCountRef.current
-    if (newCount > currentGuests) {
+    // DEFENSIVE: Ensure currentGuests is a valid number before comparison
+    if (typeof currentGuests === 'number' && !isNaN(currentGuests) && newCount > currentGuests) {
       setGuestsCount(newCount) // Direct update, no handler, no loop
     }
     
@@ -1508,8 +1551,17 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
+                                // DEFENSIVE: Ensure handleGuestsChange is a function before calling
+                                if (typeof handleGuestsChange !== 'function') {
+                                  console.error('[onClick] handleGuestsChange is not a function:', typeof handleGuestsChange, handleGuestsChange)
+                                  return
+                                }
                                 // Pass updater function to handleGuestsChange to avoid stale closure
-                                handleGuestsChange((currentCount: number) => Math.max(1, currentCount - 1))
+                                try {
+                                  handleGuestsChange((currentCount: number) => Math.max(1, currentCount - 1))
+                                } catch (error) {
+                                  console.error('[onClick] Error calling handleGuestsChange:', error)
+                                }
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
@@ -1526,8 +1578,17 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
+                                // DEFENSIVE: Ensure handleGuestsChange is a function before calling
+                                if (typeof handleGuestsChange !== 'function') {
+                                  console.error('[onClick] handleGuestsChange is not a function:', typeof handleGuestsChange, handleGuestsChange)
+                                  return
+                                }
                                 // Pass updater function to handleGuestsChange to avoid stale closure
-                                handleGuestsChange((currentCount: number) => currentCount + 1)
+                                try {
+                                  handleGuestsChange((currentCount: number) => currentCount + 1)
+                                } catch (error) {
+                                  console.error('[onClick] Error calling handleGuestsChange:', error)
+                                }
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
@@ -1544,11 +1605,20 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
+                                // DEFENSIVE: Ensure handleChildrenChange is a function before calling
+                                if (typeof handleChildrenChange !== 'function') {
+                                  console.error('[onClick] handleChildrenChange is not a function:', typeof handleChildrenChange, handleChildrenChange)
+                                  return
+                                }
                                 // BREAK LOOP: Calculate new value using ref to avoid closure
                                 // Handler will update state (single source of truth)
                                 // NO setState wrapper - handler manages all updates
                                 const newCount = Math.max(0, childrenCountRef.current - 1)
-                                handleChildrenChange(newCount)
+                                try {
+                                  handleChildrenChange(newCount)
+                                } catch (error) {
+                                  console.error('[onClick] Error calling handleChildrenChange:', error)
+                                }
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 transition-all duration-150 shadow-sm hover:shadow"
@@ -1565,11 +1635,20 @@ export default function ChatInterface({
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
+                                // DEFENSIVE: Ensure handleChildrenChange is a function before calling
+                                if (typeof handleChildrenChange !== 'function') {
+                                  console.error('[onClick] handleChildrenChange is not a function:', typeof handleChildrenChange, handleChildrenChange)
+                                  return
+                                }
                                 // BREAK LOOP: Calculate new value using ref to avoid closure
                                 // Handler will update state and handle guests_count constraint if needed
                                 // NO setState wrapper - handler manages all updates
                                 const newCount = childrenCountRef.current + 1
-                                handleChildrenChange(newCount)
+                                try {
+                                  handleChildrenChange(newCount)
+                                } catch (error) {
+                                  console.error('[onClick] Error calling handleChildrenChange:', error)
+                                }
                               }}
                               disabled={updatingGuests}
                               className="w-8 h-8 flex items-center justify-center rounded-lg border-2 border-[#FBCF03] bg-[#FBCF03] hover:bg-[#FBCF03]/90 hover:border-[#FBCF03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow"
