@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/check-inactive-bookings",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}
