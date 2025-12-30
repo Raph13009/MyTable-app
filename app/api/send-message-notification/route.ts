@@ -101,37 +101,57 @@ export async function POST(request: NextRequest) {
 
     // 4. Créer le magic link pour le destinataire
     const redirectUrl = `${baseUrl}/auth/callback?next=/chat/${conversationId}`
+    const recipientEmail = (recipient as any).email.toLowerCase().trim()
     
     // Envoyer un magic link Supabase au destinataire
+    let magicLinkSent = false
     const { data: otpData, error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-      email: (recipient as any).email.toLowerCase().trim(),
+      email: recipientEmail,
       options: {
         emailRedirectTo: redirectUrl,
         shouldCreateUser: false, // User should already exist
       },
     })
 
+    if (!otpError) {
+      magicLinkSent = true
+      console.log('[send-message-notification] ✅ Magic link sent to:', recipientEmail)
+    } else {
+      console.error('[send-message-notification] ⚠️ Failed to send magic link:', otpError.message)
+      // Continue anyway - we'll provide a fallback CTA
+    }
+
     // 5. Sanitize message content before including in email (mask emails and phone numbers)
     const sanitizedMessageContent = sanitizeMessage(messageContent)
     
-    // 6. Créer le contenu de l'email
-    // IMPORTANT: The CTA mentions they'll receive a magic link (which Supabase sends separately)
-    // The email itself is informational, the magic link is sent by Supabase Auth
+    // 6. Créer le contenu de l'email avec CTA professionnel
+    const loginUrl = `${baseUrl}/login?next=/chat/${conversationId}`
+    const ctaUrl = magicLinkSent ? redirectUrl : loginUrl
+    const ctaText = magicLinkSent 
+      ? 'Accéder au chat' 
+      : 'Se connecter pour répondre'
+    
     const emailContent = `
       <p>Bonjour ${recipientName},</p>
       <p><strong>${senderName}</strong> vous a envoyé un nouveau message :</p>
       <div style="background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #FBCF03;">
         <p style="margin: 0; font-style: italic;">"${sanitizedMessageContent}"</p>
       </div>
-      <p>Vous recevrez un lien de connexion sécurisé par email séparé pour accéder au chat et répondre.</p>
-      <p style="margin-top: 16px; font-size: 14px; color: #666;">
-        <strong>Note :</strong> Vérifiez votre boîte de réception (et vos spams) pour le lien de connexion.
-      </p>
+      ${magicLinkSent ? `
+        <p>Un lien de connexion sécurisé vous a été envoyé par email séparé pour accéder directement au chat.</p>
+      ` : `
+        <p>Cliquez sur le bouton ci-dessous pour accéder à votre espace de conversation et répondre.</p>
+      `}
     `
 
     const emailHtml = emailLayout({
       title: 'Nouveau message reçu',
       content: emailContent,
+      cta: {
+        text: ctaText,
+        url: ctaUrl,
+        variant: 'yellow',
+      },
       baseUrl,
     })
 

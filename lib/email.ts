@@ -554,12 +554,20 @@ export const emailTemplates = {
       ? extras.map(e => `<li>${e.name} : ${e.price.toFixed(2)} €</li>`).join('')
       : '<li>Aucun extra</li>'
     
+    // Calculer le montant avec commission (total - 15%)
+    const commissionRate = 0.15
+    const commissionAmount = totalAmount * commissionRate
+    const amountAfterCommission = totalAmount - commissionAmount
+    
     const content = `
       <p><strong style="font-size: 18px; color: #000;">Action requise : Envoyer le lien de paiement</strong></p>
       
       <div style="background-color: #f9f9f9; border-left: 4px solid #FBCF03; padding: 16px; margin: 20px 0; border-radius: 4px;">
-        <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">📧 Envoyer le lien de paiement d'une valeur de <strong>${totalAmount.toFixed(2)} €</strong> au client :</p>
+        <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">📧 Envoyer le lien de paiement d'une valeur de <strong>${amountAfterCommission.toFixed(2)} €</strong> au client :</p>
         <p style="margin: 8px 0 0 0; font-size: 15px; color: #000;"><strong>${clientEmail}</strong></p>
+        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666; font-style: italic;">
+          <strong>Note importante :</strong> Le montant à facturer est de <strong>${amountAfterCommission.toFixed(2)} €</strong> (prix total ${totalAmount.toFixed(2)} € - commission plateforme de ${commissionAmount.toFixed(2)} € soit 15%)
+        </p>
       </div>
       
       <div style="margin: 24px 0; padding: 20px; background-color: #ffffff; border: 1px solid #e8e8e8; border-radius: 8px;">
@@ -611,7 +619,10 @@ export const emailTemplates = {
       
       <div style="margin-top: 24px; padding: 20px; background-color: #FBCF03; border-radius: 8px; text-align: center;">
         <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">
-          ⚠️ Action requise : Envoyer le lien de paiement de <strong>${totalAmount.toFixed(2)} €</strong> à ${clientEmail} dans les 24 heures
+          ⚠️ Action requise : Envoyer le lien de paiement de <strong>${amountAfterCommission.toFixed(2)} €</strong> à ${clientEmail} dans les 24 heures
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 14px; color: #000;">
+          (Prix total : ${totalAmount.toFixed(2)} € - Commission plateforme 15% : ${commissionAmount.toFixed(2)} € = ${amountAfterCommission.toFixed(2)} €)
         </p>
       </div>
     `
