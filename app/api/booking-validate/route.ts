@@ -122,18 +122,19 @@ export async function POST(request: NextRequest) {
     // Envoyer les emails
     try {
       // Email au client
+      const chef = (bookingRequest as any).chefs
       await sendEmail({
         to: (bookingRequest as any).email,
         subject: emailSubjects.bookingValidatedToClient,
         html: emailTemplates.bookingValidatedToClient(
           `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
           bookingDate,
+          chef?.phone || null,
           baseUrl
         ),
       })
 
       // Email au chef
-      const chef = (bookingRequest as any).chefs
       if (chef && chef.email) {
         await sendEmail({
           to: chef.email,
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
             guestsCount,
             childrenCount,
             totalAmount,
+            (bookingRequest as any).phone || null,
             baseUrl
           ),
         })

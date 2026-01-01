@@ -515,12 +515,20 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToClient: (clientName: string, bookingDate: string, baseUrl?: string) => {
+  bookingValidatedToClient: (clientName: string, bookingDate: string, chefPhone: string | null | undefined, baseUrl?: string) => {
+    const phoneSection = chefPhone ? `
+      <p style="margin-top: 16px;">
+        <strong>📞 Contact du chef :</strong><br>
+        <a href="tel:${chefPhone}" style="color: #000; text-decoration: underline;">${chefPhone}</a>
+      </p>
+    ` : ''
+    
     const content = `
       <p>Bonjour ${clientName},</p>
       <p>Votre réservation du <strong>${bookingDate}</strong> a été validée avec succès.</p>
       <p>Vous recevrez un lien de paiement dans les prochaines 24 heures pour finaliser votre réservation.</p>
-      <p>Merci de votre confiance !</p>
+      ${phoneSection}
+      <p style="margin-top: 16px;">Merci de votre confiance !</p>
     `
     return emailLayout({
       title: 'Réservation confirmée',
@@ -529,8 +537,12 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, baseUrl?: string) => {
+  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, clientPhone: string | null | undefined, baseUrl?: string) => {
     const childrenText = childrenCount > 0 ? ` (dont ${childrenCount} ${childrenCount === 1 ? 'enfant' : 'enfants'})` : ''
+    const phoneSection = clientPhone ? `
+      <li>📞 Téléphone client : <a href="tel:${clientPhone}" style="color: #000; text-decoration: underline;">${clientPhone}</a></li>
+    ` : ''
+    
     const content = `
       <p>Bonjour ${chefName},</p>
       <p>La réservation de <strong>${clientName}</strong> a été validée par le client.</p>
@@ -539,6 +551,7 @@ export const emailTemplates = {
         <li>📅 Date : ${bookingDate}</li>
         <li>👥 Nombre de convives : ${guestsCount}${childrenText}</li>
         <li>💰 Montant total : ${totalAmount.toFixed(2)} €</li>
+        ${phoneSection}
       </ul>
       <p>Le paiement est attendu dans les 48 prochaines heures.</p>
     `
