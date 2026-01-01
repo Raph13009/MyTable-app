@@ -107,7 +107,8 @@ export async function GET(request: NextRequest) {
         ),
       })
 
-      return NextResponse.redirect(new URL('/?message=booking_refused', request.url))
+      // Rediriger vers guidemytable.fr après refus
+      return NextResponse.redirect('https://guidemytable.fr/', 302)
     } else if (action === 'accept') {
       // Mettre à jour le statut
       const { data: updatedBooking } = await (supabase
