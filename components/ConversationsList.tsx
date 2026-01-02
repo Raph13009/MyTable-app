@@ -324,11 +324,43 @@ export default function ConversationsList({ conversations, currentUser, particip
                         <div className="flex-1 min-w-0 lg:flex lg:items-center lg:justify-between lg:gap-4">
                           {/* Colonne gauche: Nom, message, meta */}
                           <div className="flex-1 min-w-0">
-                            {/* Ligne 1: Nom + Badge statut - Desktop: alignement horizontal amélioré */}
-                            <div className="flex items-center gap-2 mb-1.5 lg:mb-1">
+                            {/* Ligne 1: Nom + Badge statut + Type de service - Desktop: alignement horizontal amélioré */}
+                            <div className="flex items-center gap-2 mb-1.5 lg:mb-1 flex-wrap">
                               <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 truncate">
                                 {otherParticipant.name}
                               </h3>
+                              {/* Badge type de service - Visible uniquement côté chef */}
+                              {conversation.bookingRequest?.service_type && (() => {
+                                const getServiceTypeLabel = (type: string) => {
+                                  switch (type) {
+                                    case 'repas_domicile':
+                                      return 'Repas à domicile'
+                                    case 'cours_cuisine':
+                                      return 'Cours de Cuisine'
+                                    case 'mise_en_demeure':
+                                      return 'Chef à demeure'
+                                    default:
+                                      return type
+                                  }
+                                }
+                                const getServiceTypeColor = (type: string) => {
+                                  switch (type) {
+                                    case 'repas_domicile':
+                                      return 'bg-blue-50 text-blue-700'
+                                    case 'cours_cuisine':
+                                      return 'bg-purple-50 text-purple-700'
+                                    case 'mise_en_demeure':
+                                      return 'bg-amber-50 text-amber-700'
+                                    default:
+                                      return 'bg-gray-50 text-gray-700'
+                                  }
+                                }
+                                return (
+                                  <span className={`flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight ${getServiceTypeColor(conversation.bookingRequest.service_type)}`}>
+                                    {getServiceTypeLabel(conversation.bookingRequest.service_type)}
+                                  </span>
+                                )
+                              })()}
                               {/* Badge statut - Desktop: plus compact */}
                               <span className={`flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight ${
                                 conversation.status === 'ongoing'
@@ -408,7 +440,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                 <div className="px-6 pt-6 pb-4 border-b border-gray-100">
                   <div className="flex items-center justify-center">
                     <img 
-                      src="/logo-cercle.jpeg" 
+                      src="/logo-cercle.png" 
                       alt="MyTable" 
                       className="h-8 w-8 object-contain opacity-60"
                     />

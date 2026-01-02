@@ -142,6 +142,7 @@ export default function ChatInterface({
   const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
   const [showMenuModal, setShowMenuModal] = useState(false)
+  const [showMealDetailsModal, setShowMealDetailsModal] = useState(false)
   const [extras, setExtras] = useState<Array<{ name: string; price: number }>>([])
   const [newExtraName, setNewExtraName] = useState('')
   const [newExtraPrice, setNewExtraPrice] = useState('')
@@ -851,11 +852,17 @@ export default function ChatInterface({
   }
 
   // Calculer le prix total (utilise guestsCount local si modifié)
+  // Pour chef à demeure, utiliser total_price (budget) au lieu de menu + extras
   const menuPrice = menuDetails?.price || 0
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
   const menuTotal = menuPrice * currentGuestsCount
   const extrasTotal = extras.reduce((sum, extra) => sum + (extra.price || 0), 0)
-  const totalPrice = menuTotal + extrasTotal
+  
+  // Pour chef à demeure, utiliser le budget (total_price) annoncé par le client
+  // Sinon, utiliser menu + extras
+  const totalPrice = bookingRequest?.service_type === 'mise_en_demeure' && bookingRequest?.total_price
+    ? bookingRequest.total_price
+    : menuTotal + extrasTotal
 
   // Détecter si un message est un message système (notification)
   const isSystemMessage = (content: string) => {
@@ -1281,6 +1288,11 @@ export default function ChatInterface({
                           <p className="text-sm text-gray-700 leading-relaxed">
                             Retrouvez les détails de votre évènement dans <span className="font-semibold text-gray-900">&quot;Voir l&apos;offre&quot;</span>.
                           </p>
+                          {isChef && (
+                            <p className="text-sm text-gray-700 leading-relaxed mt-2">
+                              Vous pouvez dès à présent créer un menu adapté aux demandes du client depuis l&apos;onglet &quot;Menu&quot;.
+                            </p>
+                          )}
                         </div>
                         {isClient && (
                           <div className="pt-1">
@@ -1488,7 +1500,7 @@ export default function ChatInterface({
                   }
                   // Sinon, laisser Entrée créer une nouvelle ligne (comportement par défaut)
                 }}
-                placeholder="Tapez un message... (Entrée pour nouvelle ligne)"
+                placeholder="(appuyez sur Entrée pour aller à la ligne)"
                 disabled={loading}
                 rows={1}
                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden"
@@ -1508,7 +1520,7 @@ export default function ChatInterface({
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Tapez un message..."
+                placeholder="(appuyez sur Entrée pour aller à la ligne)"
                 disabled={loading}
                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
@@ -1643,29 +1655,32 @@ export default function ChatInterface({
                             <div>
                               <p className="text-xs text-gray-500 mb-0.5">Dates sélectionnées</p>
                               <p className="text-sm font-medium text-black">
-                                {bookingRequest.selected_dates.map((date: string) => 
-                                  new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-                                ).join(', ')}
+                                {bookingRequest.selected_dates.length} {bookingRequest.selected_dates.length === 1 ? 'jour' : 'jours'}
                               </p>
                             </div>
                           )}
-                          {bookingRequest.meal_options && Array.isArray(bookingRequest.meal_options) && bookingRequest.meal_options.length > 0 && (
+                          {bookingRequest.meal_options && typeof bookingRequest.meal_options === 'object' && !Array.isArray(bookingRequest.meal_options) && Object.keys(bookingRequest.meal_options).length > 0 && (
                             <div>
                               <p className="text-xs text-gray-500 mb-0.5">Options de repas</p>
-                              <p className="text-sm font-medium text-black">
-                                {bookingRequest.meal_options.map((opt: string) => 
-                                  opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
-                                ).join(', ')}
-                              </p>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setShowMealDetailsModal(true)
+                                }}
+                                className="text-sm font-medium text-[#FBCF03] hover:text-[#E6BA00] underline decoration-[#FBCF03] decoration-1 underline-offset-2 transition-colors"
+                              >
+                                Voir les détails des jours
+                              </button>
                             </div>
                           )}
                           {bookingRequest.total_price && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Prix global</p>
+                              <p className="text-xs text-gray-500 mb-0.5">Budget global</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.total_price === 'number' 
-                                  ? `${bookingRequest.total_price.toFixed(2)} €`
-                                  : `${parseFloat(bookingRequest.total_price).toFixed(2)} €`}
+                                  ? `${bookingRequest.total_price.toFixed(0)} €`
+                                  : `${parseFloat(bookingRequest.total_price).toFixed(0)} €`}
                               </p>
                             </div>
                           )}
@@ -1945,6 +1960,75 @@ export default function ChatInterface({
                   Fermer
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Détails des jours - Chef à demeure */}
+      {showMealDetailsModal && bookingRequest?.service_type === 'mise_en_demeure' && bookingRequest.meal_options && typeof bookingRequest.meal_options === 'object' && !Array.isArray(bookingRequest.meal_options) && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowMealDetailsModal(false)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
+              <h2 className="text-xl font-semibold text-black">Détails des jours</h2>
+              <button
+                onClick={() => setShowMealDetailsModal(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors sm:p-1.5 sm:bg-transparent sm:hover:bg-gray-100"
+                aria-label="Fermer"
+              >
+                <span className="sm:hidden">Retour</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+              {Object.entries(bookingRequest.meal_options as Record<string, string[]>)
+                .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+                .map(([date, options]) => {
+                  const dateObj = new Date(date)
+                  const dateLabel = dateObj.toLocaleDateString('fr-FR', { 
+                    weekday: 'long', 
+                    day: 'numeric', 
+                    month: 'long',
+                    year: 'numeric'
+                  })
+                  const dayLabel = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' })
+                  
+                  return (
+                    <div key={date} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-semibold text-black uppercase tracking-wide">{dayLabel}</span>
+                        <span className="text-sm font-medium text-gray-700">{dateLabel}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {options.map((opt: string, index: number) => {
+                          const mealLabel = opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+                          const mealIcon = opt === 'pdj' ? '🌅' : opt === 'dejeuner' ? '☀️' : '🌙'
+                          return (
+                            <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-2.5">
+                              <span className="text-base">{mealIcon}</span>
+                              <span className="text-sm font-medium text-black">{mealLabel}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+              <button
+                onClick={() => setShowMealDetailsModal(false)}
+                className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>

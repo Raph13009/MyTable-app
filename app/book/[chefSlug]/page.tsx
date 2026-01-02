@@ -51,17 +51,8 @@ export default async function BookPage({ params }: PageProps) {
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">
-              Réserver avec{' '}
-              <span className="text-black">Chef</span>{' '}
-              <span 
-                className="bg-gradient-to-r from-[#FBCF03] via-[#FFD700] to-[#FBCF03] bg-clip-text text-transparent"
-                style={{
-                  backgroundImage: 'linear-gradient(135deg, #FBCF03 0%, #FFD700 50%, #FBCF03 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
+              Réserver avec Chef{' '}
+              <span className="text-black underline decoration-[#FBCF03] decoration-2 underline-offset-4">
                 {(chef as any).name}
               </span>
             </h1>

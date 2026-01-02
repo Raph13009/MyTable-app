@@ -36,7 +36,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions): Promise<vo
   if (process.env.EMAIL_PROVIDER === 'resend' || !process.env.EMAIL_PROVIDER) {
     try {
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@mytable.com',
+        from: 'MyTable <contact@guidemytable.fr>',
         to,
         subject,
         html,
@@ -89,7 +89,7 @@ interface EmailLayoutOptions {
 export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions): string {
   const appUrl = getBaseUrl(baseUrl)
   const logoBannerUrl = `${appUrl}/logo-banner.jpeg`
-  const logoCercleUrl = `${appUrl}/logo-cercle.jpeg`
+  const logoCercleUrl = `${appUrl}/logo-cercle.png`
   
   let ctaButtonClass = 'background-color: #000; color: #fff;'
   let ctaButtonHover = 'background-color: #333;'
@@ -324,7 +324,7 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
             </div>
             <div class="email-footer">
               <p>Besoin d'aide ? <a href="mailto:contact@guidemytable.fr" style="color: #000; text-decoration: underline;">contact@guidemytable.fr</a></p>
-              <p><a href="https://guidemytable.fr/" style="color: #000; text-decoration: underline;">MyTable</a> - Votre chef à domicile</p>
+              <p style="margin-top: 8px; font-size: 13px; color: #666; font-style: italic;">MyTable - L'art culinaire privé sélectionné avec soin pour vous</p>
             </div>
           </div>
         </div>
@@ -361,12 +361,6 @@ export const emailTemplates = {
       <p>Le Chef va examiner votre demande et vous recevrez une réponse par mail sous 24h.</p>
       <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
         <strong>Merci de votre confiance auprès du Guide MyTable !</strong>
-      </p>
-      <p style="margin-top: 16px; font-size: 14px; color: #666;">
-        Besoins d'aide ? <a href="mailto:contact@guidemytable.fr" style="color: #000; text-decoration: underline;">contact@guidemytable.fr</a>
-      </p>
-      <p style="margin-top: 8px; font-size: 13px; color: #666; font-style: italic;">
-        MyTable - L'art culinaire privé sélectionné avec soin pour vous
       </p>
     `
     return emailLayout({

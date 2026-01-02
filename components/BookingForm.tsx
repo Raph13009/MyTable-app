@@ -47,8 +47,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     budget: '',
     courseTopic: '',
     selectedDates: [] as string[],
-    mealOptions: [] as ('pdj' | 'dejeuner' | 'diner')[],
-    totalPrice: '',
+    mealOptionsByDate: {} as Record<string, ('pdj' | 'dejeuner' | 'diner')[]>,
     hasAllergies: false,
     allergiesDetails: '',
     menuId: menus.length > 0 ? menus[0].id : '',
@@ -79,8 +78,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       budget: '',
       courseTopic: '',
       selectedDates: [],
-      mealOptions: [],
-      totalPrice: '',
+      mealOptionsByDate: {},
       hasAllergies: false,
       allergiesDetails: '',
       menuId: menus.length > 0 ? menus[0].id : '',
@@ -225,11 +223,15 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       if (formData.selectedDates.length === 0) {
         newErrors.selectedDates = 'Veuillez sélectionner au moins une date'
       }
-      if (formData.mealOptions.length === 0) {
-        newErrors.mealOptions = 'Veuillez sélectionner au moins une option de repas'
+      // Vérifier que chaque date a au moins une option de repas
+      const datesWithoutMeals = formData.selectedDates.filter(date => 
+        !formData.mealOptionsByDate[date] || formData.mealOptionsByDate[date].length === 0
+      )
+      if (datesWithoutMeals.length > 0) {
+        newErrors.mealOptions = 'Veuillez sélectionner au moins une option de repas pour chaque date'
       }
-      if (!formData.totalPrice || parseFloat(formData.totalPrice) <= 0) {
-        newErrors.totalPrice = 'Le prix global est requis et doit être supérieur à 0'
+      if (!formData.budget || parseFloat(formData.budget) <= 0) {
+        newErrors.budget = 'Le budget global est requis et doit être supérieur à 0'
       }
     }
 
@@ -282,8 +284,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         courseTopic = formData.courseTopic || null
       } else if (formData.serviceType === 'mise_en_demeure') {
         selectedDates = formData.selectedDates.length > 0 ? formData.selectedDates : null
-        mealOptions = formData.mealOptions.length > 0 ? formData.mealOptions : null
-        totalPrice = parseFloat(formData.totalPrice) || null
+        // Convertir mealOptionsByDate en format pour l'API
+        // Structure: { date1: ['pdj', 'dejeuner'], date2: ['diner'], ... }
+        mealOptions = Object.keys(formData.mealOptionsByDate).length > 0 ? formData.mealOptionsByDate : null
+        totalPrice = parseFloat(formData.budget) || null
+        budget = null // Ne pas utiliser budget pour mise_en_demeure, utiliser totalPrice
       }
       
       const response = await fetch('/api/bookings', {
@@ -319,7 +324,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     }
   }
 
-  const guestsOptions = Array.from({ length: 20 }, (_, i) => ({
+  const guestsOptions = Array.from({ length: 60 }, (_, i) => ({
     value: String(i + 1),
     label: `${i + 1} ${i === 0 ? 'convive' : 'convives'}`,
   }))
@@ -504,7 +509,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const serviceTypeOptions = [
     { value: 'repas_domicile', label: 'Repas à domicile' },
     { value: 'cours_cuisine', label: 'Cours de Cuisine' },
-    { value: 'mise_en_demeure', label: 'Événement sur plusieurs jours' },
+    { value: 'mise_en_demeure', label: 'Chef à demeure' },
   ]
 
   // Page 1: Informations personnelles + Sélection du type de service
@@ -630,9 +635,6 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                   required
                   className="w-full min-w-0 max-w-full"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Vous devez réserver au moins 3 jours avant la date de l&apos;évènement
-                </p>
               </div>
               <Select
                 label="Moment du repas *"
@@ -845,72 +847,116 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               </label>
               <DatePickerMulti
                 selectedDates={formData.selectedDates}
-                onDatesChange={(dates) => setFormData(prev => ({ ...prev, selectedDates: dates }))}
+                onDatesChange={(dates) => {
+                  setFormData(prev => {
+                    // Nettoyer les options de repas pour les dates désélectionnées
+                    const newMealOptionsByDate: Record<string, ('pdj' | 'dejeuner' | 'diner')[]> = {}
+                    dates.forEach(date => {
+                      if (prev.mealOptionsByDate[date]) {
+                        newMealOptionsByDate[date] = prev.mealOptionsByDate[date]
+                      }
+                    })
+                    return { ...prev, selectedDates: dates, mealOptionsByDate: newMealOptionsByDate }
+                  })
+                }}
                 minDate={getMinDate()}
               />
               {errors.selectedDates && (
                 <p className="mt-1 text-sm text-red-500">{errors.selectedDates}</p>
               )}
               <p className="mt-1 text-xs text-gray-500">
-                Sélectionnez les dates pour votre événement sur plusieurs jours.
+                Sélectionnez les dates pour votre chef à demeure.
               </p>
             </div>
 
-            {/* Options de repas */}
-            <div className="w-full">
-              <label className="block text-sm font-medium text-black mb-2">
-                Options de repas *
-              </label>
-              <div className="space-y-2">
-                {(['pdj', 'dejeuner', 'diner'] as const).map((option) => (
-                  <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.mealOptions.includes(option)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData(prev => ({
-                            ...prev,
-                            mealOptions: [...prev.mealOptions, option]
-                          }))
-                        } else {
-                          setFormData(prev => ({
-                            ...prev,
-                            mealOptions: prev.mealOptions.filter(o => o !== option)
-                          }))
-                        }
-                      }}
-                      className="w-4 h-4 text-[#FBCF03] border-gray-300 rounded focus:ring-[#FBCF03]"
-                    />
-                    <span className="text-sm text-black">
-                      {option === 'pdj' ? 'Petit-déjeuner' : option === 'dejeuner' ? 'Déjeuner' : 'Dîner'}
-                    </span>
-                  </label>
-                ))}
+            {/* Options de repas par date */}
+            {formData.selectedDates.length > 0 && (
+              <div className="w-full">
+                <label className="block text-sm font-medium text-black mb-3">
+                  Options de repas par jour *
+                </label>
+                <div className="space-y-4">
+                  {formData.selectedDates.map((date) => {
+                    const dateObj = new Date(date)
+                    const dateLabel = dateObj.toLocaleDateString('fr-FR', { 
+                      weekday: 'long', 
+                      day: 'numeric', 
+                      month: 'long' 
+                    })
+                    const currentMealOptions = formData.mealOptionsByDate[date] || []
+                    
+                    return (
+                      <div key={date} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h4 className="text-sm font-semibold text-black mb-3 capitalize">
+                          {dateLabel}
+                        </h4>
+                        <div className="space-y-2">
+                          {(['pdj', 'dejeuner', 'diner'] as const).map((option) => (
+                            <label key={option} className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={currentMealOptions.includes(option)}
+                                onChange={(e) => {
+                                  setFormData(prev => {
+                                    const currentOptions = prev.mealOptionsByDate[date] || []
+                                    let newOptions: ('pdj' | 'dejeuner' | 'diner')[]
+                                    
+                                    if (e.target.checked) {
+                                      newOptions = [...currentOptions, option]
+                                    } else {
+                                      newOptions = currentOptions.filter(o => o !== option)
+                                    }
+                                    
+                                    return {
+                                      ...prev,
+                                      mealOptionsByDate: {
+                                        ...prev.mealOptionsByDate,
+                                        [date]: newOptions
+                                      }
+                                    }
+                                  })
+                                }}
+                                className="w-4 h-4 text-[#FBCF03] border-gray-300 rounded focus:ring-[#FBCF03]"
+                              />
+                              <span className="text-sm text-black">
+                                {option === 'pdj' ? 'Petit-déjeuner' : option === 'dejeuner' ? 'Déjeuner' : 'Dîner'}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {currentMealOptions.length === 0 && (
+                          <p className="mt-2 text-xs text-amber-600">
+                            ⚠️ Sélectionnez au moins un repas pour ce jour
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {errors.mealOptions && (
+                  <p className="mt-2 text-sm text-red-500">{errors.mealOptions}</p>
+                )}
+                <p className="mt-3 text-xs text-gray-500">
+                  Sélectionnez les repas souhaités pour chaque jour sélectionné.
+                </p>
               </div>
-              {errors.mealOptions && (
-                <p className="mt-1 text-sm text-red-500">{errors.mealOptions}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                Sélectionnez les repas souhaités pour chaque jour.
-              </p>
-            </div>
+            )}
 
             <div className="w-full">
               <Input
-                label="Prix global pour la période (€) *"
+                label="Budget global pour la période (€) *"
                 type="number"
-                name="totalPrice"
-                value={formData.totalPrice}
+                name="budget"
+                value={formData.budget}
                 onChange={handleChange}
-                error={errors.totalPrice}
+                error={errors.budget}
                 min="0"
                 step="0.01"
                 placeholder="0.00"
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez le prix global que vous souhaitez pour cette période.
+                Indiquez votre budget global pour cette période.
               </p>
             </div>
           </>

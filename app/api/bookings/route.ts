@@ -74,7 +74,26 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      if (!mealOptions || !Array.isArray(mealOptions) || mealOptions.length === 0) {
+      // mealOptions peut être un objet { date: ['pdj', 'dejeuner'], ... } ou un array (ancien format)
+      if (!mealOptions) {
+        return NextResponse.json(
+          { error: 'Les options de repas sont requises pour chaque jour' },
+          { status: 400 }
+        )
+      }
+      // Si c'est un objet (nouveau format), vérifier que chaque date a au moins une option
+      if (typeof mealOptions === 'object' && !Array.isArray(mealOptions)) {
+        const mealOptionsObj = mealOptions as Record<string, string[]>
+        const datesWithoutMeals = selectedDates.filter((date: string) => 
+          !mealOptionsObj[date] || mealOptionsObj[date].length === 0
+        )
+        if (datesWithoutMeals.length > 0) {
+          return NextResponse.json(
+            { error: 'Chaque date doit avoir au moins une option de repas sélectionnée' },
+            { status: 400 }
+          )
+        }
+      } else if (Array.isArray(mealOptions) && mealOptions.length === 0) {
         return NextResponse.json(
           { error: 'Au moins une option de repas doit être sélectionnée' },
           { status: 400 }
@@ -82,7 +101,7 @@ export async function POST(request: NextRequest) {
       }
       if (!totalPrice || parseFloat(totalPrice) <= 0) {
         return NextResponse.json(
-          { error: 'Le prix global est requis pour un événement sur plusieurs jours' },
+          { error: 'Le budget global est requis pour un chef à demeure' },
           { status: 400 }
         )
       }
@@ -135,40 +154,108 @@ export async function POST(request: NextRequest) {
 
     // Créer la demande de réservation
     const conversationId = (conversation as any).id
-    const { data: bookingRequest, error: bookingError } = await supabase
-      .from('booking_requests')
-      .insert({
-        chef_id: chefId,
-        conversation_id: conversationId,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone,
-        service_type: serviceType,
-        booking_date: bookingDate || null,
-        meal_time: mealTime || null,
-        city,
-        postal_code: postalCode,
-        guests_count: parseInt(guestsCount),
-        children_count: parseInt(childrenCount) || 0,
-        period_days: periodDays || null,
-        budget: budget ? parseFloat(budget) : null,
-        course_topic: courseTopic || null,
-        selected_dates: selectedDates && Array.isArray(selectedDates) ? selectedDates : null,
-        meal_options: mealOptions && Array.isArray(mealOptions) ? mealOptions : null,
-        total_price: totalPrice ? parseFloat(totalPrice) : null,
-        has_allergies: hasAllergies || false,
-        allergies_details: hasAllergies ? allergiesDetails : null,
-        menu_id: menuId || null,
-        notes: notes || null,
-        status: 'pending',
-      } as any)
-      .select()
-      .single()
+    
+    // Préparer meal_options selon le format
+    // Si c'est un objet (nouveau format), on doit utiliser une requête SQL brute
+    // car la colonne peut être encore TEXT[] (migration non exécutée)
+    let mealOptionsForDb: any = null
+    let useRawSql = false
+    
+    if (mealOptions) {
+      if (typeof mealOptions === 'object' && !Array.isArray(mealOptions)) {
+        // Nouveau format: objet avec dates comme clés
+        // On va utiliser une requête SQL brute pour insérer en JSONB
+        mealOptionsForDb = mealOptions
+        useRawSql = true
+      } else if (Array.isArray(mealOptions)) {
+        // Ancien format: array simple
+        mealOptionsForDb = mealOptions
+      }
+    }
+    
+    console.log('[bookings] mealOptions received:', JSON.stringify(mealOptions, null, 2))
+    console.log('[bookings] mealOptionsForDb:', JSON.stringify(mealOptionsForDb, null, 2))
+    console.log('[bookings] useRawSql:', useRawSql)
+    
+    let bookingRequest: any = null
+    let bookingError: any = null
+    
+    if (useRawSql && mealOptionsForDb) {
+      // Utiliser la fonction PostgreSQL pour insérer meal_options en JSONB
+      const mealOptionsJson = mealOptionsForDb
+      const selectedDatesJson = selectedDates && Array.isArray(selectedDates) ? selectedDates : null
+      
+      const { data, error } = await (supabase as any).rpc('insert_booking_with_json_meal_options', {
+        p_chef_id: chefId,
+        p_conversation_id: conversationId,
+        p_first_name: firstName,
+        p_last_name: lastName,
+        p_email: email,
+        p_phone: phone,
+        p_service_type: serviceType,
+        p_booking_date: bookingDate || null,
+        p_meal_time: mealTime || null,
+        p_city: city,
+        p_postal_code: postalCode,
+        p_guests_count: parseInt(guestsCount),
+        p_children_count: parseInt(childrenCount) || 0,
+        p_period_days: periodDays || null,
+        p_budget: budget ? parseFloat(budget) : null,
+        p_course_topic: courseTopic || null,
+        p_selected_dates: selectedDatesJson,
+        p_meal_options: mealOptionsJson,
+        p_total_price: totalPrice ? parseFloat(totalPrice) : null,
+        p_has_allergies: hasAllergies || false,
+        p_allergies_details: hasAllergies ? allergiesDetails : null,
+        p_menu_id: menuId || null,
+        p_notes: notes || null,
+        p_status: 'pending'
+      })
+      bookingRequest = data
+      bookingError = error
+    } else {
+      // Insertion normale
+      const { data, error } = await supabase
+        .from('booking_requests')
+        .insert({
+          chef_id: chefId,
+          conversation_id: conversationId,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          service_type: serviceType,
+          booking_date: bookingDate || null,
+          meal_time: mealTime || null,
+          city,
+          postal_code: postalCode,
+          guests_count: parseInt(guestsCount),
+          children_count: parseInt(childrenCount) || 0,
+          period_days: periodDays || null,
+          budget: budget ? parseFloat(budget) : null,
+          course_topic: courseTopic || null,
+          selected_dates: selectedDates && Array.isArray(selectedDates) ? selectedDates : null,
+          meal_options: mealOptionsForDb,
+          total_price: totalPrice ? parseFloat(totalPrice) : null,
+          has_allergies: hasAllergies || false,
+          allergies_details: hasAllergies ? allergiesDetails : null,
+          menu_id: menuId || null,
+          notes: notes || null,
+          status: 'pending',
+        } as any)
+        .select()
+        .single()
+      bookingRequest = data
+      bookingError = error
+    }
 
     if (bookingError || !bookingRequest) {
+      console.error('[bookings] Error creating booking request:', bookingError)
+      console.error('[bookings] mealOptions value:', mealOptions)
+      console.error('[bookings] mealOptions type:', typeof mealOptions)
+      console.error('[bookings] mealOptions isArray:', Array.isArray(mealOptions))
       return NextResponse.json(
-        { error: 'Erreur lors de la création de la demande' },
+        { error: `Erreur lors de la création de la demande: ${bookingError?.message || 'Unknown error'}` },
         { status: 500 }
       )
     }
@@ -392,10 +479,22 @@ export async function POST(request: NextRequest) {
       bookingDetails.courseTopic = courseTopic || null
     } else if (serviceType === 'mise_en_demeure') {
       bookingDetails.selectedDates = selectedDates && Array.isArray(selectedDates) ? selectedDates : null
-      bookingDetails.mealOptions = mealOptions && Array.isArray(mealOptions) ? mealOptions : null
-      bookingDetails.mealOptionsLabel = mealOptions && Array.isArray(mealOptions) 
-        ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
-        : null
+      // mealOptions peut être un objet (nouveau format) ou un array (ancien format)
+      if (mealOptions && typeof mealOptions === 'object' && !Array.isArray(mealOptions)) {
+        // Nouveau format: objet avec dates comme clés
+        bookingDetails.mealOptions = mealOptions
+        const allOptions = Object.values(mealOptions).flat() as string[]
+        const uniqueOptions = [...new Set(allOptions)]
+        bookingDetails.mealOptionsLabel = uniqueOptions.map(opt => 
+          opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+        ).join(', ')
+      } else {
+        // Ancien format: array simple (rétrocompatibilité)
+        bookingDetails.mealOptions = mealOptions && Array.isArray(mealOptions) ? mealOptions : null
+        bookingDetails.mealOptionsLabel = mealOptions && Array.isArray(mealOptions) 
+          ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
+          : null
+      }
       bookingDetails.totalPrice = totalPrice ? parseFloat(totalPrice) : null
     }
 

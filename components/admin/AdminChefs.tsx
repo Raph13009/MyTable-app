@@ -150,11 +150,26 @@ export default function AdminChefs() {
                   <img
                     src={chef.profile_picture}
                     alt={chef.name}
-                    className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-50 shadow-sm"
+                    className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-50 shadow-sm border-2 border-white"
+                    onError={(e) => {
+                      // Fallback si l'image ne charge pas
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      const parent = target.parentElement
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-14 h-14 rounded-full bg-gradient-to-br from-[#FBCF03] to-[#E6BA00] flex items-center justify-center ring-2 ring-gray-50 shadow-sm">
+                            <span class="text-lg font-bold text-black">
+                              ${chef.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        `
+                      }
+                    }}
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center ring-2 ring-gray-50 shadow-sm">
-                    <span className="text-lg font-semibold text-gray-700">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FBCF03] to-[#E6BA00] flex items-center justify-center ring-2 ring-gray-50 shadow-sm">
+                    <span className="text-lg font-bold text-black">
                       {chef.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
