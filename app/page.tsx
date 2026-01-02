@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 
 function MessageBanner({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   if (searchParams.error) {
@@ -41,8 +42,14 @@ function MessageBanner({ searchParams }: { searchParams: { error?: string; messa
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { error?: string; message?: string }
+  searchParams: { error?: string; message?: string; details?: string }
 }) {
+  // Si erreur d'authentification (magic link expiré), rediriger vers /login
+  if (searchParams.error === 'auth_failed') {
+    const details = searchParams.details ? `&details=${encodeURIComponent(searchParams.details)}` : ''
+    redirect(`/login?error=auth_failed${details}`)
+  }
+
   const supabase = await createClient()
 
   // Récupérer quelques chefs pour la démo

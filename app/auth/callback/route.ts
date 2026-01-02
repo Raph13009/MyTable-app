@@ -59,13 +59,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
     
-    const homeUrl = new URL('/', request.url)
-    homeUrl.searchParams.set('error', 'auth_failed')
+    // Rediriger vers /login au lieu de la page d'accueil
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('error', 'auth_failed')
     if (errorDescription) {
-      homeUrl.searchParams.set('details', errorDescription)
+      loginUrl.searchParams.set('details', errorDescription)
     }
-    console.log('[auth/callback] Redirecting to home:', homeUrl.toString())
-    return NextResponse.redirect(homeUrl)
+    console.log('[auth/callback] Redirecting to login:', loginUrl.toString())
+    return NextResponse.redirect(loginUrl)
   }
 
   // Si pas de code, rediriger vers la page demandée (peut-être déjà connecté)
@@ -234,9 +235,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
       }
       
-      const homeUrl = new URL('/', request.url)
-      homeUrl.searchParams.set('error', 'auth_failed')
-      return NextResponse.redirect(homeUrl)
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('error', 'auth_failed')
+      loginUrl.searchParams.set('details', 'Session créée mais utilisateur introuvable')
+      return NextResponse.redirect(loginUrl)
     }
     
     console.log('[auth/callback] ✅✅✅ USER VERIFIED SUCCESSFULLY ✅✅✅')
