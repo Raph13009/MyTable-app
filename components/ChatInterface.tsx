@@ -734,7 +734,7 @@ export default function ChatInterface({
         const removedExtras = localExtras.filter(le => !extras.find(e => e.name === le.name && e.price === le.price))
 
         for (const extra of addedExtras) {
-          const notificationMessage = `✨ Extra ajouté : ${extra.name} (+${extra.price.toFixed(2)} €)`
+          const notificationMessage = `Extra ajouté : ${extra.name} (+${extra.price.toFixed(2)} €)`
           // Sanitize notification message before saving
           const sanitizedNotification = sanitizeMessage(notificationMessage)
           try {

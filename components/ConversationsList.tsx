@@ -324,13 +324,10 @@ export default function ConversationsList({ conversations, currentUser, particip
                         <div className="flex-1 min-w-0 lg:flex lg:items-center lg:justify-between lg:gap-4">
                           {/* Colonne gauche: Nom, message, meta */}
                           <div className="flex-1 min-w-0">
-                            {/* Ligne 1: Nom + Badge statut + Type de service - Desktop: alignement horizontal amélioré */}
+                            {/* Ligne 1: Badge type de service (chef uniquement) + Nom + Badge statut - Desktop: alignement horizontal amélioré */}
                             <div className="flex items-center gap-2 mb-1.5 lg:mb-1 flex-wrap">
-                              <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 truncate">
-                                {otherParticipant.name}
-                              </h3>
-                              {/* Badge type de service - Visible uniquement côté chef */}
-                              {conversation.bookingRequest?.service_type && (() => {
+                              {/* Badge type de service - Visible uniquement côté chef, placé en premier pour plus de visibilité */}
+                              {currentUserRole === 'chef' && conversation.bookingRequest?.service_type && (() => {
                                 const getServiceTypeLabel = (type: string) => {
                                   switch (type) {
                                     case 'repas_domicile':
@@ -343,24 +340,15 @@ export default function ConversationsList({ conversations, currentUser, particip
                                       return type
                                   }
                                 }
-                                const getServiceTypeColor = (type: string) => {
-                                  switch (type) {
-                                    case 'repas_domicile':
-                                      return 'bg-blue-50 text-blue-700'
-                                    case 'cours_cuisine':
-                                      return 'bg-purple-50 text-purple-700'
-                                    case 'mise_en_demeure':
-                                      return 'bg-amber-50 text-amber-700'
-                                    default:
-                                      return 'bg-gray-50 text-gray-700'
-                                  }
-                                }
                                 return (
-                                  <span className={`flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight ${getServiceTypeColor(conversation.bookingRequest.service_type)}`}>
+                                  <span className="flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight bg-gray-100 text-gray-700 border border-gray-200">
                                     {getServiceTypeLabel(conversation.bookingRequest.service_type)}
                                   </span>
                                 )
                               })()}
+                              <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 truncate">
+                                {otherParticipant.name}
+                              </h3>
                               {/* Badge statut - Desktop: plus compact */}
                               <span className={`flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight ${
                                 conversation.status === 'ongoing'
