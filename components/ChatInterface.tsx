@@ -8,6 +8,7 @@ import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { sanitizeMessage } from '@/lib/utils'
 import { useTranslation } from '@/hooks/useTranslation'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -1087,6 +1088,10 @@ export default function ChatInterface({
       {/* Header - Premium, moderne, avec contraste distinct */}
       <div className="flex-shrink-0 bg-white sticky top-0 z-10 border-b border-gray-300">
         <div className="px-4 sm:px-6 py-3.5">
+          {/* Sélecteur de langue en haut à droite */}
+          <div className="absolute top-3.5 right-4 sm:right-6 z-10">
+            <LanguageSwitcher />
+          </div>
           {/* Titre sur sa propre ligne, bien visible */}
           <div className="mb-2.5">
             <div className="flex items-center gap-2 mb-1">

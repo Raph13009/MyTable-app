@@ -3,6 +3,10 @@
     {
       "path": "/api/check-inactive-bookings",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/check-completed-bookings",
+      "schedule": "0 10 * * *"
     }
   ]
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export default function BookingHeader() {
   const [showStepper, setShowStepper] = useState(false)
@@ -41,17 +42,20 @@ export default function BookingHeader() {
 
   return (
     <>
-      {/* Bouton info discret dans le header */}
-      <button
-        onClick={() => setShowStepper(true)}
-        className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 text-black/70 hover:text-black hover:bg-black/10 rounded-full transition-all"
-        aria-label="Comment ça marche ?"
-        title="Comment ça marche ?"
-      >
-        <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
+      {/* Sélecteur de langue et bouton info dans le header */}
+      <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 flex items-center gap-3">
+        <LanguageSwitcher />
+        <button
+          onClick={() => setShowStepper(true)}
+          className="p-3 sm:p-4 text-black/70 hover:text-black hover:bg-black/10 rounded-full transition-all"
+          aria-label="Comment ça marche ?"
+          title="Comment ça marche ?"
+        >
+          <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
 
       {/* Popup avec stepper - Rendu via Portal pour être au-dessus de tout */}
       {mounted && showStepper ? createPortal(
