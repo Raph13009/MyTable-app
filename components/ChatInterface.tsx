@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { sanitizeMessage } from '@/lib/utils'
+import { useTranslation } from '@/hooks/useTranslation'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -67,6 +68,7 @@ export default function ChatInterface({
   showAcceptedMessage = false,
   isAdmin: isAdminProp = false,
 }: ChatInterfaceProps) {
+  const { t } = useTranslation()
   // GLOBAL ERROR HANDLER: Suppress "ei is not a function" errors that occur despite defensive checks
   // This is a last-resort safety net to prevent error popups when DB updates succeed
   useEffect(() => {
@@ -1105,7 +1107,7 @@ export default function ChatInterface({
                     <>
                       <span className="text-gray-300">•</span>
                       <p className="text-xs sm:text-sm text-gray-500">
-                        {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                        {bookingRequest.meal_time === 'dejeuner' ? t('booking.mealTimeLunch') : bookingRequest.meal_time === 'diner' ? t('booking.mealTimeDinner') : bookingRequest.meal_time}
                       </p>
                     </>
                   )}
@@ -1166,7 +1168,7 @@ export default function ChatInterface({
                       onClick={() => setShowMenuModal(true)}
                       className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow"
                     >
-                      Menu
+                      {t('booking.menu')}
                     </button>
                   )}
                   {/* Secondary: Voir l&apos;offre (ghost/outline) */}
@@ -1174,7 +1176,7 @@ export default function ChatInterface({
                     onClick={() => setShowOfferModal(true)}
                     className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                   >
-                    Voir l&apos;offre
+                    {t('booking.seeOffer')}
                   </button>
                   
                   {/* Voir le menu (client only, if menu exists) - Caché pour cours_cuisine et mise_en_demeure */}
@@ -1183,7 +1185,7 @@ export default function ChatInterface({
                       onClick={() => setShowMenuModal(true)}
                       className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                     >
-                      Voir le menu
+                      {t('booking.seeMenu')}
                     </button>
                   )}
                   
@@ -1194,7 +1196,7 @@ export default function ChatInterface({
                       disabled={processingAction}
                       className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {processingAction ? '...' : 'Finaliser'}
+                      {processingAction ? '...' : t('booking.finalize')}
                     </button>
                   )}
                   
@@ -1204,9 +1206,9 @@ export default function ChatInterface({
                       onClick={handleCancelBooking}
                       disabled={processingAction}
                       className="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Annuler la réservation"
+                      title={t('booking.cancelBooking')}
                     >
-                      {processingAction ? '...' : 'Annuler'}
+                      {processingAction ? '...' : t('common.cancel')}
                     </button>
                   )}
                 </>
@@ -1500,7 +1502,7 @@ export default function ChatInterface({
                   }
                   // Sinon, laisser Entrée créer une nouvelle ligne (comportement par défaut)
                 }}
-                placeholder="(appuyez sur Entrée pour aller à la ligne)"
+                placeholder={t('chat.enterNewLine')}
                 disabled={loading}
                 rows={1}
                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden"
@@ -1520,7 +1522,7 @@ export default function ChatInterface({
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="(appuyez sur Entrée pour aller à la ligne)"
+                placeholder={t('chat.enterNewLine')}
                 disabled={loading}
                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
@@ -1625,7 +1627,7 @@ export default function ChatInterface({
                             <div>
                               <p className="text-xs text-gray-500 mb-0.5">Moment du repas</p>
                               <p className="text-sm font-medium text-black">
-                                {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                                {bookingRequest.meal_time === 'dejeuner' ? t('booking.mealTimeLunch') : bookingRequest.meal_time === 'diner' ? t('booking.mealTimeDinner') : bookingRequest.meal_time}
                               </p>
                             </div>
                           )}
@@ -1634,7 +1636,7 @@ export default function ChatInterface({
                         <>
                           {bookingRequest.budget && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Budget global</p>
+                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.budgetGlobal')}</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.budget === 'number' 
                                   ? `${bookingRequest.budget.toFixed(2)} €`
@@ -1653,15 +1655,15 @@ export default function ChatInterface({
                         <>
                           {bookingRequest.selected_dates && Array.isArray(bookingRequest.selected_dates) && bookingRequest.selected_dates.length > 0 && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Dates sélectionnées</p>
+                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.selectedDates')}</p>
                               <p className="text-sm font-medium text-black">
-                                {bookingRequest.selected_dates.length} {bookingRequest.selected_dates.length === 1 ? 'jour' : 'jours'}
+                                {bookingRequest.selected_dates.length} {bookingRequest.selected_dates.length === 1 ? t('offer.day') : t('offer.days')}
                               </p>
                             </div>
                           )}
                           {bookingRequest.meal_options && typeof bookingRequest.meal_options === 'object' && !Array.isArray(bookingRequest.meal_options) && Object.keys(bookingRequest.meal_options).length > 0 && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Options de repas</p>
+                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.mealOptions')}</p>
                               <button
                                 onClick={(e) => {
                                   e.preventDefault()
@@ -1670,13 +1672,13 @@ export default function ChatInterface({
                                 }}
                                 className="text-sm font-medium text-[#FBCF03] hover:text-[#E6BA00] underline decoration-[#FBCF03] decoration-1 underline-offset-2 transition-colors"
                               >
-                                Voir les détails des jours
+                                {t('mealDetails.seeDayDetails')}
                               </button>
                             </div>
                           )}
                           {bookingRequest.total_price && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Budget global</p>
+                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.budgetGlobal')}</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.total_price === 'number' 
                                   ? `${bookingRequest.total_price.toFixed(0)} €`
@@ -1971,13 +1973,13 @@ export default function ChatInterface({
           <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
-              <h2 className="text-xl font-semibold text-black">Détails des jours</h2>
+              <h2 className="text-xl font-semibold text-black">{t('mealDetails.title')}</h2>
               <button
                 onClick={() => setShowMealDetailsModal(false)}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors sm:p-1.5 sm:bg-transparent sm:hover:bg-gray-100"
-                aria-label="Fermer"
+                aria-label={t('common.close')}
               >
-                <span className="sm:hidden">Retour</span>
+                <span className="sm:hidden">{t('common.back')}</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -2006,7 +2008,7 @@ export default function ChatInterface({
                       </div>
                       <div className="space-y-2">
                         {options.map((opt: string, index: number) => {
-                          const mealLabel = opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+                          const mealLabel = opt === 'pdj' ? t('mealDetails.breakfast') : opt === 'dejeuner' ? t('mealDetails.lunch') : t('mealDetails.dinner')
                           const mealIcon = opt === 'pdj' ? '🌅' : opt === 'dejeuner' ? '☀️' : '🌙'
                           return (
                             <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-2.5">
@@ -2027,7 +2029,7 @@ export default function ChatInterface({
                 onClick={() => setShowMealDetailsModal(false)}
                 className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg"
               >
-                Fermer
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -2108,7 +2110,7 @@ export default function ChatInterface({
                 onClick={() => setShowMenuModal(false)}
                 className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg"
               >
-                Fermer
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -2139,7 +2141,7 @@ export default function ChatInterface({
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Moment du repas</span>
                       <span className="font-medium text-black">
-                        {bookingRequest.meal_time === 'dejeuner' ? 'Déjeuner' : bookingRequest.meal_time === 'diner' ? 'Dîner' : bookingRequest.meal_time}
+                        {bookingRequest.meal_time === 'dejeuner' ? t('booking.mealTimeLunch') : bookingRequest.meal_time === 'diner' ? t('booking.mealTimeDinner') : bookingRequest.meal_time}
                       </span>
                     </div>
                   )}

@@ -1,0 +1,127 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "submit": "Envoyer",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "all": "Toutes",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "logoutMessage": "Vous allez être déconnecté de votre session.",
+    "email": "Email",
+    "password": "Mot de passe",
+    "sendMagicLink": "Envoyer le lien de connexion",
+    "magicLinkSent": "Lien de connexion envoyé ! Vérifiez votre boîte mail.",
+    "checkingEmail": "Vérification de votre email..."
+  },
+  "dashboard": {
+    "title": "Messages",
+    "noConversations": "Aucune conversation",
+    "noMessages": "Aucun message",
+    "filterAll": "Toutes",
+    "filterOngoing": "En cours",
+    "filterPending": "En attente",
+    "filterClosed": "Terminées",
+    "statusOngoing": "En cours",
+    "statusPending": "En attente",
+    "statusClosed": "Terminées"
+  },
+  "booking": {
+    "title": "Réserver avec Chef",
+    "serviceType": {
+      "repas_domicile": "Repas à domicile",
+      "cours_cuisine": "Cours de Cuisine",
+      "mise_en_demeure": "Chef à demeure"
+    },
+    "date": "Date",
+    "guests": "Convives",
+    "guest": "convive",
+    "guests_plural": "convives",
+    "children": "Enfants",
+    "child": "enfant",
+    "children_plural": "enfants",
+    "city": "Ville",
+    "budget": "Budget",
+    "totalPrice": "Prix total",
+    "mealTime": "Moment du repas",
+    "mealTimeLunch": "Déjeuner",
+    "mealTimeDinner": "Dîner",
+    "seeOffer": "Voir l'offre",
+    "seeMenu": "Voir le menu",
+    "menu": "Menu",
+    "finalize": "Finaliser",
+    "cancelBooking": "Annuler la réservation",
+    "cancelConfirm": "Confirmer l'annulation"
+  },
+  "chat": {
+    "typeMessage": "Tapez un message...",
+    "enterNewLine": "(appuyez sur Entrée pour aller à la ligne)",
+    "send": "Envoyer",
+    "noMessagesYet": "Aucun message pour le moment",
+    "menuDefined": "Menu défini",
+    "extraAdded": "Extra ajouté",
+    "guestsUpdated": "Nombre de convives mis à jour"
+  },
+  "helper": {
+    "chef": {
+      "title": "Optimisez vos échanges avec vos clients",
+      "respondQuickly": {
+        "title": "Répondez rapidement",
+        "description": "Répondre rapidement améliore la confiance et la conversion."
+      },
+      "useMenuButton": {
+        "title": "Utilisez le bouton Menu",
+        "description": "Le bouton Menu vous permet d'indiquer au client ce que vous allez préparer (apéritifs, entrée, plat, dessert, etc.)."
+      },
+      "guestsAndChildren": {
+        "title": "Convives et enfants",
+        "description": "Le client peut modifier le nombre de convives. Les enfants peuvent être gérés séparément."
+      }
+    },
+    "client": {
+      "title": "Suivez votre réservation simplement",
+      "menuAvailable": {
+        "title": "Menu disponible",
+        "description": "Un bouton \"Voir le menu\" apparaîtra une fois que le chef aura mis à jour le menu."
+      },
+      "extras": {
+        "title": "Extras",
+        "description": "Des extras peuvent être ajoutés par le chef si nécessaire."
+      },
+      "guestsManagement": {
+        "title": "Gestion des convives",
+        "description": "Vous pouvez mettre à jour le nombre de convives. Les enfants sont gérés séparément."
+      }
+    }
+  },
+  "mealDetails": {
+    "title": "Détails des jours",
+    "breakfast": "Petit-déjeuner",
+    "lunch": "Déjeuner",
+    "dinner": "Dîner",
+    "seeDayDetails": "Voir les détails des jours"
+  },
+  "offer": {
+    "budgetGlobal": "Budget global",
+    "mealOptions": "Options de repas",
+    "selectedDates": "Dates sélectionnées",
+    "days": "jours",
+    "day": "jour"
+  }
+}

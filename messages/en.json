@@ -1,0 +1,127 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "logoutMessage": "You will be logged out of your session.",
+    "email": "Email",
+    "password": "Password",
+    "sendMagicLink": "Send login link",
+    "magicLinkSent": "Login link sent! Check your email.",
+    "checkingEmail": "Checking your email..."
+  },
+  "dashboard": {
+    "title": "Messages",
+    "noConversations": "No conversations",
+    "noMessages": "No messages",
+    "filterAll": "All",
+    "filterOngoing": "Ongoing",
+    "filterPending": "Pending",
+    "filterClosed": "Closed",
+    "statusOngoing": "Ongoing",
+    "statusPending": "Pending",
+    "statusClosed": "Closed"
+  },
+  "booking": {
+    "title": "Book with Chef",
+    "serviceType": {
+      "repas_domicile": "Home Dining",
+      "cours_cuisine": "Cooking Class",
+      "mise_en_demeure": "Chef at Home"
+    },
+    "date": "Date",
+    "guests": "Guests",
+    "guest": "guest",
+    "guests_plural": "guests",
+    "children": "Children",
+    "child": "child",
+    "children_plural": "children",
+    "city": "City",
+    "budget": "Budget",
+    "totalPrice": "Total Price",
+    "mealTime": "Meal Time",
+    "mealTimeLunch": "Lunch",
+    "mealTimeDinner": "Dinner",
+    "seeOffer": "View offer",
+    "seeMenu": "View menu",
+    "menu": "Menu",
+    "finalize": "Finalize",
+    "cancelBooking": "Cancel booking",
+    "cancelConfirm": "Confirm cancellation"
+  },
+  "chat": {
+    "typeMessage": "Type a message...",
+    "enterNewLine": "(press Enter to go to a new line)",
+    "send": "Send",
+    "noMessagesYet": "No messages yet",
+    "menuDefined": "Menu defined",
+    "extraAdded": "Extra added",
+    "guestsUpdated": "Number of guests updated"
+  },
+  "helper": {
+    "chef": {
+      "title": "Optimize your exchanges with your clients",
+      "respondQuickly": {
+        "title": "Respond quickly",
+        "description": "Responding quickly improves trust and conversion."
+      },
+      "useMenuButton": {
+        "title": "Use the Menu button",
+        "description": "The Menu button allows you to indicate to the client what you will prepare (appetizers, starter, main course, dessert, etc.)."
+      },
+      "guestsAndChildren": {
+        "title": "Guests and children",
+        "description": "The client can modify the number of guests. Children can be managed separately."
+      }
+    },
+    "client": {
+      "title": "Follow your reservation simply",
+      "menuAvailable": {
+        "title": "Menu available",
+        "description": "A \"View menu\" button will appear once the chef has updated the menu."
+      },
+      "extras": {
+        "title": "Extras",
+        "description": "Extras can be added by the chef if necessary."
+      },
+      "guestsManagement": {
+        "title": "Guests management",
+        "description": "You can update the number of guests. Children are handled separately."
+      }
+    }
+  },
+  "mealDetails": {
+    "title": "Day details",
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "seeDayDetails": "View day details"
+  },
+  "offer": {
+    "budgetGlobal": "Global budget",
+    "mealOptions": "Meal options",
+    "selectedDates": "Selected dates",
+    "days": "days",
+    "day": "day"
+  }
+}

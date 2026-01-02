@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslation } from '@/hooks/useTranslation'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 type ConversationStatus = 'ongoing' | 'pending' | 'closed'
 
@@ -42,6 +44,7 @@ interface ConversationsListProps {
 export default function ConversationsList({ conversations, currentUser, participantsMap }: ConversationsListProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { t } = useTranslation()
   const [filter, setFilter] = useState<ConversationStatus | 'all'>('all')
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
@@ -83,11 +86,11 @@ export default function ConversationsList({ conversations, currentUser, particip
   const getStatusLabel = (status: ConversationStatus) => {
     switch (status) {
       case 'ongoing':
-        return 'En cours'
+        return t('dashboard.statusOngoing')
       case 'pending':
-        return 'En attente'
+        return t('dashboard.statusPending')
       case 'closed':
-        return 'Terminée'
+        return t('dashboard.statusClosed')
     }
   }
 
@@ -200,30 +203,36 @@ export default function ConversationsList({ conversations, currentUser, particip
 
           {/* Header principal avec titre et actions */}
           <div className="px-4 sm:px-6 lg:px-8 relative">
-            {/* Desktop: Bouton déconnexion en haut à droite (absolu) - Espacé des filtres */}
-            <button
-              onClick={handleSignOut}
-              className="hidden lg:flex absolute top-4 right-8 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors z-10"
-              title="Se déconnecter"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
+            {/* Desktop: Sélecteur de langue et bouton déconnexion en haut à droite */}
+            <div className="hidden lg:flex absolute top-4 right-8 items-center gap-3 z-10">
+              <LanguageSwitcher />
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                title={t('auth.logout')}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
 
             {/* Mobile: vertical stack, Desktop: horizontal avec titre + tabs alignés */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between h-auto lg:h-16 gap-3 lg:gap-0">
               <div className="flex items-center justify-between h-14 lg:h-auto">
-                <h1 className="text-lg font-semibold text-gray-900 tracking-tight">Messages</h1>
-                <button
-                  onClick={handleSignOut}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors lg:hidden"
-                  title="Se déconnecter"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
+                <h1 className="text-lg font-semibold text-gray-900 tracking-tight">{t('dashboard.title')}</h1>
+                <div className="flex items-center gap-2 lg:hidden">
+                  <LanguageSwitcher />
+                  <button
+                    onClick={handleSignOut}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                    title={t('auth.logout')}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Filtres - Mobile: sous le titre, Desktop: alignés horizontalement avec le titre - Espacés du bouton déconnexion */}
@@ -236,7 +245,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100'
                   }`}
                 >
-                  Toutes
+                  {t('dashboard.filterAll')}
                 </button>
                 <button
                   onClick={() => setFilter('ongoing')}
@@ -246,7 +255,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100'
                   }`}
                 >
-                  En cours
+                  {t('dashboard.filterOngoing')}
                 </button>
                 <button
                   onClick={() => setFilter('pending')}
@@ -256,7 +265,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100'
                   }`}
                 >
-                  En attente
+                  {t('dashboard.filterPending')}
                 </button>
                 <button
                   onClick={() => setFilter('closed')}
@@ -266,7 +275,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100'
                   }`}
                 >
-                  Terminées
+                  {t('dashboard.filterClosed')}
                 </button>
               </div>
             </div>
@@ -283,7 +292,7 @@ export default function ConversationsList({ conversations, currentUser, particip
             {filteredConversations.length === 0 ? (
               <div className="py-20 text-center">
                 <p className="text-sm text-gray-400">
-                  Aucune conversation {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.
+                  {t('dashboard.noConversations')} {filter !== 'all' ? getStatusLabel(filter as ConversationStatus).toLowerCase() : ''}.
                 </p>
               </div>
             ) : (
@@ -331,11 +340,11 @@ export default function ConversationsList({ conversations, currentUser, particip
                                 const getServiceTypeLabel = (type: string) => {
                                   switch (type) {
                                     case 'repas_domicile':
-                                      return 'Repas à domicile'
+                                      return t('booking.serviceType.repas_domicile')
                                     case 'cours_cuisine':
-                                      return 'Cours de Cuisine'
+                                      return t('booking.serviceType.cours_cuisine')
                                     case 'mise_en_demeure':
-                                      return 'Chef à demeure'
+                                      return t('booking.serviceType.mise_en_demeure')
                                     default:
                                       return type
                                   }
@@ -367,7 +376,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                                 {lastMessagePreview}
                               </p>
                             ) : (
-                              <p className="text-sm lg:text-sm text-gray-400 italic mb-2 lg:mb-1">Aucun message</p>
+                              <p className="text-sm lg:text-sm text-gray-400 italic mb-2 lg:mb-1">{t('dashboard.noMessages')}</p>
                             )}
                             
                             {/* Ligne 3: Meta info - Desktop: plus compact */}
@@ -382,10 +391,10 @@ export default function ConversationsList({ conversations, currentUser, particip
                                   <>
                                     {eventDate && <span className="text-xs text-gray-300">·</span>}
                                     <span className="text-xs lg:text-xs text-gray-400">
-                                      {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                                      {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? t('booking.guest') : t('booking.guests_plural')}
                                       {(conversation.bookingRequest.children_count ?? 0) > 0 && (
                                         <span className="text-gray-400 ml-0.5">
-                                          ({(conversation.bookingRequest.children_count ?? 0)} {(conversation.bookingRequest.children_count ?? 0) === 1 ? 'enfant' : 'enfants'})
+                                          ({(conversation.bookingRequest.children_count ?? 0)} {(conversation.bookingRequest.children_count ?? 0) === 1 ? t('booking.child') : t('booking.children_plural')})
                                         </span>
                                       )}
                                     </span>
@@ -441,23 +450,23 @@ export default function ConversationsList({ conversations, currentUser, particip
                     <div>
                       {/* VUE CHEF */}
                       <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Optimisez vos échanges avec vos clients
+                        {t('helper.chef.title')}
                       </h2>
                       
                       {/* Section 1: Respond quickly */}
                       <div className="mb-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Répondez rapidement
+                          {t('helper.chef.respondQuickly.title')}
                         </h3>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Une réponse rapide renforce la confiance et améliore la conversion. Vos clients apprécient la réactivité.
+                          {t('helper.chef.respondQuickly.description')}
                         </p>
                       </div>
                       
                       {/* Section 2: Use the Menu button */}
                       <div className="mb-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                          Utilisez le bouton Menu
+                          {t('helper.chef.useMenuButton.title')}
                         </h3>
                         {/* Réplique du bouton Menu (non-cliquable, visuel uniquement) */}
                         <div className="mb-3">
@@ -466,21 +475,21 @@ export default function ConversationsList({ conversations, currentUser, particip
                             className="w-full px-4 py-2.5 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-xl transition-all duration-150 shadow-sm cursor-default"
                             style={{ pointerEvents: 'none' }}
                           >
-                            Menu
+                            {t('booking.menu')}
                           </button>
                         </div>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Le bouton Menu vous permet d'indiquer au client ce que vous allez préparer (apéritifs, entrée, plat, dessert, etc.). Cela évite les malentendus et clarifie vos propositions.
+                          {t('helper.chef.useMenuButton.description')}
                         </p>
                       </div>
                       
                       {/* Section 3: Guests & children */}
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Convives et enfants
+                          {t('helper.chef.guestsAndChildren.title')}
                         </h3>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Le client peut modifier le nombre de convives et préciser le nombre d'enfants. N'hésitez pas à vérifier avec le client si des enfants sont inclus pour adapter votre menu.
+                          {t('helper.chef.guestsAndChildren.description')}
                         </p>
                       </div>
                     </div>
@@ -488,36 +497,36 @@ export default function ConversationsList({ conversations, currentUser, particip
                     <div>
                       {/* VUE CLIENT */}
                       <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Suivez votre réservation simplement
+                        {t('helper.client.title')}
                       </h2>
                       
                       {/* Section 1: Menu availability */}
                       <div className="mb-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Menu disponible
+                          {t('helper.client.menuAvailable.title')}
                         </h3>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Un bouton "Voir le menu" apparaîtra une fois que le chef aura mis à jour le menu. Le menu liste tous les plats (apéritifs, plats, desserts, etc.). N'hésitez pas à poser vos questions dans le chat si besoin.
+                          {t('helper.client.menuAvailable.description')}
                         </p>
                       </div>
                       
                       {/* Section 2: Extras */}
                       <div className="mb-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Extras
+                          {t('helper.client.extras.title')}
                         </h3>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Des extras peuvent être ajoutés par le chef si nécessaire. Vous verrez toujours les mises à jour clairement avant de finaliser votre réservation.
+                          {t('helper.client.extras.description')}
                         </p>
                       </div>
                       
                       {/* Section 3: Guests management */}
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                          Gestion des convives
+                          {t('helper.client.guestsManagement.title')}
                         </h3>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          Vous pouvez mettre à jour le nombre de convives en précisant le nombre d'enfants. Tout reste transparent dans la conversation.
+                          {t('helper.client.guestsManagement.description')}
                         </p>
                       </div>
                     </div>
@@ -546,10 +555,10 @@ export default function ConversationsList({ conversations, currentUser, particip
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Êtes-vous sûr ?
+                {t('auth.logoutConfirm')}
               </h3>
               <p className="text-sm text-gray-600">
-                Vous allez être déconnecté de votre session.
+                {t('auth.logoutMessage')}
               </p>
             </div>
             
@@ -558,13 +567,13 @@ export default function ConversationsList({ conversations, currentUser, particip
                 onClick={() => setShowLogoutConfirm(false)}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmSignOut}
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
               >
-                Se déconnecter
+                {t('auth.logout')}
               </button>
             </div>
           </div>

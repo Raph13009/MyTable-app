@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import LocaleProvider from '@/components/LocaleProvider'
 
 export const metadata: Metadata = {
   title: 'MyTable - Chat + Booking',
@@ -16,9 +17,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Default to French, but will be overridden by client-side detection
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <LocaleProvider />
+        {children}
+      </body>
     </html>
   )
 }
