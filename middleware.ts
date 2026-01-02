@@ -2,13 +2,6 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  const hostname = request.nextUrl.hostname
-  
-  // Rediriger app.guidemytable.fr vers guidemytable.fr
-  if (hostname === 'app.guidemytable.fr') {
-    return NextResponse.redirect('https://guidemytable.fr/', 301)
-  }
-  
   // Force HTTPS in production
   if (process.env.NODE_ENV === 'production') {
     const url = request.nextUrl.clone()
