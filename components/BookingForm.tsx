@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Database } from '@/types/database'
+import { useTranslation } from '@/hooks/useTranslation'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -21,6 +22,7 @@ interface BookingFormProps {
 }
 
 export default function BookingForm({ chef, menus }: BookingFormProps) {
+  const { t, locale } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -157,19 +159,19 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const validatePage1 = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.firstName.trim()) newErrors.firstName = 'Le prénom est requis'
-    if (!formData.lastName.trim()) newErrors.lastName = 'Le nom est requis'
-    if (!formData.email.trim()) newErrors.email = 'L&apos;email est requis'
+    if (!formData.firstName.trim()) newErrors.firstName = t('booking.errors.firstNameRequired')
+    if (!formData.lastName.trim()) newErrors.lastName = t('booking.errors.lastNameRequired')
+    if (!formData.email.trim()) newErrors.email = t('booking.errors.emailRequired')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide'
+      newErrors.email = t('booking.errors.emailInvalid')
     }
-    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = 'La confirmation de l&apos;email est requise'
+    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = t('booking.errors.emailConfirmRequired')
     else if (formData.email !== formData.emailConfirm) {
-      newErrors.emailConfirm = 'Les emails ne correspondent pas'
+      newErrors.emailConfirm = t('booking.errors.emailsDontMatch')
     }
-    if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est requis'
+    if (!formData.phone.trim()) newErrors.phone = t('booking.errors.phoneRequired')
     if (!formData.serviceType) {
-      newErrors.serviceType = 'Veuillez sélectionner un type de service'
+      newErrors.serviceType = t('booking.errors.serviceTypeRequired')
     }
 
     setErrors(newErrors)
@@ -182,7 +184,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     if (!formData.city.trim()) newErrors.city = 'La ville est requise'
     if (!formData.postalCode.trim()) newErrors.postalCode = 'Le code postal est requis'
     if (!formData.guestsCount || parseInt(formData.guestsCount) < 1) {
-      newErrors.guestsCount = 'Le nombre de convives doit être au moins 1'
+      newErrors.guestsCount = t('booking.errors.guestsCountMin')
     }
     
     // Validation du nombre d'enfants
@@ -192,7 +194,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       newErrors.childrenCount = 'Le nombre d\'enfants ne peut pas être négatif'
     }
     if (childrenCount > guestsCount) {
-      newErrors.childrenCount = 'Le nombre d\'enfants ne peut pas être supérieur au nombre total de convives'
+      newErrors.childrenCount = t('booking.errors.childrenCountMax')
     }
 
     if (formData.serviceType === 'repas_domicile') {
@@ -217,7 +219,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         newErrors.budget = 'Le budget est requis et doit être supérieur à 0'
       }
       if (!formData.courseTopic.trim()) {
-        newErrors.courseTopic = 'Le sujet du cours est requis'
+        newErrors.courseTopic = t('booking.errors.courseTopicRequired')
       }
     } else if (formData.serviceType === 'mise_en_demeure') {
       if (formData.selectedDates.length === 0) {
@@ -236,11 +238,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     }
 
     if (formData.hasAllergies && !formData.allergiesDetails.trim()) {
-      newErrors.allergiesDetails = 'Veuillez préciser les allergies'
+      newErrors.allergiesDetails = t('booking.errors.allergiesDetailsRequired')
     }
 
     if (!acceptedTerms) {
-      newErrors.terms = 'Vous devez accepter les termes et conditions'
+      newErrors.terms = t('booking.errors.termsRequired')
     }
 
     setErrors(newErrors)
@@ -326,7 +328,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
   const guestsOptions = Array.from({ length: 60 }, (_, i) => ({
     value: String(i + 1),
-    label: `${i + 1} ${i === 0 ? 'convive' : 'convives'}`,
+    label: `${i + 1} ${i === 0 ? t('booking.guest') : t('booking.guests_plural')}`,
   }))
 
   const menuOptions = menus.map(menu => ({
@@ -507,9 +509,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   }
 
   const serviceTypeOptions = [
-    { value: 'repas_domicile', label: 'Repas à domicile' },
-    { value: 'cours_cuisine', label: 'Cours de Cuisine' },
-    { value: 'mise_en_demeure', label: 'Chef à demeure' },
+    { value: 'repas_domicile', label: t('booking.serviceType.repas_domicile') },
+    { value: 'cours_cuisine', label: t('booking.serviceType.cours_cuisine') },
+    { value: 'mise_en_demeure', label: t('booking.serviceType.mise_en_demeure') },
   ]
 
   // Page 1: Informations personnelles + Sélection du type de service
@@ -517,11 +519,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     return (
       <form onSubmit={handleNext} className="space-y-6">
         <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-          <h2 className="text-2xl font-bold text-black mb-4">Informations personnelles</h2>
+          <h2 className="text-2xl font-bold text-black mb-4">{t('booking.personalInfo')}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Prénom *"
+              label={`${t('booking.firstName')} *`}
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
@@ -540,7 +542,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Email *"
+              label={`${t('booking.email')} *`}
               type="email"
               name="email"
               value={formData.email}
@@ -549,7 +551,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               required
             />
             <Input
-              label="Confirmer l&apos;email *"
+              label={`${t('booking.confirmEmail')} *`}
               type="email"
               name="emailConfirm"
               value={formData.emailConfirm}
@@ -573,7 +575,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         </div>
 
         <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-          <h2 className="text-2xl font-bold text-black mb-4">Type de service</h2>
+          <h2 className="text-2xl font-bold text-black mb-4">{t('booking.serviceTypeLabel')}</h2>
           
           <div className="space-y-3">
             {serviceTypeOptions.map((option) => (
@@ -607,7 +609,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             type="submit" 
             className="min-w-[200px] md:min-w-[200px] w-full md:w-auto rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl"
           >
-            Suivant
+            {t('booking.next')}
           </Button>
         </div>
       </form>
@@ -618,14 +620,14 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-black mb-4">Détails de la réservation</h2>
+        <h2 className="text-2xl font-bold text-black mb-4">{t('booking.reservationDetails')}</h2>
         
         {formData.serviceType === 'repas_domicile' && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="w-full min-w-0 overflow-hidden">
                 <Input
-                  label="Date *"
+                  label={`${t('booking.date')} *`}
                   type="date"
                   name="bookingDate"
                   value={formData.bookingDate}
@@ -637,20 +639,20 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 />
               </div>
               <Select
-                label="Moment du repas *"
+                label={`${t('booking.mealTime')} *`}
                 name="mealTime"
                 value={formData.mealTime}
                 onChange={handleChange}
                 options={[
-                  { value: 'dejeuner', label: 'Déjeuner' },
-                  { value: 'diner', label: 'Dîner' }
+                  { value: 'dejeuner', label: t('booking.mealTimeLunch') },
+                  { value: 'diner', label: t('booking.mealTimeDinner') }
                 ]}
                 error={errors.mealTime}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
-                label="Nombre de convives *"
+                label={`${t('booking.guests')} *`}
                 name="guestsCount"
                 value={formData.guestsCount}
                 onChange={handleChange}
@@ -661,7 +663,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="w-full">
               <Input
-                label="Nombre d'enfants"
+                label={t('booking.children')}
                 type="number"
                 name="childrenCount"
                 value={formData.childrenCount}
@@ -678,7 +680,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Ville *"
+                label={`${t('booking.city')} *`}
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
@@ -698,7 +700,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             {menus.length > 0 && (
               <div className="w-full">
                 <Select
-                  label="Menu choisi"
+                  label={t('booking.menu')}
                   name="menuId"
                   value={formData.menuId}
                   onChange={handleChange}
@@ -713,7 +715,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
-                label="Nombre de convives *"
+                label={`${t('booking.guests')} *`}
                 name="guestsCount"
                 value={formData.guestsCount}
                 onChange={handleChange}
@@ -724,7 +726,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="w-full">
               <Input
-                label="Nombre d'enfants"
+                label={t('booking.children')}
                 type="number"
                 name="childrenCount"
                 value={formData.childrenCount}
@@ -741,7 +743,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Ville *"
+                label={`${t('booking.city')} *`}
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
@@ -760,7 +762,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="w-full">
               <Input
-                label="Budget global (€) *"
+                label={`${t('booking.budgetGlobal')} *`}
                 type="number"
                 name="budget"
                 value={formData.budget}
@@ -772,13 +774,13 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez votre budget global pour ce cours de cuisine.
+                {t('booking.budgetHint')}
               </p>
             </div>
 
             <div className="w-full">
               <Textarea
-                label="Sur quoi souhaitez-vous que le cours porte ? *"
+                label={`${t('booking.courseTopic')} *`}
                 name="courseTopic"
                 value={formData.courseTopic}
                 onChange={handleChange}
@@ -795,7 +797,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
-                label="Nombre de convives *"
+                label={`${t('booking.guests')} *`}
                 name="guestsCount"
                 value={formData.guestsCount}
                 onChange={handleChange}
@@ -806,7 +808,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="w-full">
               <Input
-                label="Nombre d'enfants"
+                label={t('booking.children')}
                 type="number"
                 name="childrenCount"
                 value={formData.childrenCount}
@@ -823,7 +825,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Ville *"
+                label={`${t('booking.city')} *`}
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
@@ -843,7 +845,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             {/* Calendrier multi-dates */}
             <div className="w-full">
               <label className="block text-sm font-medium text-black mb-2">
-                Dates sélectionnées *
+                {t('booking.selectedDates')} *
               </label>
               <DatePickerMulti
                 selectedDates={formData.selectedDates}
@@ -873,15 +875,16 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             {formData.selectedDates.length > 0 && (
               <div className="w-full">
                 <label className="block text-sm font-medium text-black mb-3">
-                  Options de repas par jour *
+                  {t('booking.mealOptionsPerDay')} *
                 </label>
                 <div className="space-y-4">
                   {formData.selectedDates.map((date) => {
                     const dateObj = new Date(date)
-                    const dateLabel = dateObj.toLocaleDateString('fr-FR', { 
+                    const dateLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
                       weekday: 'long', 
                       day: 'numeric', 
-                      month: 'long' 
+                      month: 'long',
+                      year: 'numeric'
                     })
                     const currentMealOptions = formData.mealOptionsByDate[date] || []
                     
@@ -919,7 +922,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                                 className="w-4 h-4 text-[#FBCF03] border-gray-300 rounded focus:ring-[#FBCF03]"
                               />
                               <span className="text-sm text-black">
-                                {option === 'pdj' ? 'Petit-déjeuner' : option === 'dejeuner' ? 'Déjeuner' : 'Dîner'}
+                                {option === 'pdj' ? t('mealDetails.breakfast') : option === 'dejeuner' ? t('mealDetails.lunch') : t('mealDetails.dinner')}
                               </span>
                             </label>
                           ))}
@@ -956,7 +959,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Indiquez votre budget global pour cette période.
+                {t('booking.budgetGlobalPeriodHint')}
               </p>
             </div>
           </>
@@ -964,11 +967,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       </div>
 
       <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-black mb-4">Informations complémentaires</h2>
+        <h2 className="text-2xl font-bold text-black mb-4">{t('booking.additionalInfo')}</h2>
         
         {formData.serviceType === 'repas_domicile' && (
           <Checkbox
-            label="Avez-vous des allergies alimentaires ?"
+            label={t('booking.hasAllergies')}
             name="hasAllergies"
             checked={formData.hasAllergies}
             onChange={handleChange}
@@ -977,7 +980,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
         {formData.serviceType === 'repas_domicile' && formData.hasAllergies && (
           <Textarea
-            label="Précisez vos allergies *"
+            label={`${t('booking.allergiesDetails')} *`}
             name="allergiesDetails"
             value={formData.allergiesDetails}
             onChange={handleChange}
@@ -988,12 +991,12 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         )}
 
         <Textarea
-          label="Notes ou demandes spéciales"
+          label={t('booking.notes')}
           name="notes"
           value={formData.notes}
           onChange={handleChange}
           rows={4}
-          placeholder="Toute information supplémentaire que vous souhaitez partager..."
+          placeholder={t('booking.notesPlaceholder')}
         />
       </div>
 
@@ -1008,7 +1011,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           />
           <span className="text-sm sm:text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
             <span className="whitespace-normal">
-              J'accepte les{' '}
+              {t('booking.acceptTerms')}{' '}
               <button
                 type="button"
                 onClick={(e) => {
@@ -1017,7 +1020,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 }}
                 className="text-[#FBCF03] underline hover:text-[#E6BA00] font-semibold transition-colors inline"
               >
-                termes et conditions
+                {t('booking.termsAndConditions')}
               </button>
               {' '}*
             </span>
@@ -1040,14 +1043,14 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           disabled={loading} 
           className="w-full sm:w-auto min-w-[200px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Envoi en cours...' : 'Envoyer la demande'}
+          {loading ? t('common.loading') : t('booking.submit')}
         </Button>
         <button
           type="button"
           onClick={handleBack}
           className="text-gray-600 hover:text-black underline text-sm transition-colors"
         >
-          Retour
+          {t('booking.back')}
         </button>
       </div>
 
@@ -1081,11 +1084,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             <div className="p-6 sm:p-8 flex-1">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-black">Termes et Conditions</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-black">{t('booking.termsTitle')}</h2>
                 <button
                   onClick={() => setShowTermsPopup(false)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Fermer"
+                  aria-label={t('common.close')}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1096,38 +1099,38 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               {/* Contenu */}
               <div className="space-y-4 text-gray-700 leading-relaxed">
                 <p className="text-base">
-                  Chez MyTable, nous accordons une grande importance à la protection de vos données personnelles et au respect de votre vie privée.
+                  {t('booking.termsIntro')}
                 </p>
                 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">Utilisation de vos données</h3>
+                  <h3 className="font-semibold text-black text-lg">{t('booking.dataUsage')}</h3>
                   <p className="text-base">
-                    Nous collectons et stockons uniquement les informations nécessaires pour vous mettre en relation avec les chefs et gérer vos réservations. Ces données incluent votre nom, prénom, email, numéro de téléphone et les détails de votre réservation.
+                    {t('booking.dataUsageText')}
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">Protection de vos données</h3>
+                  <h3 className="font-semibold text-black text-lg">{t('booking.dataProtection')}</h3>
                   <p className="text-base">
-                    Vos données sont stockées de manière sécurisée et ne sont jamais vendues, partagées ou utilisées à des fins commerciales par des tiers. Nous utilisons vos informations uniquement pour :
+                    {t('booking.dataProtectionText')}
                   </p>
                   <ul className="list-disc list-inside space-y-2 ml-4">
-                    <li>Faciliter la communication entre vous et les chefs</li>
-                    <li>Gérer vos réservations et prestations</li>
-                    <li>Vous envoyer les confirmations et informations relatives à votre réservation</li>
+                    <li>{t('booking.dataUsageList1')}</li>
+                    <li>{t('booking.dataUsageList2')}</li>
+                    <li>{t('booking.dataUsageList3')}</li>
                   </ul>
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">Vos droits</h3>
+                  <h3 className="font-semibold text-black text-lg">{t('booking.yourRights')}</h3>
                   <p className="text-base">
-                    Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition concernant vos données personnelles. Pour exercer ces droits, vous pouvez nous contacter à tout moment.
+                    {t('booking.yourRightsText')}
                   </p>
                 </div>
 
                 <div className="bg-[#FBCF03]/10 border-l-4 border-[#FBCF03] p-4 rounded-lg mt-6">
                   <p className="text-sm font-medium text-black">
-                    En acceptant ces termes, vous confirmez avoir lu et compris notre politique de protection des données.
+                    {t('booking.termsAcceptance')}
                   </p>
                 </div>
               </div>
@@ -1139,7 +1142,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onClick={() => setShowTermsPopup(false)}
                 className="w-full rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                J'ai compris
+                {t('booking.understood')}
               </Button>
             </div>
           </div>

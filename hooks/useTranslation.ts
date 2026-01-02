@@ -23,15 +23,23 @@ export function useTranslation() {
     return detectBrowserLocale()
   })
 
-  // Sync with localStorage changes
+  // Sync with localStorage changes (from other tabs) and custom events (same tab)
   useEffect(() => {
-    const handleStorageChange = () => {
+    const handleLocaleChange = () => {
       const newLocale = detectBrowserLocale()
       setLocaleState(newLocale)
     }
 
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    // Écouter les changements de localStorage (autres onglets)
+    window.addEventListener('storage', handleLocaleChange)
+    
+    // Écouter les changements via custom event (même onglet)
+    window.addEventListener('localechange', handleLocaleChange)
+
+    return () => {
+      window.removeEventListener('storage', handleLocaleChange)
+      window.removeEventListener('localechange', handleLocaleChange)
+    }
   }, [])
 
   const t = useMemo(() => {
@@ -67,8 +75,18 @@ export function useTranslation() {
   }, [locale])
 
   const changeLocale = (newLocale: Locale) => {
-    setLocale(newLocale)
+    // Sauvegarder dans localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('locale', newLocale)
+    }
+    // Mettre à jour le state immédiatement (sans recharger la page)
     setLocaleState(newLocale)
+    // Mettre à jour l'attribut lang du HTML
+    if (typeof window !== 'undefined') {
+      document.documentElement.lang = newLocale
+      // Déclencher un custom event pour notifier les autres composants
+      window.dispatchEvent(new Event('localechange'))
+    }
   }
 
   return {

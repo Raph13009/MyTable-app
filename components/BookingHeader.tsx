@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function BookingHeader() {
+  const { t } = useTranslation()
   const [showStepper, setShowStepper] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -48,8 +50,8 @@ export default function BookingHeader() {
         <button
           onClick={() => setShowStepper(true)}
           className="p-3 sm:p-4 text-black/70 hover:text-black hover:bg-black/10 rounded-full transition-all"
-          aria-label="Comment ça marche ?"
-          title="Comment ça marche ?"
+          aria-label={t('booking.howItWorks')}
+          title={t('booking.howItWorks')}
         >
           <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -91,7 +93,7 @@ export default function BookingHeader() {
                 <button
                   onClick={() => setShowStepper(false)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Fermer"
+                  aria-label={t('common.close')}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -154,14 +156,14 @@ export default function BookingHeader() {
                     <div className="flex-1 pt-1.5">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-sm font-semibold text-black">
-                          Chef sélectionné
+                          {t('booking.step1Title')}
                         </p>
                         <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
-                          Complété
+                          {t('booking.completed')}
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 leading-relaxed">
-                        Votre demande a été acceptée par le chef
+                        {t('booking.step1Description')}
                       </p>
                     </div>
                   </div>
@@ -200,15 +202,15 @@ export default function BookingHeader() {
                             ? 'text-black' 
                             : 'text-gray-400'
                         }`}>
-                          Prestation validée
+                          {t('booking.step2Title')}
                         </p>
                         {isStep2Complete ? (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
-                            Complété
+                            {t('booking.completed')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
-                            En attente
+                            {t('booking.pending')}
                           </span>
                         )}
                       </div>
@@ -216,8 +218,8 @@ export default function BookingHeader() {
                         isStep2Complete ? 'text-gray-600' : 'text-gray-400'
                       }`}>
                         {isStep2Complete 
-                          ? 'La réservation a été confirmée'
-                          : 'En attente de validation'
+                          ? t('booking.step2DescriptionCompleted')
+                          : t('booking.step2DescriptionPending')
                         }
                       </p>
                     </div>
@@ -257,15 +259,15 @@ export default function BookingHeader() {
                             ? 'text-black' 
                             : 'text-gray-400'
                         }`}>
-                          Paiement en attente
+                          {t('booking.step3Title')}
                         </p>
                         {isStep3Complete ? (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
-                            Complété
+                            {t('booking.completed')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
-                            En attente
+                            {t('booking.pending')}
                           </span>
                         )}
                       </div>
@@ -273,8 +275,8 @@ export default function BookingHeader() {
                         isStep3Complete ? 'text-gray-600' : 'text-gray-400'
                       }`}>
                         {isStep3Complete
-                          ? 'Le paiement a été effectué'
-                          : 'En attente de validation de la réservation'
+                          ? t('booking.step3DescriptionCompleted')
+                          : t('booking.step3DescriptionPending')
                         }
                       </p>
                     </div>
@@ -312,15 +314,15 @@ export default function BookingHeader() {
                         <p className={`text-sm font-semibold transition-colors ${
                           isStep4Complete ? 'text-black' : 'text-gray-400'
                         }`}>
-                          Prestation confirmée
+                          {t('booking.step4Title')}
                         </p>
                         {isStep4Complete ? (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FBCF03]/20 text-[#FBCF03] rounded-full">
-                            Complété
+                            {t('booking.completed')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-400 rounded-full">
-                            En attente
+                            {t('booking.pending')}
                           </span>
                         )}
                       </div>
@@ -328,8 +330,8 @@ export default function BookingHeader() {
                         isStep4Complete ? 'text-gray-600' : 'text-gray-400'
                       }`}>
                         {isStep4Complete 
-                          ? 'La prestation a été livrée avec succès'
-                          : 'En attente du paiement'
+                          ? t('booking.step4DescriptionCompleted')
+                          : t('booking.step4DescriptionPending')
                         }
                       </p>
                     </div>

@@ -28,7 +28,7 @@ interface ChatInterfaceProps {
 const CULINARY_ICONS = ['🍳', '👨‍🍳', '🍽️', '🥘', '🍲']
 
 // Composant d'animation de chargement avec icônes culinaires
-function LoadingAnimation({ message = 'Chargement...' }: { message?: string }) {
+function LoadingAnimation({ message }: { message?: string }) {
   const [currentIcon, setCurrentIcon] = useState(0)
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function ChatInterface({
   showAcceptedMessage = false,
   isAdmin: isAdminProp = false,
 }: ChatInterfaceProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   // GLOBAL ERROR HANDLER: Suppress "ei is not a function" errors that occur despite defensive checks
   // This is a last-resort safety net to prevent error popups when DB updates succeed
   useEffect(() => {
@@ -1081,10 +1081,10 @@ export default function ChatInterface({
   return (
     <div className="fixed inset-0 flex flex-col bg-white">
       {/* Animation de chargement initial */}
-      {isInitializing && <LoadingAnimation message="Préparation de la conversation..." />}
+      {isInitializing && <LoadingAnimation message={t('common.loading')} />}
       
       {/* Animation de navigation retour */}
-      {isNavigatingBack && <LoadingAnimation message="Retour en cours..." />}
+      {isNavigatingBack && <LoadingAnimation message={t('common.loading')} />}
       {/* Header - Premium, moderne, avec contraste distinct */}
       <div className="flex-shrink-0 bg-white sticky top-0 z-10 border-b border-gray-300">
         <div className="px-4 sm:px-6 py-3.5">
@@ -1096,7 +1096,7 @@ export default function ChatInterface({
           <div className="mb-2.5">
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-base sm:text-lg font-semibold text-gray-900">
-                {bookingRequest ? `Réservation du ${new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : 'Conversation'}
+                {bookingRequest ? `${t('chat.reservationTitle')} ${new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}` : t('chat.conversation')}
               </h1>
               {bookingStatus && bookingStatus === 'accepted' && (
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FBCF03]"></span>
@@ -1106,7 +1106,7 @@ export default function ChatInterface({
               <>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <p className="text-xs sm:text-sm text-gray-500">
-                    {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? 'convive' : 'convives'}
+                    {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? t('booking.guest') : t('booking.guests_plural')}
                   </p>
                   {isChef && bookingRequest.service_type === 'repas_domicile' && bookingRequest.meal_time && (
                     <>
@@ -1280,9 +1280,9 @@ export default function ChatInterface({
                       <div className="flex-1 space-y-3">
                         <div>
                           <p className="text-sm sm:text-base text-gray-900 font-medium leading-relaxed">
-                            Voici l&apos;espace pour communiquer à propos de la prestation du{' '}
+                            {t('chat.communicationSpace')}{' '}
                             <span className="font-semibold text-gray-900">
-                              {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                              {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', {
                                 day: 'numeric',
                                 month: 'long',
                                 year: 'numeric',
@@ -1304,7 +1304,7 @@ export default function ChatInterface({
                         {isClient && (
                           <div className="pt-1">
                             <p className="text-sm text-gray-700 leading-relaxed">
-                              Pour confirmer définitivement votre réservation, appuyez sur <span className="font-bold text-gray-900">&quot;Finaliser&quot;</span>.
+                              {t('chat.finalizeReservation')} <span className="font-bold text-gray-900">&quot;{t('booking.finalize')}&quot;</span>.
                             </p>
                           </div>
                         )}
@@ -1621,7 +1621,7 @@ export default function ChatInterface({
                       <div>
                         <p className="text-xs text-gray-500 mb-0.5">Date</p>
                         <p className="text-sm font-medium text-black">
-                          {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
+                          {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
                             day: 'numeric', 
                             month: 'long', 
                             year: 'numeric' 
@@ -1997,13 +1997,13 @@ export default function ChatInterface({
                 .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
                 .map(([date, options]) => {
                   const dateObj = new Date(date)
-                  const dateLabel = dateObj.toLocaleDateString('fr-FR', { 
+                  const dateLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
                     weekday: 'long', 
                     day: 'numeric', 
                     month: 'long',
                     year: 'numeric'
                   })
-                  const dayLabel = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' })
+                  const dayLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { weekday: 'short' })
                   
                   return (
                     <div key={date} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
@@ -2135,7 +2135,7 @@ export default function ChatInterface({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Date</span>
                     <span className="font-medium text-black">
-                      {new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', { 
+                      {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
                         day: 'numeric', 
                         month: 'long', 
                         year: 'numeric' 

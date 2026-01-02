@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import BookingForm from '@/components/BookingForm'
 import BookingHeader from '@/components/BookingHeader'
+import BookPageTitle from '@/components/BookPageTitle'
 
 interface PageProps {
   params: {
@@ -50,15 +51,7 @@ export default async function BookPage({ params }: PageProps) {
       <div className="pt-24 sm:pt-28 md:pt-32">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">
-              Réserver avec Chef{' '}
-              <span className="text-black underline decoration-[#FBCF03] decoration-2 underline-offset-4">
-                {(chef as any).name}
-              </span>
-            </h1>
-            <p className="text-gray-600">
-              Remplissez le formulaire ci-dessous pour faire une demande de réservation
-            </p>
+            <BookPageTitle chefName={(chef as any).name} />
           </div>
 
           <BookingForm key={chefSlug} chef={chef} menus={menus || []} />
