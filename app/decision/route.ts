@@ -17,6 +17,8 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
  * 4. No duplicate users (shouldCreateUser: false for existing users)
  */
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams

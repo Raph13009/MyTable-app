@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Vérifier que l'utilisateur est l'admin
