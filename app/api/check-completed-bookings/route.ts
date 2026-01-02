@@ -104,8 +104,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Envoyer un email pour chaque réservation
-    for (const booking of bookingsToProcess) {
-      const chef = (booking as any).chefs
+    for (const booking of bookingsToProcess as any[]) {
+      const chef = booking.chefs
       if (!chef) {
         console.warn(`[check-completed-bookings] No chef found for booking ${booking.id}`)
         continue
