@@ -1160,8 +1160,8 @@ export default function ChatInterface({
             <div className="flex items-center gap-2 flex-1 justify-end">
               {bookingRequest && (
                 <>
-                  {/* Menu button (chef only) - Yellow for contrast */}
-                  {isChef && (
+                  {/* Menu button (chef only) - Yellow for contrast - Caché pour cours_cuisine et mise_en_demeure */}
+                  {isChef && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                     <button
                       onClick={() => setShowMenuModal(true)}
                       className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow"
@@ -1177,8 +1177,8 @@ export default function ChatInterface({
                     Voir l&apos;offre
                   </button>
                   
-                  {/* Voir le menu (client only, if menu exists) */}
-                  {isClient && hasMenu && (
+                  {/* Voir le menu (client only, if menu exists) - Caché pour cours_cuisine et mise_en_demeure */}
+                  {isClient && hasMenu && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                     <button
                       onClick={() => setShowMenuModal(true)}
                       className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
@@ -2252,8 +2252,8 @@ export default function ChatInterface({
                   <p className="text-xs text-gray-500 flex-1">Consulter les détails de votre réservation</p>
                 </div>
 
-                {/* Menu (chef only) */}
-                {isChef && (
+                {/* Menu (chef only) - Caché pour cours_cuisine et mise_en_demeure */}
+                {isChef && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {

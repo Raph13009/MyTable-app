@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la sauvegarde' }, { status: 500 })
     }
 
-    // Créer un message système dans le chat pour afficher le menu
+    // Récupérer la conversation pour l'URL de redirection
     const { data: conversation } = await supabaseAdmin
       .from('conversations')
       .select('id')
@@ -74,6 +74,51 @@ export async function POST(request: NextRequest) {
           sender_email: user.email!,
           content: `✨ Menu défini\n\n${menuText}`,
         } as any)
+    }
+
+    // Envoyer une notification email au client avec un magic link
+    const clientEmail = (bookingRequest as any).email?.toLowerCase().trim()
+    if (clientEmail) {
+      try {
+        const baseUrl = getBaseUrl()
+        const redirectUrl = `${baseUrl}/auth/callback?next=/chat/${(conversation as any)?.id || '/dashboard'}`
+        
+        // Générer un magic link pour le client
+        const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+          email: clientEmail,
+          options: {
+            emailRedirectTo: redirectUrl,
+            shouldCreateUser: false, // Client should already exist
+          },
+        })
+
+        if (otpError) {
+          console.error('[booking-menu] Error sending magic link to client:', otpError)
+          // Si l'utilisateur n'existe pas, essayer avec shouldCreateUser: true
+          if (otpError.message?.includes('not found') || otpError.message?.includes('does not exist')) {
+            await supabaseAdmin.auth.signInWithOtp({
+              email: clientEmail,
+              options: {
+                emailRedirectTo: redirectUrl,
+                shouldCreateUser: true,
+              },
+            })
+          }
+        }
+
+        // Envoyer l'email de notification via Resend
+        const clientName = `${(bookingRequest as any).first_name || ''} ${(bookingRequest as any).last_name || ''}`.trim() || 'Client'
+        const loginUrl = `${baseUrl}/login?next=/chat/${(conversation as any)?.id || '/dashboard'}`
+        
+        await sendEmail({
+          to: clientEmail,
+          subject: emailSubjects.menuUpdated,
+          html: emailTemplates.menuUpdated(clientName, loginUrl, baseUrl),
+        })
+      } catch (emailError) {
+        console.error('[booking-menu] Error sending notification email:', emailError)
+        // Ne pas faire échouer la requête si l'email échoue
+      }
     }
 
     return NextResponse.json({ success: true })

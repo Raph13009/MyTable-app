@@ -337,6 +337,7 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
  * Subjects standardisés pour tous les emails
  */
 export const emailSubjects = {
+  menuUpdated: 'Votre menu a été mis à jour',
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
   bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
@@ -667,6 +668,24 @@ export const emailTemplates = {
     return emailLayout({
       title: 'Réservation annulée',
       content,
+      baseUrl,
+    })
+  },
+
+  menuUpdated: (clientName: string, loginUrl: string, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${clientName},</p>
+      <p>Votre menu pour votre évènement a été mis à jour.</p>
+      <p>Connectez-vous pour le consulter.</p>
+    `
+    return emailLayout({
+      title: 'Menu mis à jour',
+      content,
+      cta: {
+        text: 'Se connecter pour voir le menu',
+        url: loginUrl,
+        variant: 'yellow',
+      },
       baseUrl,
     })
   },
