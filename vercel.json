@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/check-inactive-bookings",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }
