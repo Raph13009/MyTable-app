@@ -1,243 +1,373 @@
-# MyTable - Chat + Booking Platform
+<div align="center">
 
-Plateforme de réservation et chat en temps réel avec les chefs, construite avec Next.js (App Router) et Supabase.
+# 🍽️ MyTable
 
-## 🚀 Fonctionnalités
+### Premium Private Dining & Chef Booking Platform
 
-- **Réservation** : Formulaire de réservation personnalisé par chef (`/book/[chefSlug]`)
-- **Chat temps réel** : Communication en temps réel via Supabase Realtime (`/chat/[conversationId]`)
-- **Authentification sans mot de passe** : Magic links via Supabase Auth
-- **Gestion des demandes** : Accept/Refuse avec tokens sécurisés
-- **Emails transactionnels** : Notifications automatiques (Resend ou Make)
+*Connecting discerning clients with exceptional culinary talent*
 
-## 📋 Prérequis
+[![Next.js](https://img.shields.io/badge/Next.js-14.0-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Realtime-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow?style=for-the-badge)]()
 
-- Node.js 18+ et npm
-- Compte Supabase (gratuit)
-- Compte Resend (pour les emails) ou Make (webhook)
+---
 
-## 🛠️ Installation locale
+</div>
 
-### 1. Cloner et installer les dépendances
+## ✨ Overview
 
-```bash
-npm install
+**MyTable** is a premium, client-focused platform that revolutionizes private dining experiences by connecting clients directly with curated chefs. Built with modern web technologies and a human-centric approach, MyTable delivers an elegant, seamless booking experience for high-end culinary services.
+
+> **Note:** This is a private client project in active development. The platform is continuously evolving with new features and improvements.
+
+---
+
+## 🎯 Vision
+
+MyTable bridges the gap between exceptional culinary talent and clients seeking personalized dining experiences. We believe in:
+
+- **Curated Excellence** — Every chef is carefully vetted and brings unique expertise
+- **Human Connection** — Direct communication between clients and chefs
+- **Seamless Experience** — From booking to execution, every touchpoint is refined
+- **Premium Quality** — Built for those who value exceptional service
+
+---
+
+## 🚀 Key Features
+
+### Current Capabilities
+
+#### 📅 **Multi-Service Booking System**
+- **Home Dining** — Private meals at your location
+- **Cooking Classes** — Personalized culinary education
+- **Multi-Day Events** — Extended chef services with custom meal planning
+
+#### 💬 **Real-Time Communication**
+- Instant messaging between clients and chefs
+- Optimistic UI for seamless interactions
+- Mobile-optimized chat interface
+- Message notifications via email
+
+#### 🔐 **Secure Authentication**
+- Passwordless authentication via magic links
+- Role-based access (client, chef, admin)
+- Secure token-based decision system
+
+#### 📧 **Automated Workflows**
+- Transactional email notifications
+- Booking confirmation system
+- Status update communications
+- Automated reminders
+
+#### 🌍 **Internationalization**
+- Full English/French support
+- Seamless language switching
+- Localized date/time formatting
+- Timezone-aware date handling
+
+#### 🎨 **Premium UI/UX**
+- Modern, minimalist design
+- Mobile-first responsive layout
+- Smooth animations and transitions
+- Accessible and intuitive interface
+
+### Coming Soon
+
+- Advanced menu customization
+- Payment integration
+- Calendar synchronization
+- Review and rating system
+- Chef portfolio enhancements
+
+---
+
+## 🏗️ Product Philosophy
+
+### Design Principles
+
+**Premium, Not Pretentious**
+- Clean, confident interfaces
+- Thoughtful micro-interactions
+- Editorial-quality typography
+- Intentional use of space
+
+**Human-Centric**
+- Direct chef-client communication
+- Transparent booking process
+- Clear status visibility
+- Empathetic error handling
+
+**Mobile-First**
+- Optimized for one-thumb navigation
+- Fast, responsive interactions
+- Offline-capable features
+- Native-feeling experience
+
+**Scalable Architecture**
+- Modular component system
+- Type-safe development
+- Efficient data management
+- Performance-optimized
+
+---
+
+## 🛠️ Tech Stack
+
+### Core Framework
+- **[Next.js 14](https://nextjs.org/)** — React framework with App Router
+- **[TypeScript](https://www.typescriptlang.org/)** — Type-safe development
+- **[React 18](https://react.dev/)** — Modern UI library
+
+### Backend & Database
+- **[Supabase](https://supabase.com/)** — PostgreSQL database with Realtime
+- **Row Level Security (RLS)** — Secure data access
+- **Real-time subscriptions** — Live chat functionality
+
+### Styling & UI
+- **[Tailwind CSS](https://tailwindcss.com/)** — Utility-first styling
+- **Custom design system** — Premium component library
+- **Responsive design** — Mobile-first approach
+
+### Authentication & Security
+- **Supabase Auth** — Passwordless magic links
+- **Token-based decisions** — Secure booking workflows
+- **bcrypt** — Secure token hashing
+
+### Communication
+- **[Resend](https://resend.com/)** — Transactional emails
+- **Email templates** — Professional communications
+- **Notification system** — Real-time updates
+
+### Development Tools
+- **ESLint** — Code quality
+- **TypeScript** — Type checking
+- **Playwright** — End-to-end testing
+
+---
+
+## 📐 Project Structure
+
+```
+MyTable-app/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API routes
+│   │   ├── bookings/            # Booking management
+│   │   ├── booking-validate/    # Booking validation
+│   │   └── booking-menu/        # Menu management
+│   ├── book/[chefSlug]/         # Booking pages
+│   ├── chat/[conversationId]/   # Chat interface
+│   ├── dashboard/               # User dashboard
+│   └── admin/                   # Admin panel
+│
+├── components/                   # React components
+│   ├── ui/                      # Reusable UI components
+│   ├── BookingForm.tsx          # Multi-step booking form
+│   ├── ChatInterface.tsx        # Real-time chat
+│   └── LanguageSwitcher.tsx     # i18n switcher
+│
+├── lib/                         # Utilities & helpers
+│   ├── supabase/                # Supabase clients
+│   ├── dateUtils.ts             # Date handling
+│   ├── email.ts                 # Email abstraction
+│   └── i18n/                    # Internationalization
+│
+├── supabase/                    # Database
+│   └── migrations/              # SQL migrations
+│
+├── types/                       # TypeScript definitions
+│   └── database.ts              # Database types
+│
+└── messages/                    # i18n translations
+    ├── en.json
+    └── fr.json
 ```
 
-### 2. Configuration Supabase
+---
 
-1. Créer un projet sur [Supabase](https://supabase.com)
-2. Dans le SQL Editor, exécuter le fichier `supabase/migrations/001_initial_schema.sql`
-3. Activer Realtime pour la table `messages` :
-   - Aller dans Database > Replication
-   - Activer la réplication pour la table `messages`
+## 🎨 Design System
 
-### 3. Configuration des variables d'environnement
+### Visual Identity
 
-Créer un fichier `.env.local` à la racine :
+**Color Palette**
+- Primary: `#FBCF03` — Confident yellow
+- Neutral: Black, white, grays
+- Accent: Subtle gradients and shadows
+
+**Typography**
+- Clean, readable fonts
+- Clear hierarchy
+- Editorial spacing
+
+**Components**
+- Glass-morphism effects
+- Smooth transitions
+- Intentional micro-interactions
+- Premium feel throughout
+
+---
+
+## 🗺️ Roadmap
+
+### Short-Term (Current Sprint)
+- ✅ Date handling normalization
+- ✅ Menu validation improvements
+- ✅ Premium UI refinements
+- 🔄 Payment integration
+- 🔄 Enhanced admin tools
+
+### Mid-Term (Next Quarter)
+- Advanced search and filtering
+- Chef portfolio system
+- Client review system
+- Analytics dashboard
+- Mobile app (PWA)
+
+### Long-Term Vision
+- Multi-region expansion
+- Chef marketplace features
+- Subscription models
+- API for third-party integrations
+
+---
+
+## ⚙️ Development
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+- Resend account (for emails)
+
+### Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your credentials
+
+# Run database migrations
+# Execute supabase/migrations/*.sql in Supabase SQL Editor
+
+# Start development server
+npm run dev
+```
+
+### Environment Variables
 
 ```env
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Email (Resend)
-RESEND_API_KEY=your_resend_api_key
+# Email
+RESEND_API_KEY=your_resend_key
 RESEND_FROM_EMAIL=noreply@yourdomain.com
 EMAIL_PROVIDER=resend
-
-# Email (Make - alternative)
-# EMAIL_PROVIDER=make
-# MAKE_WEBHOOK_URL=your_make_webhook_url
 ```
 
-**Important** : La `SUPABASE_SERVICE_ROLE_KEY` est nécessaire pour les opérations serveur (création de bookings, conversations, etc.). Vous la trouvez dans Supabase Dashboard > Settings > API > service_role key (⚠️ gardez-la secrète, ne la commitez jamais !)
-
-### 4. Configuration Supabase Auth
-
-Dans le dashboard Supabase :
-1. Aller dans Authentication > URL Configuration
-2. Ajouter `http://localhost:3000/auth/callback` dans "Redirect URLs"
-3. Configurer les templates d'email si nécessaire
-
-### 5. Lancer le serveur de développement
+### Available Scripts
 
 ```bash
-npm run dev
+npm run dev          # Development server
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # Code linting
+npm run test:e2e     # End-to-end tests
 ```
 
-Ouvrir [http://localhost:3000](http://localhost:3000)
+---
 
-## 📁 Structure du projet
+## 📊 Architecture Highlights
 
-```
-MyTable-app/
-├── app/
-│   ├── api/
-│   │   └── bookings/          # API route pour créer des bookings
-│   ├── auth/
-│   │   └── callback/          # Handler magic link Supabase
-│   ├── book/
-│   │   └── [chefSlug]/        # Page de réservation
-│   ├── chat/
-│   │   └── [conversationId]/  # Page de chat temps réel
-│   ├── decision/              # Endpoint accept/refuse
-│   ├── booking-confirmation/  # Page de confirmation
-│   ├── layout.tsx
-│   ├── page.tsx               # Page d'accueil
-│   └── globals.css
-├── components/
-│   ├── ui/                    # Composants UI réutilisables
-│   ├── BookingForm.tsx
-│   └── ChatInterface.tsx
-├── lib/
-│   ├── supabase/             # Clients Supabase
-│   ├── email.ts              # Abstraction email
-│   └── utils.ts              # Utilitaires
-├── supabase/
-│   └── migrations/           # Migrations SQL
-├── types/
-│   └── database.ts           # Types TypeScript
-└── middleware.ts             # Middleware Supabase
-```
+### Real-Time Communication
+- Supabase Realtime subscriptions for instant messaging
+- Optimistic UI updates for seamless UX
+- Message persistence and history
 
-## 🗄️ Schéma de base de données
+### Date Handling
+- Timezone-aware date management
+- Normalized date parsing and formatting
+- Consistent date display across all services
 
-### Tables principales
+### Booking Workflow
+- Multi-step form with validation
+- Token-based secure decision system
+- Automated email notifications
+- Status tracking and updates
 
-- **chefs** : Informations des chefs
-- **menus** : Menus proposés par chaque chef
-- **booking_requests** : Demandes de réservation
-- **conversations** : Conversations de chat
-- **participants** : Participants aux conversations
-- **messages** : Messages du chat (Realtime activé)
-- **decision_tokens** : Tokens sécurisés pour accept/refuse
+### Internationalization
+- Full i18n support (EN/FR)
+- Dynamic language switching
+- Localized content and formatting
 
-### Row Level Security (RLS)
+---
 
-- Les chefs et menus sont publics (lecture)
-- Les conversations et messages sont accessibles uniquement aux participants
-- Les tokens de décision ne sont pas accessibles publiquement
+## 🔒 Security & Privacy
 
-## 🔐 Sécurité
+- **Row Level Security (RLS)** — Database-level access control
+- **Token Hashing** — Secure decision tokens with bcrypt
+- **Passwordless Auth** — Magic link authentication
+- **Input Validation** — Client and server-side validation
+- **Type Safety** — TypeScript throughout
 
-- **Tokens de décision** : Hashés avec bcrypt avant stockage
-- **RLS** : Politiques strictes sur toutes les tables sensibles
-- **Magic links** : Authentification sans mot de passe via Supabase
-- **Validation** : Validation côté client et serveur
+---
 
-## 📧 Configuration Email
+## 📈 Performance
 
-### Option 1 : Resend (recommandé)
+- **Server-Side Rendering** — Fast initial loads
+- **Code Splitting** — Optimized bundle sizes
+- **Image Optimization** — Next.js Image component
+- **Caching Strategies** — Efficient data fetching
+- **Mobile Optimization** — Responsive and fast
 
-1. Créer un compte sur [Resend](https://resend.com)
-2. Obtenir une API key
-3. Configurer le domaine d'envoi
-4. Ajouter `RESEND_API_KEY` et `RESEND_FROM_EMAIL` dans `.env.local`
+---
 
-### Option 2 : Make (webhook)
+## 🧪 Testing
 
-1. Créer un webhook dans Make
-2. Configurer `EMAIL_PROVIDER=make` et `MAKE_WEBHOOK_URL` dans `.env.local`
+- **Unit Tests** — Core utilities and functions
+- **Component Tests** — UI component validation
+- **E2E Tests** — Playwright for critical flows
+- **Type Checking** — TypeScript strict mode
 
-## 🚢 Déploiement sur Vercel
+---
 
-### 1. Préparer le projet
+## 📝 Work in Progress
 
-```bash
-# Build pour vérifier qu'il n'y a pas d'erreurs
-npm run build
-```
+This project is actively being developed and improved. Features are added regularly, and the platform evolves based on user feedback and business needs.
 
-### 2. Déployer sur Vercel
+**Current Focus Areas:**
+- Enhanced booking experience
+- Improved mobile UX
+- Performance optimizations
+- Feature completeness
 
-1. Connecter votre repo GitHub à Vercel
-2. Dans les paramètres du projet Vercel, ajouter les variables d'environnement :
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_APP_URL` (votre URL Vercel)
-   - `RESEND_API_KEY`
-   - `RESEND_FROM_EMAIL`
-   - `EMAIL_PROVIDER`
+---
 
-### 3. Configuration Supabase pour production
+## 🤝 Contributing
 
-1. Dans Supabase Dashboard > Authentication > URL Configuration
-2. Ajouter votre URL Vercel dans "Redirect URLs" :
-   - `https://your-app.vercel.app/auth/callback`
+This is a private client project. For questions or collaboration, please contact the project maintainers.
 
-### 4. Vérifier Realtime
+---
 
-S'assurer que Realtime est activé pour la table `messages` dans Supabase.
+## 📄 License
 
-## 🧪 Données de test
+Private project — All rights reserved.
 
-Pour tester l'application, insérer des données de test dans Supabase :
+---
 
-```sql
--- Insérer un chef
-INSERT INTO chefs (slug, name, email, city, postal_code)
-VALUES ('chef-example', 'Chef Example', 'chef@example.com', 'Paris', '75001');
+<div align="center">
 
--- Insérer un menu pour ce chef
-INSERT INTO menus (chef_id, name, description, price)
-SELECT id, 'Menu Découverte', 'Un menu pour découvrir notre cuisine', 45.00
-FROM chefs WHERE slug = 'chef-example';
-```
+**Built with care for exceptional dining experiences**
 
-Puis accéder à : `http://localhost:3000/book/chef-example`
+*MyTable © 2024*
 
-## 🔄 Workflow
-
-1. **Client** remplit le formulaire `/book/[chefSlug]`
-2. **Système** crée :
-   - `booking_request` (status: pending)
-   - `conversation`
-   - `participants` (client + chef)
-   - `decision_tokens` (accept + refuse)
-3. **Email** envoyé au chef avec liens Accept/Refuse
-4. **Chef** clique sur Accept ou Refuse
-5. **Système** :
-   - Met à jour le statut
-   - Envoie un email au client
-   - Si accepté : envoie les liens de chat
-6. **Participants** accèdent au chat via magic link
-
-## 🐛 Dépannage
-
-### Erreur "Invalid API key"
-- Vérifier que les variables d'environnement sont correctement définies
-- Redémarrer le serveur après modification de `.env.local`
-
-### Chat ne fonctionne pas en temps réel
-- Vérifier que Realtime est activé pour la table `messages` dans Supabase
-- Vérifier la connexion WebSocket dans la console du navigateur
-
-### Magic link ne fonctionne pas
-- Vérifier la configuration des Redirect URLs dans Supabase
-- Vérifier que l'email est bien envoyé (spam)
-
-### Erreurs RLS
-- Vérifier que les politiques RLS sont bien créées
-- Vérifier que l'utilisateur est bien authentifié
-
-## 📝 Notes
-
-- Les tokens de décision expirent après 7 jours
-- Les tokens sont à usage unique (marqués comme `used` après utilisation)
-- Le chat nécessite une authentification (magic link automatique)
-
-## 🎨 Design
-
-- Couleur principale : `#FBCF03` (jaune)
-- Couleurs secondaires : Noir (`#000000`) et Blanc (`#FFFFFF`)
-- Design moderne et épuré inspiré de chefmaison.com
-
-## 📄 Licence
-
-Ce projet est privé.
-
+</div>
