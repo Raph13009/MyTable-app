@@ -10,6 +10,12 @@ import { Select } from '@/components/ui/Select'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Database } from '@/types/database'
 import { useTranslation } from '@/hooks/useTranslation'
+import { 
+  getLocalDateString, 
+  formatDateForDisplay, 
+  getMinBookingDate, 
+  isValidBookingDate 
+} from '@/lib/dateUtils'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -150,10 +156,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
   // Calculer la date minimum (J+3)
   const getMinDate = () => {
-    const today = new Date()
-    const minDate = new Date(today)
-    minDate.setDate(today.getDate() + 3)
-    return minDate.toISOString().split('T')[0]
+    return getMinBookingDate()
   }
 
   const validatePage1 = () => {
@@ -200,21 +203,18 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     if (formData.serviceType === 'repas_domicile') {
       if (!formData.bookingDate) {
         newErrors.bookingDate = 'La date est requise'
-      } else {
-        const selectedDate = new Date(formData.bookingDate)
-        const minDate = new Date()
-        minDate.setDate(minDate.getDate() + 3)
-        minDate.setHours(0, 0, 0, 0)
-        selectedDate.setHours(0, 0, 0, 0)
-        
-        if (selectedDate < minDate) {
-          newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
-        }
+      } else if (!isValidBookingDate(formData.bookingDate)) {
+        newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
       }
       if (!formData.mealTime) {
         newErrors.mealTime = 'Le moment du repas est requis'
       }
     } else if (formData.serviceType === 'cours_cuisine') {
+      if (!formData.bookingDate) {
+        newErrors.bookingDate = 'La date est requise'
+      } else if (!isValidBookingDate(formData.bookingDate)) {
+        newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
+      }
       if (!formData.budget || parseFloat(formData.budget) <= 0) {
         newErrors.budget = 'Le budget est requis et doit être supérieur à 0'
       }
@@ -363,7 +363,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     const [viewMonth, setViewMonth] = useState(new Date().getMonth())
 
     const toggleDate = (date: Date) => {
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = getLocalDateString(date)
       if (selectedDates.includes(dateStr)) {
         onDatesChange(selectedDates.filter(d => d !== dateStr))
       } else {
@@ -372,7 +372,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     }
 
     const isDateSelected = (date: Date) => {
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = getLocalDateString(date)
       return selectedDates.includes(dateStr)
     }
 
@@ -470,7 +470,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             const isDisabled = isDateDisabled(date)
             return (
               <button
-                key={date.toISOString()}
+                key={getLocalDateString(date)}
                 type="button"
                 onClick={() => !isDisabled && toggleDate(date)}
                 disabled={isDisabled}
@@ -498,7 +498,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                   key={date}
                   className="px-2 py-1 bg-[#FBCF03] text-black text-xs rounded-full font-medium"
                 >
-                  {new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}
                 </span>
               ))}
             </div>
@@ -714,6 +714,19 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         {formData.serviceType === 'cours_cuisine' && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="w-full min-w-0 overflow-hidden">
+                <Input
+                  label={`${t('booking.date')} *`}
+                  type="date"
+                  name="bookingDate"
+                  value={formData.bookingDate}
+                  onChange={handleChange}
+                  error={errors.bookingDate}
+                  min={getMinDate()}
+                  required
+                  className="w-full min-w-0 max-w-full"
+                />
+              </div>
               <Select
                 label={`${t('booking.guests')} *`}
                 name="guestsCount"
@@ -879,8 +892,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 </label>
                 <div className="space-y-4">
                   {formData.selectedDates.map((date) => {
-                    const dateObj = new Date(date)
-                    const dateLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
+                    const dateLabel = formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { 
                       weekday: 'long', 
                       day: 'numeric', 
                       month: 'long',

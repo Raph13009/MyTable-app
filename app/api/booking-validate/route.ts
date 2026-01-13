@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getBaseUrl } from '@/lib/utils'
+import { calculateBookingTotal } from '@/lib/bookingCalculations'
 
 /**
  * API Route pour finaliser une réservation (client uniquement)
@@ -73,21 +74,20 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (conversation) {
+      // Utiliser i18n pour le message de validation
+      const { getValidationMessage } = await import('@/lib/i18n/constants')
+      const clientName = `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`
+      const validationMessage = getValidationMessage(clientName, 'fr')
+      
       await supabaseAdmin
         .from('messages')
         .insert({
           conversation_id: (conversation as any).id,
           sender_email: user.email!,
-          content: 'La réservation a été validée par le client.',
+          content: validationMessage,
         } as any)
     }
 
-    // Calculer le montant total
-    const menuPrice = (bookingRequest as any).menus?.price || 0
-    const guestsCount = (bookingRequest as any).guests_count || 0
-    const childrenCount = (bookingRequest as any).children_count || 0
-    const menuTotal = menuPrice * guestsCount
-    
     // Récupérer les extras
     let extras: Array<{ name: string; price: number }> = []
     if ((bookingRequest as any).extras) {
@@ -106,11 +106,21 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const extrasTotal = extras.reduce((sum, extra) => sum + (extra.price || 0), 0)
-    const totalAmount = menuTotal + extrasTotal
+    // Calculer le montant total selon le type de service
+    const menuPrice = (bookingRequest as any).menus?.price || 0
+    const guestsCount = (bookingRequest as any).guests_count || 0
+    const childrenCount = (bookingRequest as any).children_count || 0
+    const totalAmount = calculateBookingTotal((bookingRequest as any).service_type, {
+      menuPrice,
+      guestsCount,
+      budget: (bookingRequest as any).budget,
+      totalPrice: (bookingRequest as any).total_price,
+      extras,
+    })
 
     // Formater la date
-    const bookingDate = new Date((bookingRequest as any).booking_date).toLocaleDateString('fr-FR', {
+    const { formatDateForDisplay } = await import('@/lib/dateUtils')
+    const bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

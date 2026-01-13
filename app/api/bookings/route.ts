@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
+import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,6 +55,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (serviceType === 'cours_cuisine') {
+      if (!bookingDate) {
+        return NextResponse.json(
+          { error: 'La date est requise pour un cours de cuisine' },
+          { status: 400 }
+        )
+      }
+      if (!isValidDateString(bookingDate)) {
+        return NextResponse.json(
+          { error: 'La date fournie est invalide' },
+          { status: 400 }
+        )
+      }
       if (!budget || parseFloat(budget) <= 0) {
         return NextResponse.json(
           { error: 'Le budget est requis pour un cours de cuisine' },
@@ -440,17 +453,10 @@ export async function POST(request: NextRequest) {
     const refuseUrl = `${baseUrl}/decision?token=${refuseToken}&action=refuse`
 
     // Préparer les détails de réservation selon le type de service
-    const getServiceTypeLabel = (type: string) => {
-      switch (type) {
-        case 'repas_domicile':
-          return 'Repas à domicile'
-        case 'cours_cuisine':
-          return 'Cours de Cuisine'
-        case 'mise_en_demeure':
-          return 'Événement sur plusieurs jours'
-        default:
-          return 'Réservation'
-      }
+    // Utiliser i18n pour les libellés
+    const { getServiceTypeLabel } = await import('@/lib/i18n/constants')
+    const getServiceTypeLabelLocalized = (type: string) => {
+      return getServiceTypeLabel(type, 'fr') // Utiliser 'fr' par défaut pour les emails
     }
 
     const bookingDetails: any = {
@@ -458,7 +464,7 @@ export async function POST(request: NextRequest) {
       lastName,
       phone,
       serviceType,
-      serviceTypeLabel: getServiceTypeLabel(serviceType),
+      serviceTypeLabel: getServiceTypeLabelLocalized(serviceType),
       city,
       postalCode,
       guestsCount,
@@ -470,11 +476,12 @@ export async function POST(request: NextRequest) {
 
     // Ajouter les champs spécifiques selon le type de service
     if (serviceType === 'repas_domicile') {
-      bookingDetails.bookingDate = bookingDate ? new Date(bookingDate).toLocaleDateString('fr-FR') : null
+      bookingDetails.bookingDate = bookingDate ? formatDateForDisplay(bookingDate, 'fr-FR') : null
       bookingDetails.mealTime = mealTime || null
       bookingDetails.mealTimeLabel = mealTime === 'dejeuner' ? 'Déjeuner' : mealTime === 'diner' ? 'Dîner' : null
       bookingDetails.menuName = menuName || null
     } else if (serviceType === 'cours_cuisine') {
+      bookingDetails.bookingDate = bookingDate ? formatDateForDisplay(bookingDate, 'fr-FR') : null
       bookingDetails.budget = budget ? parseFloat(budget) : null
       bookingDetails.courseTopic = courseTopic || null
     } else if (serviceType === 'mise_en_demeure') {

@@ -9,6 +9,8 @@ import { Database } from '@/types/database'
 import { sanitizeMessage } from '@/lib/utils'
 import { useTranslation } from '@/hooks/useTranslation'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { formatDateForDisplay } from '@/lib/dateUtils'
+import { calculateBookingTotal } from '@/lib/bookingCalculations'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -280,7 +282,24 @@ export default function ChatInterface({
             ...newMessage,
             content: sanitizeMessage(newMessage.content || '')
           }
-          setMessages((prev) => [...prev, sanitizedNewMessage])
+          setMessages((prev) => {
+            // Vérifier si le message existe déjà (éviter doublons)
+            const exists = prev.some(m => m.id === sanitizedNewMessage.id)
+            if (exists) return prev
+            
+            // Retirer le message optimiste correspondant (même contenu)
+            const withoutOptimistic = prev.filter(m => 
+              !m.id.startsWith('temp-') || 
+              m.content !== sanitizedNewMessage.content ||
+              m.sender_email !== sanitizedNewMessage.sender_email
+            )
+            
+            // Ajouter le nouveau message et trier par created_at
+            const updated = [...withoutOptimistic, sanitizedNewMessage]
+            return updated.sort((a, b) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            )
+          })
         }
       )
       .subscribe()
@@ -299,59 +318,117 @@ export default function ChatInterface({
       return
     }
 
+    const rawContent = newMessage.trim()
+    const sanitizedContent = sanitizeMessage(rawContent)
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // OPTIMISTIC UI: Ajouter le message immédiatement à l'état local
+    const optimisticMessage: Message = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_email: currentUser.email!,
+      content: sanitizedContent,
+      created_at: new Date().toISOString(),
+    }
+    
+    // Ajouter le message optimiste et trier par created_at
+    setMessages((prev) => {
+      const updated = [...prev, optimisticMessage]
+      return updated.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+    })
+    
+    // Vider le champ immédiatement pour un feedback instantané
+    const messageContentToSend = newMessage.trim()
+    setNewMessage('')
     setLoading(true)
 
     try {
       const currentUserRole = getCurrentUserRole()
-      const rawContent = newMessage.trim()
-      
-      // Sanitize message content before saving (mask emails and phone numbers)
-      const sanitizedContent = sanitizeMessage(rawContent)
       
       console.log('[ChatInterface] Sending message:', {
         currentUserEmail: currentUser.email,
         currentUserRole,
         messageContent: rawContent,
         sanitizedContent,
+        tempId,
       })
 
-      const { error } = await supabase
+      const { data: insertedMessage, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_email: currentUser.email!,
-          content: sanitizedContent, // Store sanitized version
+          content: sanitizedContent,
         } as any)
+        .select()
+        .single()
 
       if (error) {
+        // ROLLBACK: Retirer le message optimiste en cas d'erreur
+        setMessages((prev) => prev.filter(m => m.id !== tempId))
+        // Remettre le texte dans le champ
+        setNewMessage(messageContentToSend)
         throw error
       }
 
-      console.log('[ChatInterface] Message sent successfully')
+      console.log('[ChatInterface] Message sent successfully:', insertedMessage)
       
-      // Envoyer une notification email au destinataire
-      try {
-        await fetch('/api/send-message-notification', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            conversationId,
-            senderEmail: currentUser.email,
-            messageContent: newMessage.trim(),
-          }),
-        })
-        console.log('[ChatInterface] Notification email sent')
-      } catch (emailError) {
+      // Envoyer une notification email au destinataire (non bloquant)
+      fetch('/api/send-message-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          senderEmail: currentUser.email,
+          messageContent: messageContentToSend,
+        }),
+      }).catch((emailError) => {
         console.error('[ChatInterface] Error sending notification email:', emailError)
         // Ne pas bloquer l'envoi du message si l'email échoue
-      }
+      })
       
-      setNewMessage('')
-    } catch (error) {
+      // REVALIDATION: Vérifier après 500ms si le message est bien arrivé via subscription
+      // Si non, faire un refetch manuel
+      setTimeout(async () => {
+        setMessages((currentMessages) => {
+          // Vérifier si le vrai message est déjà là (via subscription)
+          const hasRealMessage = currentMessages.some(m => 
+            m.id !== tempId && 
+            m.content === sanitizedContent && 
+            m.sender_email === currentUser.email &&
+            !m.id.startsWith('temp-')
+          )
+          
+          if (hasRealMessage) {
+            // Le message est déjà là via subscription, retirer l'optimiste
+            return currentMessages.filter(m => m.id !== tempId)
+          }
+          
+          // Si le message optimiste est toujours là, faire un refetch
+          const stillHasOptimistic = currentMessages.some(m => m.id === tempId)
+          if (stillHasOptimistic && insertedMessage) {
+            // Remplacer l'optimiste par le vrai message
+            return currentMessages
+              .filter(m => m.id !== tempId)
+              .concat([insertedMessage as Message])
+              .sort((a, b) => 
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )
+          }
+          
+          return currentMessages
+        })
+      }, 500)
+      
+    } catch (error: any) {
       console.error('[ChatInterface] Error sending message:', error)
-      alert('Erreur lors de l&apos;envoi du message')
+      // Afficher une erreur plus claire
+      const errorMessage = error?.message || 'Erreur lors de l\'envoi du message'
+      alert(`Erreur: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -855,17 +932,15 @@ export default function ChatInterface({
   }
 
   // Calculer le prix total (utilise guestsCount local si modifié)
-  // Pour chef à demeure, utiliser total_price (budget) au lieu de menu + extras
   const menuPrice = menuDetails?.price || 0
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
-  const menuTotal = menuPrice * currentGuestsCount
-  const extrasTotal = extras.reduce((sum, extra) => sum + (extra.price || 0), 0)
-  
-  // Pour chef à demeure, utiliser le budget (total_price) annoncé par le client
-  // Sinon, utiliser menu + extras
-  const totalPrice = bookingRequest?.service_type === 'mise_en_demeure' && bookingRequest?.total_price
-    ? bookingRequest.total_price
-    : menuTotal + extrasTotal
+  const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
+    menuPrice,
+    guestsCount: currentGuestsCount,
+    budget: bookingRequest?.budget,
+    totalPrice: bookingRequest?.total_price,
+    extras,
+  })
 
   // Détecter si un message est un message système (notification)
   const isSystemMessage = (content: string) => {
@@ -887,8 +962,18 @@ export default function ChatInterface({
   // Handler pour afficher la modale de finalisation
   const handleFinalizeBooking = () => {
     if (!bookingRequest?.id || !isClient || bookingStatus !== 'accepted') {
+      console.warn('[ChatInterface] Cannot finalize booking:', {
+        hasBookingRequest: !!bookingRequest?.id,
+        isClient,
+        bookingStatus,
+      })
       return
     }
+    
+    console.log('[ChatInterface] Opening finalize modal:', {
+      bookingRequestId: bookingRequest.id,
+      serviceType: bookingRequest?.service_type,
+    })
     setShowFinalizeModal(true)
   }
 
@@ -1014,8 +1099,20 @@ export default function ChatInterface({
     }))
   }
 
+  // Vérifier si le menu contient au moins un plat
+  const hasMenuItems = Object.values(menuCategories).some(items => Array.isArray(items) && items.length > 0)
+  
+  // Vérifier s'il y a des inputs non ajoutés (validation)
+  const hasUnaddedItems = Object.values(newMenuItems).some(value => value.trim().length > 0)
+
   const handleSaveMenu = async () => {
     if (!bookingRequest?.id || !currentUser) {
+      return
+    }
+
+    // Validation: ne pas permettre d'enregistrer un menu vide (le bouton est déjà désactivé, mais double vérification)
+    if (!hasMenuItems) {
+      alert('Vous devez ajouter au moins un plat avant d\'enregistrer le menu.')
       return
     }
 
@@ -1088,7 +1185,7 @@ export default function ChatInterface({
       {/* Header - Premium, moderne, avec contraste distinct */}
       <div className="flex-shrink-0 bg-white sticky top-0 z-10 border-b border-gray-300">
         <div className="px-4 sm:px-6 py-3.5">
-          {/* Sélecteur de langue en haut à droite */}
+          {/* Sélecteur de langue en haut à droite - au-dessus du bouton info */}
           <div className="absolute top-3.5 right-4 sm:right-6 z-10">
             <LanguageSwitcher />
           </div>
@@ -1096,7 +1193,7 @@ export default function ChatInterface({
           <div className="mb-2.5">
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-base sm:text-lg font-semibold text-gray-900">
-                {bookingRequest ? `${t('chat.reservationTitle')} ${new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}` : t('chat.conversation')}
+                {bookingRequest ? `${t('chat.reservationTitle')} ${formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}` : t('chat.conversation')}
               </h1>
               {bookingStatus && bookingStatus === 'accepted' && (
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FBCF03]"></span>
@@ -1146,6 +1243,7 @@ export default function ChatInterface({
           
           {/* Actions en dessous */}
           <div className="flex items-center justify-between gap-3">
+            {/* Left: Back button */}
             <button
               onClick={handleBackClick}
               disabled={isNavigatingBack}
@@ -1262,6 +1360,7 @@ export default function ChatInterface({
         className="flex-1 overflow-y-auto overscroll-contain bg-gray-100"
         style={{
           WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
         }}
       >
         <div className="px-4 py-4 sm:px-6 sm:py-5 min-h-full flex flex-col justify-end">
@@ -1282,7 +1381,7 @@ export default function ChatInterface({
                           <p className="text-sm sm:text-base text-gray-900 font-medium leading-relaxed">
                             {t('chat.communicationSpace')}{' '}
                             <span className="font-semibold text-gray-900">
-                              {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', {
+                              {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', {
                                 day: 'numeric',
                                 month: 'long',
                                 year: 'numeric',
@@ -1487,15 +1586,14 @@ export default function ChatInterface({
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
         <form onSubmit={(e) => {
           e.preventDefault()
-          if (!isDesktop) {
-            // Sur mobile, le formulaire envoie avec Entrée
-            handleSendMessage(e)
-          }
-          // Sur desktop, on envoie uniquement avec le bouton ou Shift+Entrée
+          // L'envoi se fait uniquement via le bouton submit
+          // Sur desktop, on peut aussi envoyer avec Shift+Entrée dans le textarea
+          handleSendMessage(e)
         }} className="px-4 sm:px-6 py-3.5">
           <div className="flex items-end gap-2.5">
             {isDesktop ? (
               <textarea
+                data-testid="message-input"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -1523,19 +1621,28 @@ export default function ChatInterface({
                 }}
               />
             ) : (
-              <input
-                type="text"
+              <textarea
+                data-testid="message-input"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder={t('chat.enterNewLine')}
                 disabled={loading}
-                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                rows={1}
+                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200/60 rounded-2xl text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#FBCF03]/40 focus:ring-2 focus:ring-[#FBCF03]/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden"
                 style={{
                   minHeight: '44px',
+                  maxHeight: '120px',
+                }}
+                onInput={(e) => {
+                  // Auto-resize textarea
+                  const target = e.target as HTMLTextAreaElement
+                  target.style.height = 'auto'
+                  target.style.height = `${Math.min(target.scrollHeight, 120)}px`
                 }}
               />
             )}
             <button
+              data-testid="send-message-button"
               type="submit"
               disabled={loading || !newMessage.trim()}
               className="flex-shrink-0 w-11 h-11 rounded-full bg-[#FBCF03] text-black hover:bg-[#FBCF03]/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 flex items-center justify-center shadow-sm hover:shadow disabled:shadow-none"
@@ -1573,23 +1680,11 @@ export default function ChatInterface({
             {/* Header fixe */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-300 bg-white flex-shrink-0">
               <div className="flex-1">
-                {bookingRequest?.service_type && (() => {
-                  const getServiceTypeLabel = (type: string) => {
-                    switch (type) {
-                      case 'repas_domicile':
-                        return 'Repas à domicile'
-                      case 'cours_cuisine':
-                        return 'Cours de Cuisine'
-                      case 'mise_en_demeure':
-                        return 'Mise en demeure'
-                      default:
-                        return 'Détails de l\'offre'
-                    }
-                  }
-                  return (
-                    <h2 className="text-xl font-semibold text-black">{getServiceTypeLabel(bookingRequest.service_type)}</h2>
-                  )
-                })()}
+                {bookingRequest?.service_type && (
+                  <h2 className="text-xl font-semibold text-black">
+                    {t(`booking.serviceType.${bookingRequest.service_type}`)}
+                  </h2>
+                )}
                 {!bookingRequest?.service_type && (
               <h2 className="text-xl font-semibold text-black">Détails de l&apos;offre</h2>
                 )}
@@ -1621,7 +1716,7 @@ export default function ChatInterface({
                       <div>
                         <p className="text-xs text-gray-500 mb-0.5">Date</p>
                         <p className="text-sm font-medium text-black">
-                          {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
+                          {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
                             day: 'numeric', 
                             month: 'long', 
                             year: 'numeric' 
@@ -1639,6 +1734,18 @@ export default function ChatInterface({
                         </>
                       ) : bookingRequest.service_type === 'cours_cuisine' ? (
                         <>
+                          {bookingRequest.booking_date && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">Date</p>
+                              <p className="text-sm font-medium text-black">
+                                {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
+                                  day: 'numeric', 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                            </div>
+                          )}
                           {bookingRequest.budget && (
                             <div>
                               <p className="text-xs text-gray-500 mb-0.5">{t('offer.budgetGlobal')}</p>
@@ -1994,16 +2101,15 @@ export default function ChatInterface({
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
               {Object.entries(bookingRequest.meal_options as Record<string, string[]>)
-                .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+                .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
                 .map(([date, options]) => {
-                  const dateObj = new Date(date)
-                  const dateLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
+                  const dateLabel = formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { 
                     weekday: 'long', 
                     day: 'numeric', 
                     month: 'long',
                     year: 'numeric'
                   })
-                  const dayLabel = dateObj.toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { weekday: 'short' })
+                  const dayLabel = formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { weekday: 'short' })
                   
                   return (
                     <div key={date} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
@@ -2135,7 +2241,7 @@ export default function ChatInterface({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Date</span>
                     <span className="font-medium text-black">
-                      {new Date(bookingRequest.booking_date).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { 
+                      {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
                         day: 'numeric', 
                         month: 'long', 
                         year: 'numeric' 
@@ -2168,7 +2274,9 @@ export default function ChatInterface({
               )}
 
               <p className="text-sm text-gray-600 mb-6">
-                En confirmant, vous validez cette réservation. Un lien de paiement vous sera envoyé dans les 24 heures.
+                {bookingRequest?.service_type === 'mise_en_demeure' 
+                  ? 'En confirmant, vous indiquez que vous êtes prêt à finaliser votre réservation. Un lien de paiement vous sera envoyé par email dans les prochaines 24 heures.'
+                  : 'En confirmant, vous validez cette réservation. Un lien de paiement vous sera envoyé dans les 24 heures.'}
               </p>
 
               {/* Actions */}
@@ -2661,27 +2769,41 @@ export default function ChatInterface({
                           </button>
                         </div>
                       ))}
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={newMenuItems[category]}
-                          onChange={(e) => handleNewMenuItemChange(category, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newMenuItems[category].trim()) {
-                              e.preventDefault()
-                              handleAddMenuItem(category)
-                            }
-                          }}
-                          placeholder={`Ajouter un ${categoryLabels[category].toLowerCase()}...`}
-                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 transition-all"
-                        />
-                        <button
-                          onClick={() => handleAddMenuItem(category)}
-                          disabled={!newMenuItems[category].trim()}
-                          className="px-3 py-2 text-sm font-medium text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Ajouter
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newMenuItems[category]}
+                            onChange={(e) => handleNewMenuItemChange(category, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newMenuItems[category].trim()) {
+                                e.preventDefault()
+                                handleAddMenuItem(category)
+                              }
+                            }}
+                            placeholder={`Ajouter un ${categoryLabels[category].toLowerCase()}...`}
+                            className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                              newMenuItems[category].trim() && newMenuItems[category].trim().length > 0
+                                ? 'border-amber-300 focus:ring-amber-300/30 focus:border-amber-400'
+                                : 'border-gray-300 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40'
+                            }`}
+                          />
+                          <button
+                            onClick={() => handleAddMenuItem(category)}
+                            disabled={!newMenuItems[category].trim()}
+                            className="px-3 py-2 text-sm font-medium text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Ajouter
+                          </button>
+                        </div>
+                        {newMenuItems[category].trim() && newMenuItems[category].trim().length > 0 && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            {t('booking.menuValidationRequired')}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2690,10 +2812,20 @@ export default function ChatInterface({
             </div>
 
             {/* Footer avec bouton sauvegarder */}
-            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white">
+            <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white space-y-2">
+              {!hasMenuItems && hasUnaddedItems && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                  <p className="text-xs text-amber-800 flex items-center gap-2">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Vous devez cliquer sur &apos;Ajouter&apos; pour chaque plat avant d&apos;enregistrer le menu.</span>
+                  </p>
+                </div>
+              )}
               <button
                 onClick={handleSaveMenu}
-                disabled={savingMenu}
+                disabled={savingMenu || !hasMenuItems}
                 className="w-full px-4 py-3 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-xl transition-all duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingMenu ? 'Sauvegarde...' : 'Enregistrer le menu'}

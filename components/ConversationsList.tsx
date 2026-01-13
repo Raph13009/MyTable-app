@@ -6,6 +6,7 @@ import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslation } from '@/hooks/useTranslation'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { formatDateForDisplay } from '@/lib/dateUtils'
 
 type ConversationStatus = 'ongoing' | 'pending' | 'closed'
 
@@ -302,7 +303,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                   
                   // Format date pour meta
                   const eventDate = conversation.bookingRequest?.booking_date
-                    ? new Date(conversation.bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+                    ? formatDateForDisplay(conversation.bookingRequest.booking_date, 'fr-FR', {
                         day: 'numeric',
                         month: 'short',
                       })

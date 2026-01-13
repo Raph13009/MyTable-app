@@ -93,7 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Formater la date
-    const bookingDate = new Date((bookingRequest as any).booking_date).toLocaleDateString('fr-FR', {
+    const { formatDateForDisplay } = await import('@/lib/dateUtils')
+    const bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

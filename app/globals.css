@@ -85,6 +85,11 @@ input[type="date"] {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Tailwind utility class for safe area bottom padding */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* Prevent body scroll when chat is open */
 body.chat-open {
   overflow: hidden;

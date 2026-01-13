@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { getBaseUrl } from './utils'
+import { getBudgetGlobalLabel, getValidationMessage, getBookingValidatedToChefSubject } from './i18n/constants'
 
 /**
  * ============================================
@@ -344,7 +345,7 @@ export const emailSubjects = {
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée',
   bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
-  bookingValidatedToChef: 'Réservation validée par le client',
+  bookingValidatedToChef: getBookingValidatedToChefSubject('fr'), // Utilise i18n
   bookingValidatedToAdmin: 'Nouvelle offre validée !',
   bookingCancelledToClient: 'Réservation annulée',
   bookingCancelledToChef: 'Réservation annulée',
@@ -414,7 +415,9 @@ export const emailTemplates = {
         detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
       }
       if (bookingDetails.totalPrice) {
-        detailsHtml += `<p><strong>Prix global :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
+        // Utiliser i18n pour le libellé
+        const budgetLabel = getBudgetGlobalLabel('fr')
+        detailsHtml += `<p><strong>${budgetLabel} :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
       }
     }
 
@@ -538,9 +541,12 @@ export const emailTemplates = {
       <li>📞 Téléphone client : <a href="tel:${clientPhone}" style="color: #000; text-decoration: underline;">${clientPhone}</a></li>
     ` : ''
     
+    // Utiliser i18n pour le message de validation
+    const validationMessage = getValidationMessage(clientName, 'fr')
+    
     const content = `
       <p>Bonjour ${chefName},</p>
-      <p>La réservation de <strong>${clientName}</strong> a été validée par le client.</p>
+      <p>${validationMessage}</p>
       <p><strong>Détails de la réservation :</strong></p>
       <ul style="list-style: none; padding-left: 0;">
         <li>📅 Date : ${bookingDate}</li>

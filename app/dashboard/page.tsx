@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import ConversationsList from '@/components/ConversationsList'
 import AuthTokenHandler from '@/components/AuthTokenHandler'
+import { calculateBookingTotal } from '@/lib/bookingCalculations'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -506,11 +507,15 @@ export default async function DashboardPage() {
         status = 'ongoing'
       }
 
-      // Calculer le prix total
+      // Calculer le prix total selon le type de service
       const guestsCount = bookingRequest?.guests_count || 0
-      const menuTotal = (menuPrice || 0) * guestsCount
-      const extrasTotal = extras.reduce((sum: number, extra: any) => sum + (extra.price || 0), 0)
-      const totalPrice = menuTotal + extrasTotal
+      const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
+        menuPrice,
+        guestsCount,
+        budget: bookingRequest?.budget,
+        totalPrice: bookingRequest?.total_price,
+        extras,
+      })
 
       const enrichedConv = {
         id: conv.id,

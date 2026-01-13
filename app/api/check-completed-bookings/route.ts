@@ -83,13 +83,13 @@ export async function GET(request: NextRequest) {
           // Trier les dates et prendre la dernière
           const sortedDates = dates.sort()
           const lastDate = sortedDates[sortedDates.length - 1]
-          const lastDateISO = new Date(lastDate).toISOString().split('T')[0]
+          const lastDateISO = getLocalDateString(new Date(lastDate))
           return lastDateISO === yesterdayISO
         }
         return false
       } else if (booking.booking_date) {
         // Pour repas à domicile ou cours, vérifier si la date est hier
-        const bookingDate = new Date(booking.booking_date).toISOString().split('T')[0]
+        const bookingDate = getLocalDateString(new Date(booking.booking_date))
         return bookingDate === yesterdayISO
       }
       return false
@@ -136,15 +136,15 @@ export async function GET(request: NextRequest) {
         
         if (dates.length > 0) {
           const sortedDates = dates.sort()
-          const lastDate = new Date(sortedDates[sortedDates.length - 1])
-          eventEndDate = lastDate.toLocaleDateString('fr-FR', {
+          const lastDate = sortedDates[sortedDates.length - 1]
+          eventEndDate = formatDateForDisplay(lastDate, 'fr-FR', {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
           })
         }
       } else if (booking.booking_date) {
-        eventEndDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
+        eventEndDate = formatDateForDisplay(booking.booking_date, 'fr-FR', {
           day: 'numeric',
           month: 'long',
           year: 'numeric'

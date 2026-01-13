@@ -159,6 +159,7 @@
     "chefPaymentPendingDescription": "Le client va procéder au paiement. Vous serez notifié dès que le paiement sera effectué.",
     "menu": "menu",
     "menus": "menus",
+    "menuValidationRequired": "Vous devez cliquer sur 'Ajouter' pour enregistrer ce plat",
     "children": "Enfants",
     "decrease": "Diminuer",
     "increase": "Augmenter",
@@ -180,6 +181,10 @@
       "guestsCountMin": "Le nombre de convives doit être au moins 1",
       "childrenCountMax": "Le nombre d'enfants ne peut pas être supérieur au nombre total de convives",
       "termsRequired": "Vous devez accepter les termes et conditions"
+    },
+    "validation": {
+      "clientValidated": "Le client {{clientName}} a validé la réservation",
+      "emailSubjectToChef": "Réservation validée par le client"
     }
   },
   "chat": {
@@ -238,6 +243,7 @@
   },
   "offer": {
     "budgetGlobal": "Budget global",
+    "budgetGlobalLabel": "Budget global",
     "mealOptions": "Options de repas",
     "selectedDates": "Dates sélectionnées",
     "days": "jours",

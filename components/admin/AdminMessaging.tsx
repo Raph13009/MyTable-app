@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatDateForDisplay, parseDateFromDB } from '@/lib/dateUtils'
 
 interface Conversation {
   id: string
@@ -134,8 +135,15 @@ export default function AdminMessaging() {
   }
 
   // Helper function to format relative date
+  // Peut être utilisé pour booking_date (DATE) ou created_at (TIMESTAMP)
   const formatRelativeDate = (dateString: string) => {
-    const date = new Date(dateString)
+    // Essayer de parser comme date locale d'abord (pour booking_date)
+    let date = parseDateFromDB(dateString)
+    // Si ça ne fonctionne pas, c'est probablement un timestamp
+    if (!date) {
+      date = new Date(dateString)
+    }
+    
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -145,12 +153,12 @@ export default function AdminMessaging() {
     if (diffDays === 0) return 'Aujourd\'hui'
     if (diffDays === 1) return 'Hier'
     if (diffDays <= 7) return `Il y a ${diffDays}j`
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+    return formatDateForDisplay(date, 'fr-FR', { day: 'numeric', month: 'short' })
   }
 
   // Helper function to format date
   const formatEventDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
+    return formatDateForDisplay(dateString, 'fr-FR', {
       day: 'numeric',
       month: 'short',
     })

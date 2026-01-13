@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getBaseUrl } from '@/lib/utils'
+import { calculateBookingTotal } from '@/lib/bookingCalculations'
 
 /**
  * Route de test pour envoyer l'email admin pour la dernière réservation validée
@@ -39,12 +40,6 @@ export async function GET(request: NextRequest) {
       status: bookingRequest.status,
     })
 
-    // Calculer le montant total
-    const menuPrice = bookingRequest.menus?.price || 0
-    const guestsCount = bookingRequest.guests_count || 0
-    const childrenCount = bookingRequest.children_count || 0
-    const menuTotal = menuPrice * guestsCount
-
     // Récupérer les extras
     let extras: Array<{ name: string; price: number }> = []
     if (bookingRequest.extras) {
@@ -63,11 +58,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const extrasTotal = extras.reduce((sum, extra) => sum + (extra.price || 0), 0)
-    const totalAmount = menuTotal + extrasTotal
+    // Calculer le montant total selon le type de service
+    const menuPrice = bookingRequest.menus?.price || 0
+    const guestsCount = bookingRequest.guests_count || 0
+    const childrenCount = bookingRequest.children_count || 0
+    const totalAmount = calculateBookingTotal(bookingRequest.service_type, {
+      menuPrice,
+      guestsCount,
+      budget: bookingRequest.budget,
+      totalPrice: bookingRequest.total_price,
+      extras,
+    })
 
     // Formater la date
-    const bookingDate = new Date(bookingRequest.booking_date).toLocaleDateString('fr-FR', {
+    const { formatDateForDisplay } = await import('@/lib/dateUtils')
+    const bookingDate = formatDateForDisplay(bookingRequest.booking_date, 'fr-FR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
