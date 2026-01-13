@@ -179,6 +179,12 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .maybeSingle()
 
+      console.log(`[bookings:${requestId}] Idempotency check result:`, {
+        found: !!existingBooking,
+        bookingId: existingBooking?.id,
+        age: existingBooking ? Date.now() - new Date(existingBooking.created_at).getTime() : null,
+      })
+
       if (checkError) {
         console.error(`[bookings:${requestId}] Error checking idempotency:`, checkError)
       } else if (existingBooking) {
