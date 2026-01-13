@@ -5,7 +5,13 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
   try {
+    console.log(`[bookings:${requestId}] ========== STARTING BOOKING REQUEST ==========`)
+    console.log(`[bookings:${requestId}] Timestamp:`, new Date().toISOString())
+    
     const body = await request.json()
     const {
       chefId,
@@ -30,7 +36,16 @@ export async function POST(request: NextRequest) {
       allergiesDetails,
       menuId,
       notes,
+      idempotencyToken,
     } = body
+
+    console.log(`[bookings:${requestId}] Request data:`, {
+      chefId,
+      serviceType,
+      email: email?.substring(0, 3) + '***', // Masquer email pour logs
+      hasIdempotencyToken: !!idempotencyToken,
+      idempotencyToken: idempotencyToken?.substring(0, 20) + '...',
+    })
 
     // Validation basique
     if (!chefId || !firstName || !lastName || !email || !phone || !serviceType || !city || !postalCode || !guestsCount) {
@@ -123,6 +138,7 @@ export async function POST(request: NextRequest) {
     // Utiliser le client admin pour bypass RLS dans les opérations serveur
     const supabase = createAdminClient()
 
+    console.log(`[bookings:${requestId}] Fetching chef data...`)
     // Récupérer le chef
     const { data: chef, error: chefError } = await supabase
       .from('chefs')
@@ -131,10 +147,63 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (chefError || !chef) {
+      console.error(`[bookings:${requestId}] Chef not found:`, chefError)
       return NextResponse.json(
         { error: 'Chef introuvable' },
         { status: 404 }
       )
+    }
+
+    console.log(`[bookings:${requestId}] Chef found:`, (chef as any).name)
+
+    // Vérifier l'idempotence AVANT de créer la conversation
+    // On utilise une combinaison email + chefId + bookingDate + serviceType comme clé unique
+    if (idempotencyToken) {
+      console.log(`[bookings:${requestId}] Checking idempotency for token:`, idempotencyToken.substring(0, 20) + '...')
+      
+      const normalizedEmail = email.toLowerCase().trim()
+      let idempotencyQuery = supabase
+        .from('booking_requests')
+        .select('id, conversation_id, status, created_at, booking_date')
+        .eq('chef_id', chefId)
+        .eq('email', normalizedEmail)
+        .eq('service_type', serviceType)
+      
+      // Pour repas_domicile, ajouter la condition sur booking_date
+      if (serviceType === 'repas_domicile' && bookingDate) {
+        idempotencyQuery = idempotencyQuery.eq('booking_date', bookingDate)
+      }
+      
+      const { data: existingBooking, error: checkError } = await idempotencyQuery
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (checkError) {
+        console.error(`[bookings:${requestId}] Error checking idempotency:`, checkError)
+      } else if (existingBooking) {
+        // Vérifier si la réservation a été créée récemment (dans les 5 dernières minutes)
+        const bookingAge = Date.now() - new Date(existingBooking.created_at).getTime()
+        const fiveMinutes = 5 * 60 * 1000
+        
+        if (bookingAge < fiveMinutes) {
+          console.log(`[bookings:${requestId}] Duplicate booking detected (idempotency)`, {
+            existingBookingId: existingBooking.id,
+            age: bookingAge,
+            conversationId: existingBooking.conversation_id,
+            serviceType,
+            bookingDate: existingBooking.booking_date,
+          })
+          
+          // Retourner le même résultat que si la création avait réussi
+          return NextResponse.json({
+            success: true,
+            bookingRequestId: existingBooking.id,
+            conversationId: existingBooking.conversation_id,
+            isDuplicate: true,
+          })
+        }
+      }
     }
 
     // Récupérer le menu si sélectionné
@@ -150,6 +219,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`[bookings:${requestId}] Creating conversation...`)
     // Créer la conversation
     const { data: conversation, error: conversationError } = await supabase
       .from('conversations')
@@ -158,12 +228,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (conversationError || !conversation) {
-      console.error('Error creating conversation:', conversationError)
+      console.error(`[bookings:${requestId}] Error creating conversation:`, conversationError)
       return NextResponse.json(
         { error: `Erreur lors de la création de la conversation: ${conversationError?.message || 'Unknown error'}` },
         { status: 500 }
       )
     }
+
+    console.log(`[bookings:${requestId}] Conversation created:`, (conversation as any).id)
 
     // Créer la demande de réservation
     const conversationId = (conversation as any).id
@@ -263,15 +335,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (bookingError || !bookingRequest) {
-      console.error('[bookings] Error creating booking request:', bookingError)
-      console.error('[bookings] mealOptions value:', mealOptions)
-      console.error('[bookings] mealOptions type:', typeof mealOptions)
-      console.error('[bookings] mealOptions isArray:', Array.isArray(mealOptions))
+      console.error(`[bookings:${requestId}] Error creating booking request:`, bookingError)
+      console.error(`[bookings:${requestId}] mealOptions value:`, mealOptions)
+      console.error(`[bookings:${requestId}] mealOptions type:`, typeof mealOptions)
+      console.error(`[bookings:${requestId}] mealOptions isArray:`, Array.isArray(mealOptions))
+      const duration = Date.now() - startTime
+      console.error(`[bookings:${requestId}] Request failed after ${duration}ms`)
       return NextResponse.json(
         { error: `Erreur lors de la création de la demande: ${bookingError?.message || 'Unknown error'}` },
         { status: 500 }
       )
     }
+
+    console.log(`[bookings:${requestId}] Booking request created:`, (bookingRequest as any).id)
 
     // Mettre à jour la conversation avec le booking_request_id
     const bookingRequestId = (bookingRequest as any).id
@@ -529,15 +605,26 @@ export async function POST(request: NextRequest) {
       ),
     })
 
+    const duration = Date.now() - startTime
+    console.log(`[bookings:${requestId}] ========== BOOKING REQUEST SUCCESS ==========`)
+    console.log(`[bookings:${requestId}] Duration: ${duration}ms`)
+    console.log(`[bookings:${requestId}] Booking ID:`, bookingRequestId)
+    console.log(`[bookings:${requestId}] Conversation ID:`, conversationId)
+
     return NextResponse.json({
       success: true,
       bookingRequestId: bookingRequestId,
       conversationId: conversationId,
     })
-  } catch (error) {
-    console.error('Error creating booking:', error)
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    console.error(`[bookings:${requestId}] ========== BOOKING REQUEST ERROR ==========`)
+    console.error(`[bookings:${requestId}] Error:`, error)
+    console.error(`[bookings:${requestId}] Error message:`, error?.message)
+    console.error(`[bookings:${requestId}] Error stack:`, error?.stack)
+    console.error(`[bookings:${requestId}] Duration before error: ${duration}ms`)
     return NextResponse.json(
-      { error: 'Une erreur est survenue' },
+      { error: error?.message || 'Une erreur est survenue' },
       { status: 500 }
     )
   }

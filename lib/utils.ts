@@ -89,3 +89,45 @@ export function getBaseUrl(providedUrl?: string): string {
   return baseUrl
 }
 
+/**
+ * Fetch with timeout and better error handling
+ * 
+ * @param url - The URL to fetch
+ * @param options - Fetch options
+ * @param timeoutMs - Timeout in milliseconds (default: 30000 = 30s)
+ * @returns Promise that resolves with Response or rejects with timeout/error
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 30000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+  }, timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`)
+    }
+    throw error
+  }
+}
+
+/**
+ * Generate a unique idempotency token for booking submissions
+ * Prevents duplicate bookings if user clicks submit multiple times
+ */
+export function generateIdempotencyToken(): string {
+  return `booking_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`
+}
+

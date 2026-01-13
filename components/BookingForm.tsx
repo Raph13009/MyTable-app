@@ -16,6 +16,7 @@ import {
   getMinBookingDate, 
   isValidBookingDate 
 } from '@/lib/dateUtils'
+import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -36,6 +37,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsPopup, setShowTermsPopup] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [submissionError, setSubmissionError] = useState<{ message: string; canRetry: boolean } | null>(null)
+  const [idempotencyToken, setIdempotencyToken] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -260,16 +264,32 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     setCurrentPage(1)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false) => {
     e.preventDefault()
 
     if (!validatePage2()) {
       return
     }
 
+    // Générer un token d'idempotence si première soumission
+    if (!isRetry && !idempotencyToken) {
+      const token = generateIdempotencyToken()
+      setIdempotencyToken(token)
+      setRetryCount(0)
+    }
+
     setLoading(true)
+    setSubmissionError(null)
 
     try {
+      console.log('[BookingForm] Starting booking submission', {
+        serviceType: formData.serviceType,
+        idempotencyToken: idempotencyToken,
+        isRetry,
+        retryCount,
+        timestamp: new Date().toISOString(),
+      })
+
       // Exclure emailConfirm du body (c'est juste pour validation)
       const { emailConfirm, periodStartDate, periodEndDate, ...bookingData } = formData
       
@@ -292,38 +312,105 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         totalPrice = parseFloat(formData.budget) || null
         budget = null // Ne pas utiliser budget pour mise_en_demeure, utiliser totalPrice
       }
+
+      const requestBody = {
+        chefId: chef.id,
+        ...bookingData,
+        periodDays,
+        budget,
+        courseTopic,
+        selectedDates,
+        mealOptions,
+        totalPrice,
+        idempotencyToken, // Token pour éviter les doublons
+      }
+
+      console.log('[BookingForm] Sending booking request', {
+        hasIdempotencyToken: !!idempotencyToken,
+        bodyKeys: Object.keys(requestBody),
+      })
       
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Utiliser fetchWithTimeout avec timeout de 30 secondes
+      const response = await fetchWithTimeout(
+        '/api/bookings',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
         },
-        body: JSON.stringify({
-          chefId: chef.id,
-          ...bookingData,
-          periodDays,
-          budget,
-          courseTopic,
-          selectedDates,
-          mealOptions,
-          totalPrice,
-        }),
+        30000 // 30 secondes timeout
+      )
+
+      console.log('[BookingForm] Response received', {
+        status: response.status,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        // Vérifier si c'est une erreur de doublon (idempotence)
+        if (response.status === 409 || data.error?.includes('déjà') || data.error?.includes('already')) {
+          console.log('[BookingForm] Duplicate booking detected, redirecting to confirmation')
+          // Si c'est un doublon, considérer comme succès et rediriger
+          router.push('/booking-confirmation')
+          return
+        }
         throw new Error(data.error || 'Une erreur est survenue')
       }
+
+      console.log('[BookingForm] Booking created successfully', {
+        bookingRequestId: data.bookingRequestId,
+        conversationId: data.conversationId,
+      })
 
       // Rediriger vers une page de confirmation
       router.push('/booking-confirmation')
     } catch (error) {
-      console.error('Error submitting booking:', error)
-      setErrors({ submit: error instanceof Error ? error.message : 'Une erreur est survenue' })
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue'
+      const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('Timeout')
+      const isNetworkError = errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')
+      
+      console.error('[BookingForm] Error submitting booking:', {
+        error: errorMessage,
+        isTimeout,
+        isNetworkError,
+        retryCount,
+        timestamp: new Date().toISOString(),
+      })
+
+      // Déterminer si on peut retry (timeout ou erreur réseau, max 2 retries)
+      const canRetry = (isTimeout || isNetworkError) && retryCount < 2
+
+      setSubmissionError({
+        message: isTimeout 
+          ? 'La requête a pris trop de temps. Veuillez réessayer.'
+          : isNetworkError
+          ? 'Erreur de connexion. Vérifiez votre connexion internet et réessayez.'
+          : errorMessage,
+        canRetry,
+      })
+
+      setErrors({ submit: errorMessage })
+      
+      if (canRetry) {
+        setRetryCount(prev => prev + 1)
+      } else {
+        // Après 2 retries, réinitialiser pour permettre un nouveau submit
+        setIdempotencyToken(null)
+        setRetryCount(0)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleRetry = (e: React.FormEvent) => {
+    e.preventDefault()
+    handleSubmit(e, true)
   }
 
   const guestsOptions = Array.from({ length: 60 }, (_, i) => ({
@@ -529,6 +616,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               onChange={handleChange}
               error={errors.firstName}
               required
+              autoComplete="given-name"
+              inputMode="text"
             />
             <Input
               label="Nom *"
@@ -537,6 +626,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               onChange={handleChange}
               error={errors.lastName}
               required
+              autoComplete="family-name"
+              inputMode="text"
             />
           </div>
 
@@ -549,6 +640,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               onChange={handleChange}
               error={errors.email}
               required
+              autoComplete="email"
+              inputMode="email"
             />
             <Input
               label={`${t('booking.confirmEmail')} *`}
@@ -558,6 +651,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               onChange={handleChange}
               error={errors.emailConfirm}
               required
+              autoComplete="email"
+              inputMode="email"
             />
           </div>
 
@@ -570,6 +665,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
               onChange={handleChange}
               error={errors.phone}
               required
+              autoComplete="tel"
+              inputMode="tel"
             />
           </div>
         </div>
@@ -672,6 +769,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 min="0"
                 max={formData.guestsCount}
                 placeholder="0"
+                autoComplete="off"
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
               <p className="mt-1 text-xs text-gray-500">
                 Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
@@ -686,6 +786,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.city}
                 required
+                autoComplete="address-level2"
+                inputMode="text"
               />
               <Input
                 label="Code postal *"
@@ -694,6 +796,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.postalCode}
                 required
+                autoComplete="postal-code"
+                inputMode="numeric"
               />
             </div>
 
@@ -748,6 +852,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 min="0"
                 max={formData.guestsCount}
                 placeholder="0"
+                autoComplete="off"
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
               <p className="mt-1 text-xs text-gray-500">
                 Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
@@ -762,6 +869,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.city}
                 required
+                autoComplete="address-level2"
+                inputMode="text"
               />
               <Input
                 label="Code postal *"
@@ -770,6 +879,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.postalCode}
                 required
+                autoComplete="postal-code"
+                inputMode="numeric"
               />
             </div>
 
@@ -1045,7 +1156,43 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
       {errors.submit && (
         <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-          <p className="text-red-500">{errors.submit}</p>
+          <p className="text-red-500 font-medium mb-2">{errors.submit}</p>
+          {submissionError?.canRetry && (
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Réessayer
+              </button>
+              <span className="text-sm text-red-600">
+                ({retryCount}/2 tentatives)
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {submissionError && !errors.submit && (
+        <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4">
+          <p className="text-amber-800 font-medium mb-2">{submissionError.message}</p>
+          {submissionError.canRetry && (
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={loading}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Réessayer
+              </button>
+              <span className="text-sm text-amber-700">
+                ({retryCount}/2 tentatives)
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1055,7 +1202,17 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           disabled={loading} 
           className="w-full sm:w-auto min-w-[200px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? t('common.loading') : t('booking.submit')}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {t('common.loading')}
+            </span>
+          ) : (
+            t('booking.submit')
+          )}
         </Button>
         <button
           type="button"

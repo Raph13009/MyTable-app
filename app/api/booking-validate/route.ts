@@ -139,7 +139,6 @@ export async function POST(request: NextRequest) {
         html: emailTemplates.bookingValidatedToClient(
           `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
           bookingDate,
-          chef?.phone || null,
           baseUrl
         ),
       })
@@ -156,7 +155,6 @@ export async function POST(request: NextRequest) {
             guestsCount,
             childrenCount,
             totalAmount,
-            (bookingRequest as any).phone || null,
             baseUrl
           ),
         })
