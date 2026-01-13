@@ -934,6 +934,7 @@ export default function ChatInterface({
   // Calculer le prix total (utilise guestsCount local si modifié)
   const menuPrice = menuDetails?.price || 0
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
+  const menuTotal = menuPrice * currentGuestsCount
   const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
     menuPrice,
     guestsCount: currentGuestsCount,
