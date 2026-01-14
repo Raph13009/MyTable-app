@@ -1157,20 +1157,31 @@ export default function ChatInterface({
     }))
   }
 
-  // Vérifier si le menu contient au moins un plat
-  const hasMenuItems = Object.values(menuCategories).some(items => Array.isArray(items) && items.length > 0)
-  
-  // Vérifier s'il y a des inputs non ajoutés (validation)
-  const hasUnaddedItems = Object.values(newMenuItems).some(value => value.trim().length > 0)
+  // Vérifier si le menu contient au moins un plat (incluant les items non encore ajoutés)
+  const hasMenuItems = Object.values(menuCategories).some(items => Array.isArray(items) && items.length > 0) ||
+    Object.values(newMenuItems).some(value => value.trim().length > 0)
 
   const handleSaveMenu = async () => {
     if (!bookingRequest?.id || !currentUser) {
       return
     }
 
-    // Validation: ne pas permettre d'enregistrer un menu vide (le bouton est déjà désactivé, mais double vérification)
-    if (!hasMenuItems) {
-      alert('Vous devez ajouter au moins un plat avant d\'enregistrer le menu.')
+    // Ajouter automatiquement tous les éléments remplis dans les inputs
+    let updatedMenuCategories = { ...menuCategories }
+    Object.entries(newMenuItems).forEach(([category, value]) => {
+      const trimmedValue = value.trim()
+      if (trimmedValue) {
+        updatedMenuCategories[category as MenuCategory] = [
+          ...updatedMenuCategories[category as MenuCategory],
+          trimmedValue
+        ]
+      }
+    })
+
+    // Validation: ne pas permettre d'enregistrer un menu vide
+    const hasAnyItems = Object.values(updatedMenuCategories).some(items => Array.isArray(items) && items.length > 0)
+    if (!hasAnyItems) {
+      alert('Vous devez remplir au moins un champ avant d\'enregistrer le menu.')
       return
     }
 
@@ -1179,7 +1190,7 @@ export default function ChatInterface({
     try {
       // Filtrer les catégories vides
       const cleanedMenu: any = {}
-      Object.entries(menuCategories).forEach(([key, items]) => {
+      Object.entries(updatedMenuCategories).forEach(([key, items]) => {
         if (items.length > 0) {
           cleanedMenu[key] = items
         }
@@ -1201,6 +1212,17 @@ export default function ChatInterface({
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors de la sauvegarde')
       }
+
+      // Réinitialiser les inputs après sauvegarde réussie
+      setNewMenuItems({
+        aperitifs: '',
+        mise_en_bouche: '',
+        entree: '',
+        plat: '',
+        dessert: '',
+        mignardises: '',
+      })
+      setMenuCategories(updatedMenuCategories)
 
       // eslint-disable-next-line react/no-unescaped-entities
       // Recharger la page pour afficher le nouveau message
@@ -2917,28 +2939,21 @@ export default function ChatInterface({
                               }
                             }}
                             placeholder={`Ajouter un ${categoryLabels[category].toLowerCase()}...`}
-                            className={`flex-1 px-3 py-2 text-base border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                              newMenuItems[category].trim() && newMenuItems[category].trim().length > 0
-                                ? 'border-amber-300 focus:ring-amber-300/30 focus:border-amber-400'
-                                : 'border-gray-300 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40'
-                            }`}
+                            className="flex-1 px-3 py-2 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 transition-all"
                           />
-                          <button
-                            onClick={() => handleAddMenuItem(category)}
-                            disabled={!newMenuItems[category].trim()}
-                            className="px-3 py-2 text-sm font-medium text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Ajouter
-                          </button>
+                          {newMenuItems[category].trim() && (
+                            <button
+                              onClick={() => handleAddMenuItem(category)}
+                              className="p-1.5 text-gray-400 hover:text-[#FBCF03] hover:bg-[#FBCF03]/10 rounded-lg transition-all"
+                              aria-label="Ajouter"
+                              title="Ajouter cet élément"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
-                        {newMenuItems[category].trim() && newMenuItems[category].trim().length > 0 && (
-                          <p className="text-xs text-amber-600 flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            {t('booking.menuValidationRequired')}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2948,16 +2963,6 @@ export default function ChatInterface({
 
             {/* Footer avec bouton sauvegarder */}
             <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-300 bg-white space-y-2">
-              {!hasMenuItems && hasUnaddedItems && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
-                  <p className="text-xs text-amber-800 flex items-center gap-2">
-                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    <span>Vous devez cliquer sur &apos;Ajouter&apos; pour chaque plat avant d&apos;enregistrer le menu.</span>
-                  </p>
-                </div>
-              )}
               <button
                 onClick={handleSaveMenu}
                 disabled={savingMenu || !hasMenuItems}
