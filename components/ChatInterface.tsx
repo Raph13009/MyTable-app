@@ -1638,13 +1638,13 @@ export default function ChatInterface({
                   )
                 }
                 
-                // Message normal - Chef à gauche en jaune, Client à droite
+                // Message normal - Messages envoyés (isOwn) en blanc à droite, messages reçus en jaune à gauche
                 return (
                   <div
                     key={message.id}
-                    className={`flex mb-3 ${isChefMessage ? 'justify-start' : 'justify-end'}`}
+                    className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isChefMessage ? 'items-start' : 'items-end'}`}>
+                    <div className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                       {/* Nom de l'expéditeur - discret */}
                       <span className="text-[10px] text-gray-400 mb-0.5 px-1.5">
                         {getParticipantName(message.sender_email)}
@@ -1653,14 +1653,15 @@ export default function ChatInterface({
                       {/* Bulle de message */}
                       <div
                         className={`rounded-2xl px-4 py-2.5 ${
-                          isChefMessage
-                            ? 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
-                            : 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
+                          isOwn
+                            ? 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
+                            : 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
                         }`}
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
                         <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${
-                          isChefMessage ? 'text-black font-medium' : 'text-gray-900'
-                        }`}>
+                          isOwn ? 'text-gray-900' : 'text-black font-medium'
+                        }`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }}>
                           {sanitizeMessage(message.content)}
                         </div>
                       </div>
