@@ -1674,6 +1674,28 @@ export default function ChatInterface({
                 data-testid="message-input"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  // Sur mobile : Entrée = nouvelle ligne (comportement par défaut du textarea)
+                  // On empêche le submit du formulaire pour permettre d'aller à la ligne
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    // Empêcher le submit du formulaire pour permettre le retour à la ligne
+                    e.preventDefault()
+                    // Insérer manuellement un retour à la ligne
+                    const textarea = e.target as HTMLTextAreaElement
+                    const start = textarea.selectionStart
+                    const end = textarea.selectionEnd
+                    const value = textarea.value
+                    const newValue = value.substring(0, start) + '\n' + value.substring(end)
+                    setNewMessage(newValue)
+                    // Repositionner le curseur après le retour à la ligne
+                    setTimeout(() => {
+                      textarea.selectionStart = textarea.selectionEnd = start + 1
+                      // Déclencher l'auto-resize
+                      textarea.style.height = 'auto'
+                      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+                    }, 0)
+                  }
+                }}
                 placeholder={t('chat.messagePlaceholder')}
                 disabled={loading}
                 rows={1}
