@@ -1241,18 +1241,8 @@ export default function ChatInterface({
                   <>
                     {t('chat.reservationTitle')}{' '}
                     {bookingRequest.service_type === 'mise_en_demeure' && bookingRequest.selected_dates && Array.isArray(bookingRequest.selected_dates) && bookingRequest.selected_dates.length > 0 ? (
-                      // Pour chef à demeure : afficher toutes les dates sélectionnées
-                      (() => {
-                        const dates = bookingRequest.selected_dates
-                        return dates.map((date: string, index: number) => (
-                          <span key={date}>
-                            {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}
-                            {index < dates.length - 1 && (
-                              index === dates.length - 2 ? ' et ' : ', '
-                            )}
-                          </span>
-                        ))
-                      })()
+                      // Pour chef à demeure : afficher uniquement la première date
+                      formatDateForDisplay(bookingRequest.selected_dates[0], locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })
                     ) : bookingRequest.booking_date ? (
                       // Pour les autres types de service : afficher la date unique
                       formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })
@@ -1486,7 +1476,7 @@ export default function ChatInterface({
                           <p className="text-sm text-gray-700 leading-relaxed">
                             {t('chat.findDetails')} <span className="font-semibold text-gray-900">&quot;{t('booking.seeOffer')}&quot;</span>.
                           </p>
-                          {isChef && (
+                          {isChef && bookingRequest.service_type !== 'cours_cuisine' && (
                             <p className="text-sm text-gray-700 leading-relaxed mt-2">
                               {t('chat.createMenu')}
                             </p>
