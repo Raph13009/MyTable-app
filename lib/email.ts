@@ -529,11 +529,20 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, baseUrl?: string) => {
+  bookingValidatedToChef: (chefName: string, clientName: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, city: string | null, postalCode: string | null, baseUrl?: string) => {
     const childrenText = childrenCount > 0 ? ` (dont ${childrenCount} ${childrenCount === 1 ? 'enfant' : 'enfants'})` : ''
     
     // Utiliser i18n pour le message de validation
     const validationMessage = getValidationMessage(clientName, 'fr')
+    
+    // Construire l'adresse complète
+    const addressParts: string[] = []
+    if (city) addressParts.push(city)
+    if (postalCode) addressParts.push(postalCode)
+    const fullAddress = addressParts.length > 0 ? addressParts.join(' ') : 'Non renseignée'
+    
+    // Construire le lien vers la messagerie
+    const loginUrl = baseUrl ? `${baseUrl}/login` : '/login'
     
     const content = `
       <p>Bonjour ${chefName},</p>
@@ -541,10 +550,11 @@ export const emailTemplates = {
       <p><strong>Détails de la réservation :</strong></p>
       <ul style="list-style: none; padding-left: 0;">
         <li>📅 Date : ${bookingDate}</li>
+        <li>📍 Adresse : ${fullAddress}</li>
         <li>👥 Nombre de convives : ${guestsCount}${childrenText}</li>
         <li>💰 Montant total : ${totalAmount.toFixed(2)} €</li>
       </ul>
-      <p>Le paiement est attendu dans les 48 prochaines heures.</p>
+      <p>Nous reviendrons vers vous par mail afin de vous confirmer le paiement définitif du client. Pendant ce temps, vous pouvez régler les derniers détails avec votre client directement depuis la <a href="${loginUrl}" style="color: #FBCF03; text-decoration: underline;">messagerie MyTable</a>. Nous comptons sur vous pour rendre cet évènement exceptionnel !</p>
     `
     return emailLayout({
       title: 'Réservation validée',

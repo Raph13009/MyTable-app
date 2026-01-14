@@ -155,6 +155,8 @@ export async function POST(request: NextRequest) {
             guestsCount,
             childrenCount,
             totalAmount,
+            (bookingRequest as any).city || null,
+            (bookingRequest as any).postal_code || null,
             baseUrl
           ),
         })
