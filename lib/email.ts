@@ -378,7 +378,6 @@ export const emailTemplates = {
       <div class="email-details">
         <p><strong>Type de prestation :</strong> ${bookingDetails.serviceTypeLabel || 'Réservation'}</p>
         <p><strong>Client :</strong> ${bookingDetails.firstName} ${bookingDetails.lastName}</p>
-        <p><strong>Téléphone :</strong> ${bookingDetails.phone}</p>
         <p><strong>Ville :</strong> ${bookingDetails.city} (${bookingDetails.postalCode})</p>
         <p><strong>Nombre de convives :</strong> ${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}</p>
     `
@@ -398,6 +397,9 @@ export const emailTemplates = {
         detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
       }
     } else if (bookingDetails.serviceType === 'cours_cuisine') {
+      if (bookingDetails.bookingDate) {
+        detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
+      }
       if (bookingDetails.budget) {
         detailsHtml += `<p><strong>Budget global :</strong> ${bookingDetails.budget.toFixed(2)} €</p>`
       }

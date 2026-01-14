@@ -12,34 +12,49 @@
 export function calculateBookingTotal(
   serviceType: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure' | null | undefined,
   options: {
-    menuPrice?: number | null
-    guestsCount?: number | null
-    budget?: number | null
-    totalPrice?: number | null
-    extras?: Array<{ name: string; price: number }> | null
+    menuPrice?: number | string | null
+    guestsCount?: number | string | null
+    budget?: number | string | null
+    totalPrice?: number | string | null
+    extras?: Array<{ name: string; price: number | string }> | null
   }
 ): number {
-  const { menuPrice = 0, guestsCount = 0, budget = 0, totalPrice = 0, extras = [] } = options
+  const normalizeNumber = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return 0
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value)
+      return isNaN(parsed) ? 0 : parsed
+    }
+    return value
+  }
+
+  const {
+    menuPrice = 0,
+    guestsCount = 0,
+    budget = 0,
+    totalPrice = 0,
+    extras = [],
+  } = options
 
   // Calculer le total des extras
-  const extrasTotal = (extras || []).reduce((sum, extra) => sum + (extra.price || 0), 0)
+  const extrasTotal = (extras || []).reduce((sum, extra) => sum + normalizeNumber(extra?.price), 0)
 
   // Calculer le total selon le type de service
   switch (serviceType) {
     case 'repas_domicile':
       // Repas à domicile : nb convives * prix menu + extras
-      const safeMenuPrice = menuPrice || 0
-      const safeGuestsCount = guestsCount || 0
+      const safeMenuPrice = normalizeNumber(menuPrice)
+      const safeGuestsCount = normalizeNumber(guestsCount)
       return (safeMenuPrice * safeGuestsCount) + extrasTotal
 
     case 'cours_cuisine':
       // Cours de cuisine : budget global + extras
-      const safeBudget = budget || 0
+      const safeBudget = normalizeNumber(budget)
       return safeBudget + extrasTotal
 
     case 'mise_en_demeure':
       // Chef à demeure : budget global (total_price) + extras
-      const safeTotalPrice = totalPrice || 0
+      const safeTotalPrice = normalizeNumber(totalPrice)
       return safeTotalPrice + extrasTotal
 
     default:

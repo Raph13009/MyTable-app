@@ -60,7 +60,7 @@ export default async function DashboardPage() {
   // Récupérer TOUS les booking_requests et filtrer côté serveur pour éviter les problèmes de casse
   const { data: allBookingRequests, error: brError } = await supabaseAdmin
     .from('booking_requests')
-    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, children_count, email, service_type, period_days, meal_time, menu_content')
+    .select('conversation_id, id, status, first_name, last_name, booking_date, city, guests_count, children_count, email, service_type, period_days, meal_time, menu_content, budget, total_price, extras')
   
   console.log('[Dashboard] All booking requests in DB:', allBookingRequests?.length || 0)
   console.log('[Dashboard] Sample booking requests (first 5):', allBookingRequests?.slice(0, 5).map((br: any) => ({
@@ -258,7 +258,10 @@ export default async function DashboardPage() {
           children_count,
           service_type,
           period_days,
-          meal_time
+          meal_time,
+          budget,
+          total_price,
+          extras
         )
       `)
       .in('id', allConversationIds)
@@ -284,7 +287,7 @@ export default async function DashboardPage() {
           conversations.map(async (conv: any) => {
             const { data: bookingReqs } = await supabaseAdmin
               .from('booking_requests')
-              .select('id, status, first_name, last_name, booking_date, city, guests_count, children_count, menu_id, chef_id, extras, service_type, period_days, meal_time')
+              .select('id, status, first_name, last_name, booking_date, city, guests_count, children_count, menu_id, chef_id, extras, service_type, period_days, meal_time, budget, total_price')
               .eq('conversation_id', conv.id)
             
             return {

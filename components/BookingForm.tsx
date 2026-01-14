@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/Button'
@@ -28,6 +28,163 @@ interface BookingFormProps {
   menus: Menu[]
 }
 
+type DatePickerMultiProps = {
+  selectedDates: string[]
+  onDatesChange: (dates: string[]) => void
+  minDate: string
+  locale: string
+}
+
+// Définir le sélecteur multi-dates en dehors de BookingForm pour éviter de réinitialiser le mois affiché à chaque render
+const DatePickerMulti = ({ selectedDates, onDatesChange, minDate, locale }: DatePickerMultiProps) => {
+  const [viewYear, setViewYear] = useState(new Date().getFullYear())
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth())
+
+  const toggleDate = (date: Date) => {
+    const dateStr = getLocalDateString(date)
+    if (selectedDates.includes(dateStr)) {
+      onDatesChange(selectedDates.filter(d => d !== dateStr))
+    } else {
+      onDatesChange([...selectedDates, dateStr].sort())
+    }
+  }
+
+  const isDateSelected = (date: Date) => {
+    const dateStr = getLocalDateString(date)
+    return selectedDates.includes(dateStr)
+  }
+
+  const isDateDisabled = (date: Date) => {
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    const checkDate = new Date(date)
+    checkDate.setHours(0, 0, 0, 0)
+    return checkDate < min
+  }
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate()
+  }
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay()
+  }
+
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth)
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
+  const days = []
+
+  // Jours du mois précédent (pour remplir la première semaine)
+  for (let i = firstDay - 1; i >= 0; i--) {
+    days.push(null)
+  }
+
+  // Jours du mois actuel
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(viewYear, viewMonth, day)
+    days.push(date)
+  }
+
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+  const goToPreviousMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11)
+      setViewYear(viewYear - 1)
+    } else {
+      setViewMonth(viewMonth - 1)
+    }
+  }
+
+  const goToNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0)
+      setViewYear(viewYear + 1)
+    } else {
+      setViewMonth(viewMonth + 1)
+    }
+  }
+
+  return (
+    <div className="border-2 border-gray-200 rounded-lg p-4 bg-white">
+      <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={goToPreviousMonth}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h3 className="text-lg font-semibold text-black">
+          {monthNames[viewMonth]} {viewYear}
+        </h3>
+        <button
+          type="button"
+          onClick={goToNextMonth}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {dayNames.map(day => (
+          <div key={day} className="text-center text-xs font-medium text-gray-600 py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((date, index) => {
+          if (!date) {
+            return <div key={`empty-${index}`} className="aspect-square" />
+          }
+          const isSelected = isDateSelected(date)
+          const isDisabled = isDateDisabled(date)
+          return (
+            <button
+              key={getLocalDateString(date)}
+              type="button"
+              onClick={() => !isDisabled && toggleDate(date)}
+              disabled={isDisabled}
+              className={`
+                aspect-square rounded-lg text-sm font-medium transition-all
+                ${isSelected 
+                  ? 'bg-[#FBCF03] text-black font-semibold' 
+                  : isDisabled
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-black hover:bg-gray-100'
+                }
+              `}
+            >
+              {date.getDate()}
+            </button>
+          )
+        })}
+      </div>
+      {selectedDates.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-600 mb-2">Dates sélectionnées ({selectedDates.length}) :</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedDates.map(date => (
+              <span
+                key={date}
+                className="px-2 py-1 bg-[#FBCF03] text-black text-xs rounded-full font-medium"
+              >
+                {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function BookingForm({ chef, menus }: BookingFormProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -40,6 +197,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const [submissionError, setSubmissionError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [idempotencyToken, setIdempotencyToken] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [showGlobalError, setShowGlobalError] = useState(false)
+  const globalErrorRef = useRef<HTMLDivElement>(null)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -156,6 +315,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         return newErrors
       })
     }
+    
+    // Masquer l'erreur globale si l'utilisateur modifie un champ
+    if (showGlobalError) {
+      setShowGlobalError(false)
+    }
   }
 
   // Calculer la date minimum (J+3)
@@ -268,8 +432,16 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     e.preventDefault()
 
     if (!validatePage2()) {
+      // Afficher le message d'erreur global et faire défiler vers lui
+      setShowGlobalError(true)
+      setTimeout(() => {
+        globalErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
       return
     }
+
+    // Masquer l'erreur globale si la validation passe
+    setShowGlobalError(false)
 
     // Générer un token d'idempotence si première soumission
     if (!isRetry && !idempotencyToken) {
@@ -433,166 +605,6 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     if (diffDays <= 2) return '1-2'
     if (diffDays === 3) return '3'
     return '4+'
-  }
-
-  // Composant DatePickerMulti pour sélectionner plusieurs dates
-  const DatePickerMulti = ({ 
-    selectedDates, 
-    onDatesChange, 
-    minDate 
-  }: { 
-    selectedDates: string[]
-    onDatesChange: (dates: string[]) => void
-    minDate: string
-  }) => {
-    const [currentMonth, setCurrentMonth] = useState(new Date())
-    const [viewYear, setViewYear] = useState(new Date().getFullYear())
-    const [viewMonth, setViewMonth] = useState(new Date().getMonth())
-
-    const toggleDate = (date: Date) => {
-      const dateStr = getLocalDateString(date)
-      if (selectedDates.includes(dateStr)) {
-        onDatesChange(selectedDates.filter(d => d !== dateStr))
-      } else {
-        onDatesChange([...selectedDates, dateStr].sort())
-      }
-    }
-
-    const isDateSelected = (date: Date) => {
-      const dateStr = getLocalDateString(date)
-      return selectedDates.includes(dateStr)
-    }
-
-    const isDateDisabled = (date: Date) => {
-      const min = new Date(minDate)
-      min.setHours(0, 0, 0, 0)
-      const checkDate = new Date(date)
-      checkDate.setHours(0, 0, 0, 0)
-      return checkDate < min
-    }
-
-    const getDaysInMonth = (year: number, month: number) => {
-      return new Date(year, month + 1, 0).getDate()
-    }
-
-    const getFirstDayOfMonth = (year: number, month: number) => {
-      return new Date(year, month, 1).getDay()
-    }
-
-    const daysInMonth = getDaysInMonth(viewYear, viewMonth)
-    const firstDay = getFirstDayOfMonth(viewYear, viewMonth)
-    const days = []
-
-    // Jours du mois précédent (pour remplir la première semaine)
-    const prevMonthDays = getDaysInMonth(viewYear, viewMonth - 1)
-    for (let i = firstDay - 1; i >= 0; i--) {
-      days.push(null)
-    }
-
-    // Jours du mois actuel
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(viewYear, viewMonth, day)
-      days.push(date)
-    }
-
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-    const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-
-    const goToPreviousMonth = () => {
-      if (viewMonth === 0) {
-        setViewMonth(11)
-        setViewYear(viewYear - 1)
-      } else {
-        setViewMonth(viewMonth - 1)
-      }
-    }
-
-    const goToNextMonth = () => {
-      if (viewMonth === 11) {
-        setViewMonth(0)
-        setViewYear(viewYear + 1)
-      } else {
-        setViewMonth(viewMonth + 1)
-      }
-    }
-
-    return (
-      <div className="border-2 border-gray-200 rounded-lg p-4 bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            type="button"
-            onClick={goToPreviousMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 className="text-lg font-semibold text-black">
-            {monthNames[viewMonth]} {viewYear}
-          </h3>
-          <button
-            type="button"
-            onClick={goToNextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {dayNames.map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-600 py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((date, index) => {
-            if (!date) {
-              return <div key={`empty-${index}`} className="aspect-square" />
-            }
-            const isSelected = isDateSelected(date)
-            const isDisabled = isDateDisabled(date)
-            return (
-              <button
-                key={getLocalDateString(date)}
-                type="button"
-                onClick={() => !isDisabled && toggleDate(date)}
-                disabled={isDisabled}
-                className={`
-                  aspect-square rounded-lg text-sm font-medium transition-all
-                  ${isSelected 
-                    ? 'bg-[#FBCF03] text-black font-semibold' 
-                    : isDisabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-black hover:bg-gray-100'
-                  }
-                `}
-              >
-                {date.getDate()}
-              </button>
-            )
-          })}
-        </div>
-        {selectedDates.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-600 mb-2">Dates sélectionnées ({selectedDates.length}) :</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedDates.map(date => (
-                <span
-                  key={date}
-                  className="px-2 py-1 bg-[#FBCF03] text-black text-xs rounded-full font-medium"
-                >
-                  {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
   }
 
   const serviceTypeOptions = [
@@ -829,6 +841,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                   min={getMinDate()}
                   required
                   className="w-full min-w-0 max-w-full"
+                  autoComplete="off"
                 />
               </div>
               <Select
@@ -941,6 +954,9 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 min="0"
                 max={formData.guestsCount}
                 placeholder="0"
+                autoComplete="off"
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
               <p className="mt-1 text-xs text-gray-500">
                 Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
@@ -955,6 +971,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.city}
                 required
+                autoComplete="address-level2"
+                inputMode="text"
               />
               <Input
                 label="Code postal *"
@@ -963,6 +981,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                 onChange={handleChange}
                 error={errors.postalCode}
                 required
+                autoComplete="postal-code"
+                inputMode="numeric"
               />
             </div>
 
@@ -986,6 +1006,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
                   })
                 }}
                 minDate={getMinDate()}
+                locale={locale}
               />
               {errors.selectedDates && (
                 <p className="mt-1 text-sm text-red-500">{errors.selectedDates}</p>
@@ -1214,6 +1235,11 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             t('booking.submit')
           )}
         </Button>
+        {showGlobalError && (
+          <div ref={globalErrorRef} className="w-full sm:w-auto bg-red-50 border-2 border-red-500 rounded-lg p-4 mt-2">
+            <p className="text-red-500 text-center font-medium">{t('booking.errors.missingRequiredFields')}</p>
+          </div>
+        )}
         <button
           type="button"
           onClick={handleBack}
