@@ -2078,7 +2078,7 @@ export default function ChatInterface({
                         value={newExtraName}
                         onChange={(e) => setNewExtraName(e.target.value)}
                         placeholder="Nom de l&apos;extra"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-sm transition-all duration-150"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-base transition-all duration-150"
                         disabled={savingExtras}
                       />
                       <input
@@ -2088,7 +2088,7 @@ export default function ChatInterface({
                         placeholder={t('booking.extraPrice')}
                         step="0.01"
                         min="0"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-sm transition-all duration-150"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-base transition-all duration-150"
                         disabled={savingExtras}
                       />
                     </div>
@@ -2559,9 +2559,9 @@ export default function ChatInterface({
                           <div className="relative flex-shrink-0">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                               isStep2Complete
-                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10'
                                 : currentStep === 2
-                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20 scale-105'
+                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20'
                                 : 'bg-gray-100 border-2 border-gray-300'
                             }`}>
                               {isStep2Complete ? (
@@ -2628,9 +2628,9 @@ export default function ChatInterface({
                           <div className="relative flex-shrink-0">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                               isStep3Complete
-                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10'
                                 : isStep3Active
-                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20 scale-105'
+                                ? 'bg-white border-2 border-[#FBCF03] shadow-md shadow-[#FBCF03]/20 ring-2 ring-[#FBCF03]/20'
                                 : 'bg-gray-100 border-2 border-gray-300'
                             }`}>
                               {isStep3Complete ? (
@@ -2702,7 +2702,7 @@ export default function ChatInterface({
                           <div className="relative flex-shrink-0">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                               isStep4Complete
-                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10 scale-105'
+                                ? 'bg-[#FBCF03] shadow-lg shadow-[#FBCF03]/30 ring-4 ring-[#FBCF03]/10'
                                 : 'bg-gray-100 border-2 border-gray-300'
                             }`}>
                               {isStep4Complete ? (
@@ -2831,7 +2831,7 @@ export default function ChatInterface({
                               }
                             }}
                             placeholder={`Ajouter un ${categoryLabels[category].toLowerCase()}...`}
-                            className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                            className={`flex-1 px-3 py-2 text-base border rounded-lg focus:outline-none focus:ring-2 transition-all ${
                               newMenuItems[category].trim() && newMenuItems[category].trim().length > 0
                                 ? 'border-amber-300 focus:ring-amber-300/30 focus:border-amber-400'
                                 : 'border-gray-300 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40'
