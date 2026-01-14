@@ -1425,11 +1425,34 @@ export default function ChatInterface({
                           <p className="text-sm sm:text-base text-gray-900 font-medium leading-relaxed">
                             {t('chat.communicationSpace')}{' '}
                             <span className="font-semibold text-gray-900">
-                              {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })}
+                              {(() => {
+                                // Pour chef à demeure : afficher toutes les dates sélectionnées
+                                if (bookingRequest.service_type === 'mise_en_demeure' && bookingRequest.selected_dates && Array.isArray(bookingRequest.selected_dates) && bookingRequest.selected_dates.length > 0) {
+                                  const dates = bookingRequest.selected_dates
+                                  return dates.map((date: string, index: number) => (
+                                    <span key={date}>
+                                      {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric',
+                                      })}
+                                      {index < dates.length - 1 && (
+                                        index === dates.length - 2 ? ' et ' : ', '
+                                      )}
+                                    </span>
+                                  ))
+                                }
+                                // Pour les autres types de service : afficher la date unique
+                                if (bookingRequest.booking_date) {
+                                  return formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                  })
+                                }
+                                // Fallback si aucune date n'est disponible
+                                return ''
+                              })()}
                             </span>
                             .
                           </p>
