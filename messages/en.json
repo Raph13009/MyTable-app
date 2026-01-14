@@ -191,6 +191,7 @@
   "chat": {
     "typeMessage": "Type a message...",
     "enterNewLine": "(press Enter to go to a new line)",
+    "messagePlaceholder": "Message",
     "send": "Send",
     "noMessagesYet": "No messages yet",
     "menuDefined": "Menu defined",

@@ -191,6 +191,7 @@
   "chat": {
     "typeMessage": "Tapez un message...",
     "enterNewLine": "(appuyez sur Entrée pour aller à la ligne)",
+    "messagePlaceholder": "Message",
     "send": "Envoyer",
     "noMessagesYet": "Aucun message pour le moment",
     "menuDefined": "Menu défini",
