@@ -1237,7 +1237,32 @@ export default function ChatInterface({
           <div className="mb-2.5">
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-base sm:text-lg font-semibold text-gray-900">
-                {bookingRequest ? `${t('chat.reservationTitle')} ${formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}` : t('chat.conversation')}
+                {bookingRequest ? (
+                  <>
+                    {t('chat.reservationTitle')}{' '}
+                    {bookingRequest.service_type === 'mise_en_demeure' && bookingRequest.selected_dates && Array.isArray(bookingRequest.selected_dates) && bookingRequest.selected_dates.length > 0 ? (
+                      // Pour chef à demeure : afficher toutes les dates sélectionnées
+                      (() => {
+                        const dates = bookingRequest.selected_dates
+                        return dates.map((date: string, index: number) => (
+                          <span key={date}>
+                            {formatDateForDisplay(date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })}
+                            {index < dates.length - 1 && (
+                              index === dates.length - 2 ? ' et ' : ', '
+                            )}
+                          </span>
+                        ))
+                      })()
+                    ) : bookingRequest.booking_date ? (
+                      // Pour les autres types de service : afficher la date unique
+                      formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long' })
+                    ) : (
+                      ''
+                    )}
+                  </>
+                ) : (
+                  t('chat.conversation')
+                )}
               </h1>
               {bookingStatus && bookingStatus === 'accepted' && (
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FBCF03]"></span>
