@@ -529,6 +529,8 @@ export default async function DashboardPage() {
           menuPrice,
           extras,
           totalPrice,
+          budget: bookingRequest.budget, // Inclure budget pour cours_cuisine
+          total_price: bookingRequest.total_price, // Inclure total_price pour mise_en_demeure
           service_type: bookingRequest.service_type,
           period_days: bookingRequest.period_days,
         } : null,

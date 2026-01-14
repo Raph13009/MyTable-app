@@ -27,6 +27,8 @@ interface Conversation {
     menuPrice?: number | null
     extras?: Array<{ name: string; price: number }>
     totalPrice?: number
+    budget?: number | string | null // Pour cours_cuisine
+    total_price?: number | string | null // Pour mise_en_demeure
     service_type?: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
     period_days?: string | null
     meal_time?: 'dejeuner' | 'diner' | null
@@ -414,13 +416,32 @@ export default function ConversationsList({ conversations, currentUser, particip
                           </div>
                           
                           {/* Colonne droite: Prix - Desktop: aligné à droite, plus visible */}
-                          {conversation.bookingRequest?.totalPrice !== undefined && conversation.bookingRequest.totalPrice > 0 && (
-                            <div className="flex-shrink-0 lg:flex lg:flex-col lg:items-end lg:justify-center">
-                              <p className="text-xs lg:text-sm font-semibold text-gray-900 whitespace-nowrap">
-                                {conversation.bookingRequest.totalPrice.toFixed(0)} €
-                              </p>
-                            </div>
-                          )}
+                          {(() => {
+                            // Calculer ou récupérer le prix selon le type de service
+                            let displayPrice: number | null = null
+                            
+                            if (conversation.bookingRequest?.totalPrice !== undefined && conversation.bookingRequest.totalPrice !== null) {
+                              displayPrice = conversation.bookingRequest.totalPrice
+                            } else if (conversation.bookingRequest?.service_type === 'cours_cuisine' && conversation.bookingRequest?.budget !== undefined && conversation.bookingRequest.budget !== null) {
+                              // Pour cours de cuisine, utiliser le budget
+                              displayPrice = typeof conversation.bookingRequest.budget === 'number' 
+                                ? conversation.bookingRequest.budget 
+                                : parseFloat(conversation.bookingRequest.budget) || 0
+                            } else if (conversation.bookingRequest?.service_type === 'mise_en_demeure' && conversation.bookingRequest?.total_price !== undefined && conversation.bookingRequest.total_price !== null) {
+                              // Pour chef à demeure, utiliser total_price
+                              displayPrice = typeof conversation.bookingRequest.total_price === 'number'
+                                ? conversation.bookingRequest.total_price
+                                : parseFloat(conversation.bookingRequest.total_price) || 0
+                            }
+                            
+                            return displayPrice !== null && displayPrice >= 0 ? (
+                              <div className="flex-shrink-0 lg:flex lg:flex-col lg:items-end lg:justify-center">
+                                <p className="text-xs lg:text-sm font-semibold text-gray-900 whitespace-nowrap">
+                                  {displayPrice.toFixed(0)} €
+                                </p>
+                              </div>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                     </button>
