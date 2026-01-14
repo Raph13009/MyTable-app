@@ -179,33 +179,43 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .maybeSingle()
 
+      type ExistingBooking = {
+        id: string
+        conversation_id: string | null
+        status: string
+        created_at: string
+        booking_date: string | null
+      } | null
+
+      const typedExistingBooking = existingBooking as ExistingBooking
+
       console.log(`[bookings:${requestId}] Idempotency check result:`, {
-        found: !!existingBooking,
-        bookingId: existingBooking?.id,
-        age: existingBooking ? Date.now() - new Date(existingBooking.created_at).getTime() : null,
+        found: !!typedExistingBooking,
+        bookingId: typedExistingBooking?.id,
+        age: typedExistingBooking ? Date.now() - new Date(typedExistingBooking.created_at).getTime() : null,
       })
 
       if (checkError) {
         console.error(`[bookings:${requestId}] Error checking idempotency:`, checkError)
-      } else if (existingBooking) {
+      } else if (typedExistingBooking) {
         // Vérifier si la réservation a été créée récemment (dans les 5 dernières minutes)
-        const bookingAge = Date.now() - new Date(existingBooking.created_at).getTime()
+        const bookingAge = Date.now() - new Date(typedExistingBooking.created_at).getTime()
         const fiveMinutes = 5 * 60 * 1000
         
         if (bookingAge < fiveMinutes) {
           console.log(`[bookings:${requestId}] Duplicate booking detected (idempotency)`, {
-            existingBookingId: existingBooking.id,
+            existingBookingId: typedExistingBooking.id,
             age: bookingAge,
-            conversationId: existingBooking.conversation_id,
+            conversationId: typedExistingBooking.conversation_id,
             serviceType,
-            bookingDate: existingBooking.booking_date,
+            bookingDate: typedExistingBooking.booking_date,
           })
           
           // Retourner le même résultat que si la création avait réussi
           return NextResponse.json({
             success: true,
-            bookingRequestId: existingBooking.id,
-            conversationId: existingBooking.conversation_id,
+            bookingRequestId: typedExistingBooking.id,
+            conversationId: typedExistingBooking.conversation_id,
             isDuplicate: true,
           })
         }
