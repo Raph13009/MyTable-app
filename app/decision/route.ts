@@ -156,11 +156,43 @@ export async function GET(request: NextRequest) {
       const redirectUrlForClient = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
       const redirectUrlForChef = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
 
+      // ============================================
+      // PHASE 1: Send informational email to CLIENT first
+      // ============================================
+      // Extraire prénom et nom du chef
+      const chefFullName = chef ? (chef as any).name : 'Chef'
+      const chefNameParts = chefFullName.split(' ')
+      const chefFirstName = chefNameParts[0] || chefFullName
+      const chefLastName = chefNameParts.slice(1).join(' ') || ''
+      
+      console.log('[decision] Sending informational email to CLIENT via Resend...')
+      await sendEmail({
+        to: bookingRequest.email,
+        subject: emailSubjects.bookingAcceptedToClient,
+        html: emailTemplates.bookingAcceptedToClient(
+          `${bookingRequest.first_name} ${bookingRequest.last_name}`,
+          chefFirstName,
+          chefLastName,
+          chatUrl,
+          baseUrl
+        ),
+      })
+      console.log('[decision] ✅ Informational email sent to client via Resend')
+
+      // ============================================
+      // PHASE 2: Wait 15 seconds before sending magic link
+      // ============================================
+      console.log('[decision] Waiting 15 seconds before sending magic link...')
+      await new Promise(resolve => setTimeout(resolve, 15000))
+      console.log('[decision] ✅ 15 seconds elapsed, now sending magic link')
+
+      // ============================================
+      // PHASE 3: Send magic link to CLIENT via Supabase Auth
+      // ============================================
       console.log('[decision] ========== SENDING MAGIC LINKS ==========')
       console.log('[decision] Client email:', clientEmail)
       console.log('[decision] Client redirect URL:', redirectUrlForClient)
       
-      // Send magic link to CLIENT via Supabase Auth
       // Security: Client already exists (created during booking submission)
       // Redirect URL: /auth/callback?next=/dashboard (secure, goes through callback handler)
       console.log('[decision] Sending magic link to CLIENT via Supabase Auth...')
@@ -194,27 +226,6 @@ export async function GET(request: NextRequest) {
       } else {
         console.log('[decision] ✅ Magic link sent to client via Supabase Auth')
       }
-
-      // Send informational email to CLIENT via Resend (transactional, no auth responsibility)
-      // Extraire prénom et nom du chef
-      const chefFullName = chef ? (chef as any).name : 'Chef'
-      const chefNameParts = chefFullName.split(' ')
-      const chefFirstName = chefNameParts[0] || chefFullName
-      const chefLastName = chefNameParts.slice(1).join(' ') || ''
-      
-      console.log('[decision] Sending informational email to CLIENT via Resend...')
-      await sendEmail({
-        to: bookingRequest.email,
-        subject: emailSubjects.bookingAcceptedToClient,
-        html: emailTemplates.bookingAcceptedToClient(
-          `${bookingRequest.first_name} ${bookingRequest.last_name}`,
-          chefFirstName,
-          chefLastName,
-          chatUrl,
-          baseUrl
-        ),
-      })
-      console.log('[decision] ✅ Informational email sent to client via Resend')
 
       // Send magic link to CHEF via Supabase Auth
       if (chef) {

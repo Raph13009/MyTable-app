@@ -180,7 +180,8 @@
       "allergiesDetailsRequired": "Veuillez préciser les allergies",
       "guestsCountMin": "Le nombre de convives doit être au moins 1",
       "childrenCountMax": "Le nombre d'enfants ne peut pas être supérieur au nombre total de convives",
-      "termsRequired": "Vous devez accepter les termes et conditions"
+      "termsRequired": "Vous devez accepter les termes et conditions",
+      "missingRequiredFields": "Certains champs obligatoires sont manquants."
     },
     "validation": {
       "clientValidated": "Le client {{clientName}} a validé la réservation",

@@ -180,7 +180,8 @@
       "allergiesDetailsRequired": "Please specify the allergies",
       "guestsCountMin": "The number of guests must be at least 1",
       "childrenCountMax": "The number of children cannot exceed the total number of guests",
-      "termsRequired": "You must accept the terms and conditions"
+      "termsRequired": "You must accept the terms and conditions",
+      "missingRequiredFields": "Some required fields are missing."
     },
     "validation": {
       "clientValidated": "The client {{clientName}} has validated the reservation",

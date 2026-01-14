@@ -143,6 +143,7 @@ export default function ChatInterface({
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [duplicateMessages, setDuplicateMessages] = useState<Set<string>>(new Set())
   const [isInitializing, setIsInitializing] = useState(true)
   const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
@@ -283,9 +284,48 @@ export default function ChatInterface({
             content: sanitizeMessage(newMessage.content || '')
           }
           setMessages((prev) => {
-            // Vérifier si le message existe déjà (éviter doublons)
-            const exists = prev.some(m => m.id === sanitizedNewMessage.id)
-            if (exists) return prev
+            // Vérifier si le message existe déjà par ID (éviter doublons)
+            const existsById = prev.some(m => m.id === sanitizedNewMessage.id)
+            if (existsById) {
+              console.log('[ChatInterface] Duplicate message detected by ID:', sanitizedNewMessage.id)
+              setDuplicateMessages(prev => new Set(prev).add(sanitizedNewMessage.id))
+              return prev
+            }
+            
+            // Vérifier si un message avec le même contenu et expéditeur existe dans les 2 dernières secondes
+            const now = Date.now()
+            const messageTime = new Date(sanitizedNewMessage.created_at).getTime()
+            const duplicateByContent = prev.find(m => {
+              if (m.id.startsWith('temp-')) return false // Ignorer les messages optimistes
+              const mTime = new Date(m.created_at).getTime()
+              const timeDiff = Math.abs(messageTime - mTime)
+              return (
+                m.content === sanitizedNewMessage.content &&
+                m.sender_email === sanitizedNewMessage.sender_email &&
+                timeDiff < 2000 // 2 secondes
+              )
+            })
+            
+            if (duplicateByContent) {
+              console.log('[ChatInterface] Duplicate message detected by content and timestamp:', {
+                existingId: duplicateByContent.id,
+                newId: sanitizedNewMessage.id,
+                content: sanitizedNewMessage.content.substring(0, 50),
+              })
+              setDuplicateMessages(prev => new Set(prev).add(sanitizedNewMessage.id))
+              // Créer un message système pour informer l'utilisateur
+              const duplicateSystemMessage: Message = {
+                id: `duplicate-${sanitizedNewMessage.id}`,
+                conversation_id: conversationId,
+                sender_email: 'system@mytable.fr',
+                content: '⚠️ Message dupliqué détecté et ignoré',
+                created_at: new Date().toISOString(),
+              }
+              const updated = [...prev, duplicateSystemMessage]
+              return updated.sort((a, b) => 
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )
+            }
             
             // Retirer le message optimiste correspondant (même contenu)
             const withoutOptimistic = prev.filter(m => 
@@ -949,9 +989,12 @@ export default function ChatInterface({
     return (
       content.startsWith('✨') || 
       content.startsWith('🗑️') || 
+      content.startsWith('⚠️') ||
       lowerContent.includes('réservation a été validée') ||
       lowerContent.includes('réservation a été annulée') ||
-      lowerContent.includes('la réservation')
+      lowerContent.includes('la réservation') ||
+      lowerContent.includes('message dupliqué') ||
+      lowerContent.includes('dupliqué détecté')
     )
   }
 
@@ -1475,6 +1518,11 @@ export default function ChatInterface({
                     bgColor = 'bg-[#FBCF03]'
                     textColor = 'text-black'
                     borderColor = 'border-[#FBCF03]'
+                  } else if (message.content.toLowerCase().includes('dupliqué') || message.content.startsWith('⚠️')) {
+                    icon = '⚠️'
+                    bgColor = 'bg-amber-50'
+                    textColor = 'text-amber-800'
+                    borderColor = 'border-amber-300'
                   }
                   
                   const contentWithoutIcon = message.content.replace(/^[✨🗑️✅❌ℹ️📋]+\s*/, '')
