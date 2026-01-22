@@ -26,8 +26,6 @@ export default function BookingConfirmationPage() {
         </h1>
         <p className="text-gray-600 mb-6">
           Votre demande de réservation a été envoyée avec succès.
-          <br />
-          Un email de confirmation vous a été envoyé.
         </p>
         <p className="text-gray-600 mb-8">
           Le chef va examiner votre demande et vous recevrez une réponse par email sous peu.

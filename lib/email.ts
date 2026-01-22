@@ -359,7 +359,6 @@ export const emailTemplates = {
     const content = `
       <p>Bonjour ${clientName},</p>
       <p>Votre demande de réservation a été transmise au Chef avec succès.</p>
-      <p>Un email de confirmation vous a été envoyé.</p>
       <p>Le Chef va examiner votre demande et vous recevrez une réponse par mail sous 24h.</p>
       <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
         <strong>Merci de votre confiance auprès du Guide MyTable !</strong>
