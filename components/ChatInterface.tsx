@@ -264,6 +264,43 @@ export default function ChatInterface({
     scrollToBottom()
   }, [messages])
 
+  // Gérer le scroll quand le clavier s'ouvre sur mobile
+  useEffect(() => {
+    if (typeof window === 'undefined' || isDesktop) return
+
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        // Attendre que le clavier s'ouvre
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            // Permettre le scroll en forçant un recalcul
+            messagesContainerRef.current.style.overflowY = 'auto'
+            // Scroll vers le bas pour voir le nouveau message
+            scrollToBottom()
+          }
+        }, 300)
+      }
+    }
+
+    const handleBlur = () => {
+      // Réinitialiser après la fermeture du clavier
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.style.overflowY = 'auto'
+        }
+      }, 300)
+    }
+
+    document.addEventListener('focusin', handleFocus)
+    document.addEventListener('focusout', handleBlur)
+
+    return () => {
+      document.removeEventListener('focusin', handleFocus)
+      document.removeEventListener('focusout', handleBlur)
+    }
+  }, [isDesktop])
+
   useEffect(() => {
     // Abonnement aux nouveaux messages en temps réel
     const channel = supabase
@@ -1256,7 +1293,20 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-white">
+    <div 
+      className="fixed inset-0 flex flex-col bg-white"
+      style={{
+        height: '100vh',
+        height: '100dvh', // Dynamic viewport height pour mobile avec clavier
+        // Permettre le scroll même avec le clavier ouvert
+        overflow: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+    >
       {/* Animation de chargement initial */}
       {isInitializing && <LoadingAnimation message={t('common.loading')} />}
       
@@ -1456,6 +1506,11 @@ export default function ChatInterface({
         style={{
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-y',
+          // Permettre le scroll même quand le clavier est ouvert sur mobile
+          WebkitTransform: 'translateZ(0)',
+          transform: 'translateZ(0)',
+          // Force le hardware acceleration pour un meilleur scroll
+          willChange: 'scroll-position',
         }}
       >
         <div className="px-4 py-4 sm:px-6 sm:py-5 min-h-full flex flex-col justify-end">
@@ -1769,6 +1824,21 @@ export default function ChatInterface({
                       textarea.style.height = 'auto'
                       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
                     }, 0)
+                  }
+                }}
+                onFocus={(e) => {
+                  // Permettre le scroll du chat quand le clavier s'ouvre
+                  if (messagesContainerRef.current) {
+                    // Attendre que le clavier s'ouvre
+                    setTimeout(() => {
+                      if (messagesContainerRef.current) {
+                        // Forcer le scroll à être actif
+                        messagesContainerRef.current.style.overflowY = 'auto'
+                        messagesContainerRef.current.style.webkitOverflowScrolling = 'touch'
+                        // Scroll vers le bas pour voir les derniers messages
+                        scrollToBottom()
+                      }
+                    }, 300)
                   }
                 }}
                 placeholder={t('chat.messagePlaceholder')}

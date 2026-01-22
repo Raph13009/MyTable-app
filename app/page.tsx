@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 
-function MessageBanner({ searchParams }: { searchParams: { error?: string; message?: string } }) {
+function MessageBanner({ searchParams }: { searchParams: { error?: string; message?: string; details?: string } }) {
   if (searchParams.error) {
     const errorMessages: Record<string, string> = {
       invalid_params: 'Paramètres invalides',
@@ -13,12 +13,20 @@ function MessageBanner({ searchParams }: { searchParams: { error?: string; messa
       action_mismatch: 'Action non correspondante',
       update_failed: 'Erreur lors de la mise à jour',
       server_error: 'Erreur serveur',
+      no_conversation_id: 'Erreur: aucune conversation trouvée',
+      magic_link_failed: 'Erreur lors de l\'envoi du lien de connexion',
     }
+    const errorMessage = searchParams.message || errorMessages[searchParams.error] || 'Une erreur est survenue'
     return (
       <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-6 max-w-4xl mx-auto">
         <p className="text-red-700 font-medium">
-          {errorMessages[searchParams.error] || 'Une erreur est survenue'}
+          {errorMessage}
         </p>
+        {searchParams.details && (
+          <p className="text-red-600 text-sm mt-2">
+            {searchParams.details}
+          </p>
+        )}
       </div>
     )
   }

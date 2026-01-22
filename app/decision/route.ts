@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
     const action = searchParams.get('action')
 
     if (!token || !action || (action !== 'accept' && action !== 'refuse')) {
-      return NextResponse.redirect(new URL('/?error=invalid_params', request.url))
+      const errorUrl = new URL('/?error=invalid_params', request.url)
+      errorUrl.searchParams.set('message', 'Paramètres invalides dans le lien')
+      return NextResponse.redirect(errorUrl)
     }
 
     // Utiliser le client admin pour bypass RLS dans les opérations serveur
@@ -40,7 +42,9 @@ export async function GET(request: NextRequest) {
       .gt('expires_at', new Date().toISOString())
 
     if (tokensError || !tokens) {
-      return NextResponse.redirect(new URL('/?error=token_not_found', request.url))
+      const errorUrl = new URL('/?error=token_not_found', request.url)
+      errorUrl.searchParams.set('message', 'Aucun token valide trouvé. Le lien a peut-être expiré.')
+      return NextResponse.redirect(errorUrl)
     }
 
     // Trouver le token correspondant
@@ -48,23 +52,33 @@ export async function GET(request: NextRequest) {
     for (const dbToken of tokens as any[]) {
       const isValid = await verifyToken(token, dbToken.token_hash)
       if (isValid && dbToken.action === action) {
+        // Vérifier que le token n'a pas déjà été utilisé
+        if (dbToken.used) {
+          const errorUrl = new URL('/?error=invalid_token', request.url)
+          errorUrl.searchParams.set('message', 'Ce lien a déjà été utilisé. La réservation a déjà été traitée.')
+          return NextResponse.redirect(errorUrl)
+        }
         matchingToken = dbToken
         break
       }
     }
 
     if (!matchingToken) {
-      return NextResponse.redirect(new URL('/?error=invalid_token', request.url))
+      const errorUrl = new URL('/?error=invalid_token', request.url)
+      errorUrl.searchParams.set('message', 'Token invalide ou expiré. Le lien a peut-être déjà été utilisé ou a expiré.')
+      return NextResponse.redirect(errorUrl)
     }
 
     const bookingRequest = matchingToken.booking_requests as any
 
     // Vérifier que le token correspond à l'action demandée
     if (matchingToken.action !== action) {
-      return NextResponse.redirect(new URL('/?error=action_mismatch', request.url))
+      const errorUrl = new URL('/?error=action_mismatch', request.url)
+      errorUrl.searchParams.set('message', 'L\'action demandée ne correspond pas au token.')
+      return NextResponse.redirect(errorUrl)
     }
 
-    // Marquer le token comme utilisé
+    // Marquer le token comme utilisé AVANT de traiter la demande (pour éviter les doubles clics)
     await (supabase
       .from('decision_tokens') as any)
       .update({ used: true })
@@ -126,7 +140,9 @@ export async function GET(request: NextRequest) {
 
       const conversationId = (updatedBooking as any).conversation_id
       if (!conversationId) {
-        return NextResponse.redirect(new URL('/?error=no_conversation_id', request.url))
+        const errorUrl = new URL('/?error=no_conversation_id', request.url)
+        errorUrl.searchParams.set('message', 'Erreur: aucune conversation trouvée pour cette réservation.')
+        return NextResponse.redirect(errorUrl)
       }
       const chatUrl = `${baseUrl}/chat/${conversationId}`
 
@@ -165,130 +181,142 @@ export async function GET(request: NextRequest) {
       const chefFirstName = chefNameParts[0] || chefFullName
       const chefLastName = chefNameParts.slice(1).join(' ') || ''
       
-      console.log('[decision] Sending informational email to CLIENT via Resend...')
-      await sendEmail({
-        to: bookingRequest.email,
-        subject: emailSubjects.bookingAcceptedToClient,
-        html: emailTemplates.bookingAcceptedToClient(
-          `${bookingRequest.first_name} ${bookingRequest.last_name}`,
-          chefFirstName,
-          chefLastName,
-          chatUrl,
-          baseUrl
-        ),
-      })
-      console.log('[decision] ✅ Informational email sent to client via Resend')
-
       // ============================================
-      // PHASE 2: Wait 15 seconds before sending magic link
+      // OPTIMIZATION: Envoyer les emails en parallèle et rediriger immédiatement
       // ============================================
-      console.log('[decision] Waiting 15 seconds before sending magic link...')
-      await new Promise(resolve => setTimeout(resolve, 15000))
-      console.log('[decision] ✅ 15 seconds elapsed, now sending magic link')
-
-      // ============================================
-      // PHASE 3: Send magic link to CLIENT via Supabase Auth
-      // ============================================
-      console.log('[decision] ========== SENDING MAGIC LINKS ==========')
-      console.log('[decision] Client email:', clientEmail)
-      console.log('[decision] Client redirect URL:', redirectUrlForClient)
+      // On lance l'envoi des emails de manière asynchrone mais on ne bloque pas la réponse
+      // pour une meilleure expérience utilisateur
       
-      // Security: Client already exists (created during booking submission)
-      // Redirect URL: /auth/callback?next=/dashboard (secure, goes through callback handler)
-      console.log('[decision] Sending magic link to CLIENT via Supabase Auth...')
-      const { data: clientOtpData, error: clientOtpError } = await supabase.auth.signInWithOtp({
-        email: clientEmail,
-        options: {
-          emailRedirectTo: redirectUrlForClient,
-          shouldCreateUser: false, // Client already exists from booking submission - prevents duplicates
-        },
-      })
+      const sendEmailsAsync = async () => {
+        try {
+          // Envoyer l'email informatif au client
+          console.log('[decision] Sending informational email to CLIENT via Resend...')
+          await sendEmail({
+            to: bookingRequest.email,
+            subject: emailSubjects.bookingAcceptedToClient,
+            html: emailTemplates.bookingAcceptedToClient(
+              `${bookingRequest.first_name} ${bookingRequest.last_name}`,
+              chefFirstName,
+              chefLastName,
+              chatUrl,
+              baseUrl
+            ),
+          })
+          console.log('[decision] ✅ Informational email sent to client via Resend')
 
-      if (clientOtpError) {
-        console.error('[decision] ❌ ERROR sending magic link to client:', clientOtpError.message)
-        console.error('[decision] Error details:', JSON.stringify(clientOtpError, null, 2))
-        // If user doesn't exist, try with shouldCreateUser: true as fallback
-        if (clientOtpError.message?.includes('not found') || clientOtpError.message?.includes('does not exist')) {
-          console.log('[decision] ⚠️ Client user not found, trying with shouldCreateUser: true...')
-          const { error: retryError } = await supabase.auth.signInWithOtp({
+          // Envoyer les magic links en parallèle
+          console.log('[decision] ========== SENDING MAGIC LINKS ==========')
+          console.log('[decision] Client email:', clientEmail)
+          console.log('[decision] Client redirect URL:', redirectUrlForClient)
+          
+          // Envoyer les magic links en parallèle pour le client et le chef
+          const emailPromises: Promise<any>[] = []
+          
+          // Magic link pour le client
+          console.log('[decision] Sending magic link to CLIENT via Supabase Auth...')
+          const clientMagicLinkPromise = supabase.auth.signInWithOtp({
             email: clientEmail,
             options: {
               emailRedirectTo: redirectUrlForClient,
-              shouldCreateUser: true, // Fallback: create if doesn't exist
+              shouldCreateUser: false,
             },
+          }).then(({ error: clientOtpError }) => {
+            if (clientOtpError) {
+              console.error('[decision] ❌ ERROR sending magic link to client:', clientOtpError.message)
+              // If user doesn't exist, try with shouldCreateUser: true as fallback
+              if (clientOtpError.message?.includes('not found') || clientOtpError.message?.includes('does not exist')) {
+                console.log('[decision] ⚠️ Client user not found, trying with shouldCreateUser: true...')
+                return supabase.auth.signInWithOtp({
+                  email: clientEmail,
+                  options: {
+                    emailRedirectTo: redirectUrlForClient,
+                    shouldCreateUser: true,
+                  },
+                })
+              }
+              throw clientOtpError
+            }
+            console.log('[decision] ✅ Magic link sent to client via Supabase Auth')
+            return { success: true }
+          }).catch((error) => {
+            console.error('[decision] ❌ Failed to send magic link to client:', error)
+            return { success: false, error }
           })
-          if (retryError) {
-            console.error('[decision] ❌ Retry also failed:', retryError.message)
-          } else {
-            console.log('[decision] ✅ Magic link sent to client (user created)')
-          }
-        }
-      } else {
-        console.log('[decision] ✅ Magic link sent to client via Supabase Auth')
-      }
-
-      // Send magic link to CHEF via Supabase Auth
-      if (chef) {
-        const chefEmail = (chef as any).email.toLowerCase().trim()
-        
-        console.log('[decision] Chef email:', chefEmail)
-        console.log('[decision] Chef redirect URL:', redirectUrlForChef)
-        console.log('[decision] Sending magic link to CHEF via Supabase Auth...')
-        
-        // Security: Chef already exists (created separately)
-        // Redirect URL: /auth/callback?next=/dashboard (secure, goes through callback handler)
-        const { data: chefOtpData, error: chefOtpError } = await supabase.auth.signInWithOtp({
-          email: chefEmail,
-          options: {
-            emailRedirectTo: redirectUrlForChef,
-            shouldCreateUser: false, // Chef already exists - prevents duplicates
-          },
-        })
-
-        if (chefOtpError) {
-          console.error('[decision] ❌❌❌ ERROR sending magic link to chef ❌❌❌')
-          console.error('[decision] Error message:', chefOtpError.message)
-          console.error('[decision] Error status:', chefOtpError.status)
-          console.error('[decision] Error details:', JSON.stringify(chefOtpError, null, 2))
-          // If user doesn't exist, try with shouldCreateUser: true as fallback
-          if (chefOtpError.message?.includes('not found') || chefOtpError.message?.includes('does not exist')) {
-            console.log('[decision] ⚠️ Chef user not found, trying with shouldCreateUser: true...')
-            const { error: retryError } = await supabase.auth.signInWithOtp({
+          
+          emailPromises.push(clientMagicLinkPromise)
+          
+          // Magic link pour le chef
+          if (chef) {
+            const chefEmail = (chef as any).email.toLowerCase().trim()
+            console.log('[decision] Chef email:', chefEmail)
+            console.log('[decision] Chef redirect URL:', redirectUrlForChef)
+            console.log('[decision] Sending magic link to CHEF via Supabase Auth...')
+            
+            const chefMagicLinkPromise = supabase.auth.signInWithOtp({
               email: chefEmail,
               options: {
                 emailRedirectTo: redirectUrlForChef,
-                shouldCreateUser: true, // Fallback: create if doesn't exist
+                shouldCreateUser: false,
               },
+            }).then(({ error: chefOtpError }) => {
+              if (chefOtpError) {
+                console.error('[decision] ❌ ERROR sending magic link to chef:', chefOtpError.message)
+                // If user doesn't exist, try with shouldCreateUser: true as fallback
+                if (chefOtpError.message?.includes('not found') || chefOtpError.message?.includes('does not exist')) {
+                  console.log('[decision] ⚠️ Chef user not found, trying with shouldCreateUser: true...')
+                  return supabase.auth.signInWithOtp({
+                    email: chefEmail,
+                    options: {
+                      emailRedirectTo: redirectUrlForChef,
+                      shouldCreateUser: true,
+                    },
+                  })
+                }
+                throw chefOtpError
+              }
+              console.log('[decision] ✅ Magic link sent to chef via Supabase Auth')
+              return { success: true }
+            }).catch((error) => {
+              console.error('[decision] ❌ Failed to send magic link to chef:', error)
+              return { success: false, error }
             })
-            if (retryError) {
-              console.error('[decision] ❌ Retry also failed:', retryError.message)
-              return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
-            } else {
-              console.log('[decision] ✅ Magic link sent to chef (user created)')
-            }
-          } else {
-            return NextResponse.redirect(new URL('/?error=magic_link_failed', request.url))
+            
+            emailPromises.push(chefMagicLinkPromise)
           }
+          
+          // Attendre que tous les emails soient envoyés (mais ne pas bloquer la réponse HTTP)
+          await Promise.allSettled(emailPromises)
+          console.log('[decision] ✅✅✅ All emails sent ✅✅✅')
+        } catch (error) {
+          console.error('[decision] ❌ Error in async email sending:', error)
+          // Ne pas bloquer si les emails échouent - ils seront loggés
         }
-
-        console.log('[decision] ✅✅✅ Magic link sent successfully to chef via Supabase ✅✅✅')
-        console.log('[decision] ========== MAGIC LINKS SENT ==========')
-        
-        // Rediriger vers une page de confirmation
+      }
+      
+      // Lancer l'envoi des emails en arrière-plan (ne bloque pas la réponse)
+      sendEmailsAsync().catch((error) => {
+        console.error('[decision] ❌ Unhandled error in email sending:', error)
+      })
+      
+      // Rediriger immédiatement vers la page de confirmation (sans attendre les emails)
+      if (chef) {
         return NextResponse.redirect(new URL('/booking-accepted?chef=true', request.url))
       }
-
-      // Rediriger vers la page de confirmation si pas de chef (ne devrait pas arriver)
+      
       return NextResponse.redirect(new URL('/booking-accepted', request.url))
 
       // Fallback si pas de chef (ne devrait pas arriver)
       return NextResponse.redirect(new URL(`/chat/${updatedBooking.conversation_id}?accepted=true`, request.url))
     }
 
-    return NextResponse.redirect(new URL('/?error=unknown', request.url))
-  } catch (error) {
+    const errorUrl = new URL('/?error=unknown', request.url)
+    errorUrl.searchParams.set('message', 'Erreur inconnue lors du traitement de la demande.')
+    return NextResponse.redirect(errorUrl)
+  } catch (error: any) {
     console.error('Error processing decision:', error)
-    return NextResponse.redirect(new URL('/?error=server_error', request.url))
+    const errorUrl = new URL('/?error=server_error', request.url)
+    errorUrl.searchParams.set('message', error?.message || 'Une erreur serveur est survenue. Veuillez réessayer.')
+    return NextResponse.redirect(errorUrl)
   }
 }
 
