@@ -397,7 +397,7 @@ export default function ConversationsList({ conversations, currentUser, particip
                                       {conversation.bookingRequest.guests_count} {conversation.bookingRequest.guests_count === 1 ? t('booking.guest') : t('booking.guests_plural')}
                                       {(conversation.bookingRequest.children_count ?? 0) > 0 && (
                                         <span className="text-gray-400 ml-0.5">
-                                          ({(conversation.bookingRequest.children_count ?? 0)} {(conversation.bookingRequest.children_count ?? 0) === 1 ? t('booking.child') : t('booking.children_plural')})
+                                          (dont {(conversation.bookingRequest.children_count ?? 0)} {(conversation.bookingRequest.children_count ?? 0) === 1 ? t('booking.child') : t('booking.children_plural')})
                                         </span>
                                       )}
                                     </span>

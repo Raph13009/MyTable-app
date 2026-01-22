@@ -2090,7 +2090,7 @@ export default function ChatInterface({
                             </button>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600 font-semibold min-w-[4rem]">{t('booking.children')} :</span>
+                            <span className="text-xs text-gray-600 font-semibold min-w-[4rem]">dont {t('booking.children')} :</span>
                             <button
                               onClick={(e) => {
                                 e.preventDefault()
