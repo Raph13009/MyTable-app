@@ -198,6 +198,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const [idempotencyToken, setIdempotencyToken] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [showGlobalError, setShowGlobalError] = useState(false)
+  const [globalErrorMessage, setGlobalErrorMessage] = useState<string>('')
   const globalErrorRef = useRef<HTMLDivElement>(null)
 
   const [formData, setFormData] = useState({
@@ -351,11 +352,19 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
   const validatePage2 = () => {
     const newErrors: Record<string, string> = {}
+    const missingFields: string[] = []
 
-    if (!formData.city.trim()) newErrors.city = 'La ville est requise'
-    if (!formData.postalCode.trim()) newErrors.postalCode = 'Le code postal est requis'
+    if (!formData.city.trim()) {
+      newErrors.city = 'La ville est requise'
+      missingFields.push('Ville')
+    }
+    if (!formData.postalCode.trim()) {
+      newErrors.postalCode = 'Le code postal est requis'
+      missingFields.push('Code postal')
+    }
     if (!formData.guestsCount || parseInt(formData.guestsCount) < 1) {
       newErrors.guestsCount = t('booking.errors.guestsCountMin')
+      missingFields.push('Nombre de convives')
     }
     
     // Validation du nombre d'enfants
@@ -371,27 +380,33 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     if (formData.serviceType === 'repas_domicile') {
       if (!formData.bookingDate) {
         newErrors.bookingDate = 'La date est requise'
+        missingFields.push('Date')
       } else if (!isValidBookingDate(formData.bookingDate)) {
         newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
       }
       if (!formData.mealTime) {
         newErrors.mealTime = 'Le moment du repas est requis'
+        missingFields.push('Moment du repas')
       }
     } else if (formData.serviceType === 'cours_cuisine') {
       if (!formData.bookingDate) {
         newErrors.bookingDate = 'La date est requise'
+        missingFields.push('Date')
       } else if (!isValidBookingDate(formData.bookingDate)) {
         newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
       }
       if (!formData.budget || parseFloat(formData.budget) <= 0) {
         newErrors.budget = 'Le budget est requis et doit être supérieur à 0'
+        missingFields.push('Budget global')
       }
       if (!formData.courseTopic.trim()) {
         newErrors.courseTopic = t('booking.errors.courseTopicRequired')
+        missingFields.push('Sujet du cours')
       }
     } else if (formData.serviceType === 'mise_en_demeure') {
       if (formData.selectedDates.length === 0) {
         newErrors.selectedDates = 'Veuillez sélectionner au moins une date'
+        missingFields.push('Dates')
       }
       // Vérifier que chaque date a au moins une option de repas
       const datesWithoutMeals = formData.selectedDates.filter(date => 
@@ -399,18 +414,30 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       )
       if (datesWithoutMeals.length > 0) {
         newErrors.mealOptions = 'Veuillez sélectionner au moins une option de repas pour chaque date'
+        missingFields.push('Options de repas')
       }
       if (!formData.budget || parseFloat(formData.budget) <= 0) {
         newErrors.budget = 'Le budget global est requis et doit être supérieur à 0'
+        missingFields.push('Budget global')
       }
     }
 
     if (formData.hasAllergies && !formData.allergiesDetails.trim()) {
       newErrors.allergiesDetails = t('booking.errors.allergiesDetailsRequired')
+      missingFields.push('Détails des allergies')
     }
 
     if (!acceptedTerms) {
       newErrors.terms = t('booking.errors.termsRequired')
+      missingFields.push('Acceptation des conditions')
+    }
+
+    // Créer un message d'erreur détaillé
+    if (missingFields.length > 0) {
+      const errorMessage = `Attention : champs manquants. Veuillez remplir : ${missingFields.join(', ')}`
+      setGlobalErrorMessage(errorMessage)
+    } else {
+      setGlobalErrorMessage('')
     }
 
     setErrors(newErrors)
@@ -1218,6 +1245,13 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       )}
 
       <div className="flex flex-col items-center gap-4">
+        {showGlobalError && (
+          <div ref={globalErrorRef} className="w-full sm:w-auto bg-red-50 border-2 border-red-500 rounded-lg p-4 -mt-2 mb-2">
+            <p className="text-red-500 text-center font-medium text-sm">
+              {globalErrorMessage || t('booking.errors.missingRequiredFields')}
+            </p>
+          </div>
+        )}
         <Button 
           type="submit" 
           disabled={loading} 
@@ -1235,11 +1269,6 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
             t('booking.submit')
           )}
         </Button>
-        {showGlobalError && (
-          <div ref={globalErrorRef} className="w-full sm:w-auto bg-red-50 border-2 border-red-500 rounded-lg p-4 mt-2">
-            <p className="text-red-500 text-center font-medium">{t('booking.errors.missingRequiredFields')}</p>
-          </div>
-        )}
         <button
           type="button"
           onClick={handleBack}

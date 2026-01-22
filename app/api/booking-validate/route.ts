@@ -118,14 +118,50 @@ export async function POST(request: NextRequest) {
       extras,
     })
 
-    // Formater la date
+    // Formater la date selon le type de service
     const { formatDateForDisplay } = await import('@/lib/dateUtils')
-    const bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
+    const serviceType = (bookingRequest as any).service_type
+    let bookingDate = ''
+    
+    if (serviceType === 'mise_en_demeure') {
+      // Pour chef à demeure, utiliser selected_dates
+      const selectedDates = (bookingRequest as any).selected_dates
+      if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
+        // Formater toutes les dates et les joindre
+        const formattedDates = selectedDates.map((date: string) => 
+          formatDateForDisplay(date, 'fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        )
+        // Joindre les dates avec "et" pour la dernière
+        if (formattedDates.length === 1) {
+          bookingDate = formattedDates[0]
+        } else if (formattedDates.length === 2) {
+          bookingDate = `${formattedDates[0]} et ${formattedDates[1]}`
+        } else {
+          bookingDate = `${formattedDates.slice(0, -1).join(', ')} et ${formattedDates[formattedDates.length - 1]}`
+        }
+      } else {
+        // Fallback si selected_dates n'est pas disponible
+        bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      }
+    } else {
+      // Pour les autres types de service, utiliser booking_date
+      bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    }
 
     const baseUrl = getBaseUrl()
 
