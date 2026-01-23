@@ -1,147 +1,78 @@
-import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import { Button } from '@/components/ui/Button'
-import { Suspense } from 'react'
-import { redirect } from 'next/navigation'
+'use client'
 
-function MessageBanner({ searchParams }: { searchParams: { error?: string; message?: string; details?: string } }) {
-  if (searchParams.error) {
-    const errorMessages: Record<string, string> = {
-      invalid_params: 'Paramètres invalides',
-      token_not_found: 'Token introuvable ou expiré',
-      invalid_token: 'Token invalide',
-      action_mismatch: 'Action non correspondante',
-      update_failed: 'Erreur lors de la mise à jour',
-      server_error: 'Erreur serveur',
-      no_conversation_id: 'Erreur: aucune conversation trouvée',
-      magic_link_failed: 'Erreur lors de l\'envoi du lien de connexion',
-    }
-    const errorMessage = searchParams.message || errorMessages[searchParams.error] || 'Une erreur est survenue'
-    return (
-      <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-6 max-w-4xl mx-auto">
-        <p className="text-red-700 font-medium">
-          {errorMessage}
-        </p>
-        {searchParams.details && (
-          <p className="text-red-600 text-sm mt-2">
-            {searchParams.details}
-          </p>
-        )}
-      </div>
-    )
-  }
+import Image from 'next/image'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { useEffect, useState } from 'react'
 
-  if (searchParams.message) {
-    const successMessages: Record<string, string> = {
-      booking_refused: 'La réservation a été refusée. Un email a été envoyé au client.',
-    }
-    return (
-      <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4 mb-6 max-w-4xl mx-auto">
-        <p className="text-green-700 font-medium">
-          {successMessages[searchParams.message] || 'Opération réussie'}
-        </p>
-      </div>
-    )
-  }
+export default function HomePage() {
+  const [countdown, setCountdown] = useState(5)
 
-  return null
-}
+  useEffect(() => {
+    // Redirection automatique après 5 secondes
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          window.location.href = 'https://guidemytable.fr/'
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: { error?: string; message?: string; details?: string }
-}) {
-  // Si erreur d'authentification (magic link expiré), rediriger vers /login
-  if (searchParams.error === 'auth_failed') {
-    const details = searchParams.details ? `&details=${encodeURIComponent(searchParams.details)}` : ''
-    redirect(`/login?error=auth_failed${details}`)
-  }
-
-  const supabase = await createClient()
-
-  // Récupérer quelques chefs pour la démo
-  const { data: chefs } = await supabase
-    .from('chefs')
-    .select('*')
-    .limit(6)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-black">MyTable</h1>
-            <nav className="hidden md:flex gap-6">
-              <Link href="/" className="text-black hover:text-gray-600">
-                Accueil
-              </Link>
-            </nav>
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header avec logo intégré */}
+      <header className="bg-[#FBCF03] border-b-2 border-black">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 relative">
+          <div className="flex items-center justify-center">
+            <Image
+              src="/logo-banner.jpeg"
+              alt="MyTable"
+              width={200}
+              height={80}
+              className="h-16 sm:h-20 md:h-24 w-auto object-contain"
+              priority
+            />
+          </div>
+          {/* Sélecteur de langue discret */}
+          <div className="absolute top-4 sm:top-6 right-4 sm:right-6">
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
 
-      {/* Messages */}
-      <Suspense fallback={null}>
-        <div className="max-w-7xl mx-auto px-4 pt-6">
-          <MessageBanner searchParams={searchParams} />
-        </div>
-      </Suspense>
+      {/* Zone centrale - Focus absolu */}
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+        <div className="max-w-md w-full text-center space-y-8">
+          {/* Message principal */}
+          <div className="space-y-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+              Bienvenue sur MyTable
+            </h1>
+            <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+              Vous allez être redirigé vers la page principale.
+            </p>
+          </div>
 
-      {/* Hero Section */}
-      <section className="bg-[#FBCF03] py-20">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-5xl font-bold text-black mb-6">
-            Réservez votre table avec les meilleurs chefs
-          </h2>
-          <p className="text-xl text-gray-800 mb-8 max-w-2xl mx-auto">
-            Découvrez une expérience culinaire unique. Réservez directement avec nos chefs et échangez en temps réel.
-          </p>
+          {/* Call-to-action principal */}
+          <div className="space-y-4">
+            <a
+              href="https://guidemytable.fr/"
+              className="inline-block w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-5 bg-[#FBCF03] hover:bg-[#E6BA00] text-black font-semibold text-lg sm:text-xl rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.98]"
+            >
+              Accéder à MyTable
+            </a>
+            
+            {/* Option secondaire - Redirection automatique */}
+            <p className="text-sm text-gray-500">
+              Redirection automatique dans {countdown} seconde{countdown > 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
-      </section>
-
-      {/* Chefs Section */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <h3 className="text-3xl font-bold text-black mb-8 text-center">
-            Nos Chefs
-          </h3>
-          
-          {chefs && chefs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {chefs.map((chef: any) => (
-                <div
-                  key={chef.id}
-                  className="border-2 border-gray-300 rounded-lg p-6 hover:border-black transition-colors"
-                >
-                  <h4 className="text-xl font-bold text-black mb-2">{chef.name}</h4>
-                  {chef.city && (
-                    <p className="text-gray-600 mb-4">{chef.city}</p>
-                  )}
-                  <Link href={`/book/${chef.slug}`}>
-                    <Button className="w-full">Réserver</Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-gray-600 py-12">
-              <p>Aucun chef disponible pour le moment.</p>
-              <p className="mt-2 text-sm">
-                Ajoutez des chefs dans votre base de données Supabase pour commencer.
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t-2 border-gray-300 mt-20 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
-          <p>&copy; 2025 MyTable. Tous droits réservés.</p>
-        </div>
-      </footer>
+      </main>
     </div>
   )
 }
