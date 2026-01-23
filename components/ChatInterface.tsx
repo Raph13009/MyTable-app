@@ -1296,7 +1296,6 @@ export default function ChatInterface({
     <div 
       className="fixed inset-0 flex flex-col bg-white"
       style={{
-        height: '100vh',
         height: '100dvh', // Dynamic viewport height pour mobile avec clavier
         // Permettre le scroll même avec le clavier ouvert
         overflow: 'hidden',
@@ -1834,6 +1833,7 @@ export default function ChatInterface({
                       if (messagesContainerRef.current) {
                         // Forcer le scroll à être actif
                         messagesContainerRef.current.style.overflowY = 'auto'
+                        // @ts-ignore - webkitOverflowScrolling est une propriété CSS non standard pour iOS
                         messagesContainerRef.current.style.webkitOverflowScrolling = 'touch'
                         // Scroll vers le bas pour voir les derniers messages
                         scrollToBottom()

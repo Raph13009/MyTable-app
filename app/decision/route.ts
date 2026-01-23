@@ -220,27 +220,28 @@ export async function GET(request: NextRequest) {
               emailRedirectTo: redirectUrlForClient,
               shouldCreateUser: false,
             },
-          }).then(({ error: clientOtpError }) => {
+          }).then(async ({ error: clientOtpError }) => {
             if (clientOtpError) {
               console.error('[decision] ❌ ERROR sending magic link to client:', clientOtpError.message)
               // If user doesn't exist, try with shouldCreateUser: true as fallback
               if (clientOtpError.message?.includes('not found') || clientOtpError.message?.includes('does not exist')) {
                 console.log('[decision] ⚠️ Client user not found, trying with shouldCreateUser: true...')
-                return supabase.auth.signInWithOtp({
+                const retryResult = await supabase.auth.signInWithOtp({
                   email: clientEmail,
                   options: {
                     emailRedirectTo: redirectUrlForClient,
                     shouldCreateUser: true,
                   },
                 })
+                return retryResult
               }
               throw clientOtpError
             }
             console.log('[decision] ✅ Magic link sent to client via Supabase Auth')
-            return { success: true }
+            return { data: null, error: null }
           }).catch((error) => {
             console.error('[decision] ❌ Failed to send magic link to client:', error)
-            return { success: false, error }
+            return { data: null, error }
           })
           
           emailPromises.push(clientMagicLinkPromise)
@@ -258,27 +259,28 @@ export async function GET(request: NextRequest) {
                 emailRedirectTo: redirectUrlForChef,
                 shouldCreateUser: false,
               },
-            }).then(({ error: chefOtpError }) => {
+            }).then(async ({ error: chefOtpError }) => {
               if (chefOtpError) {
                 console.error('[decision] ❌ ERROR sending magic link to chef:', chefOtpError.message)
                 // If user doesn't exist, try with shouldCreateUser: true as fallback
                 if (chefOtpError.message?.includes('not found') || chefOtpError.message?.includes('does not exist')) {
                   console.log('[decision] ⚠️ Chef user not found, trying with shouldCreateUser: true...')
-                  return supabase.auth.signInWithOtp({
+                  const retryResult = await supabase.auth.signInWithOtp({
                     email: chefEmail,
                     options: {
                       emailRedirectTo: redirectUrlForChef,
                       shouldCreateUser: true,
                     },
                   })
+                  return retryResult
                 }
                 throw chefOtpError
               }
               console.log('[decision] ✅ Magic link sent to chef via Supabase Auth')
-              return { success: true }
+              return { data: null, error: null }
             }).catch((error) => {
               console.error('[decision] ❌ Failed to send magic link to chef:', error)
-              return { success: false, error }
+              return { data: null, error }
             })
             
             emailPromises.push(chefMagicLinkPromise)
