@@ -104,8 +104,10 @@ export default function LoginPage() {
             }
             
             // Nettoyer le hash de l'URL immédiatement
-            const next = searchParams.get('next') || '/dashboard'
-            console.log('[Login] Step 4: Redirecting to:', next)
+            const nextParam = searchParams.get('next')
+            const fromAdmin = typeof window !== 'undefined' && document.referrer?.includes('/admin')
+            const next = nextParam || (fromAdmin ? '/admin' : '/dashboard')
+            console.log('[Login] Step 4: Redirecting to:', next, fromAdmin ? '(from admin)' : '')
             
             // Nettoyer l'URL
             window.history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -213,8 +215,11 @@ export default function LoginPage() {
       
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const next = searchParams.get('next') || '/dashboard'
-        console.log('[Login] User already authenticated, redirecting to:', next)
+        const nextParam = searchParams.get('next')
+        // Si l'utilisateur venait de /admin (referrer), le renvoyer vers /admin au lieu de /dashboard
+        const fromAdmin = typeof window !== 'undefined' && document.referrer?.includes('/admin')
+        const next = nextParam || (fromAdmin ? '/admin' : '/dashboard')
+        console.log('[Login] User already authenticated, redirecting to:', next, fromAdmin ? '(from admin)' : '')
         router.push(next)
       }
     }
