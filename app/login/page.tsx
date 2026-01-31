@@ -186,6 +186,7 @@ export default function LoginPage() {
   // ET seulement s'il n'y a pas de tokens dans le hash (pour éviter les conflits avec le magic link)
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('[Login] checkAuth: start')
       // Ne pas vérifier l'authentification si on a des tokens dans le hash (le magic link handler s'en occupe)
       if (typeof window !== 'undefined' && window.location.hash) {
         const hash = window.location.hash.substring(1)
@@ -198,6 +199,14 @@ export default function LoginPage() {
       
       const emailParam = searchParams.get('email')
       const force = searchParams.get('force')
+      const nextParam = searchParams.get('next')
+      console.log('[Login] checkAuth: params', {
+        emailParam: !!emailParam,
+        force,
+        nextParam,
+        hasHash: typeof window !== 'undefined' ? !!window.location.hash : false,
+        path: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+      })
       
       // Si un email est pré-rempli ou si force=true, on ne redirige pas automatiquement
       // pour permettre à l'utilisateur de demander un nouveau magic link ou de se reconnecter
@@ -212,15 +221,42 @@ export default function LoginPage() {
         }
         return
       }
-      
-      const { data: { user } } = await supabase.auth.getUser()
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        console.error('[Login] checkAuth: getSession error:', sessionError.message)
+        return
+      }
+
+      if (!sessionData?.session) {
+        console.log('[Login] checkAuth: no session found, staying on login')
+        return
+      }
+
+      const sessionExpiresAt = sessionData.session.expires_at
+      if (sessionExpiresAt && sessionExpiresAt * 1000 < Date.now()) {
+        console.warn('[Login] checkAuth: session expired, signing out', {
+          expiresAt: new Date(sessionExpiresAt * 1000).toISOString(),
+        })
+        await supabase.auth.signOut()
+        return
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.error('[Login] checkAuth: getUser error, signing out', userError.message)
+        await supabase.auth.signOut()
+        return
+      }
+
       if (user) {
-        const nextParam = searchParams.get('next')
         // Si l'utilisateur venait de /admin (referrer), le renvoyer vers /admin au lieu de /dashboard
         const fromAdmin = typeof window !== 'undefined' && document.referrer?.includes('/admin')
         const next = nextParam || (fromAdmin ? '/admin' : '/dashboard')
         console.log('[Login] User already authenticated, redirecting to:', next, fromAdmin ? '(from admin)' : '')
         router.push(next)
+      } else {
+        console.log('[Login] checkAuth: session present but no user, staying on login')
       }
     }
     
@@ -376,4 +412,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
