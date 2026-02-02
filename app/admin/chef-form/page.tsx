@@ -204,8 +204,8 @@ export default function ChefFormPage() {
 
   const addMenu = () => {
     if (!newMenu.name.trim()) return
-    setMenus([
-      ...menus,
+    setMenus((prev) => [
+      ...prev,
       {
         id: crypto.randomUUID(),
         chef_id: chefId || 'temp',
@@ -217,8 +217,8 @@ export default function ChefFormPage() {
     setNewMenu({ name: '', description: '', price: '' })
   }
 
-  const removeMenu = (index: number) => {
-    setMenus(menus.filter((_, i) => i !== index))
+  const removeMenu = (menuId: string) => {
+    setMenus((prev) => prev.filter((menu) => menu.id !== menuId))
   }
 
   if (loading && isEditing) {
@@ -394,9 +394,9 @@ export default function ChefFormPage() {
               
               {menus.length > 0 && (
                 <div className="space-y-4">
-                  {menus.map((menu, index) => (
+                  {menus.map((menu) => (
                     <div
-                      key={index}
+                      key={menu.id}
                       className="p-6 sm:p-8 bg-gray-50 rounded-xl border-2 border-gray-200"
                     >
                       <div className="flex items-start justify-between gap-4 mb-4">
@@ -417,7 +417,7 @@ export default function ChefFormPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeMenu(index)}
+                          onClick={() => removeMenu(menu.id)}
                           className="flex-shrink-0 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                           aria-label="Supprimer le menu"
                         >

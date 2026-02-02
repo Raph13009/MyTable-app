@@ -84,7 +84,13 @@ export async function POST(request: NextRequest) {
     // Mettre à jour les menus
     if (menus !== undefined) {
       // Supprimer les anciens menus
-      await supabaseAdmin.from('menus').delete().eq('chef_id', chefId)
+      const { error: deleteMenusError } = await supabaseAdmin
+        .from('menus')
+        .delete()
+        .eq('chef_id', chefId)
+      if (deleteMenusError) {
+        throw deleteMenusError
+      }
 
       // Ajouter les nouveaux menus
       if (dedupedMenus.length > 0) {
