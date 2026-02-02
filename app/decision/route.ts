@@ -13,7 +13,7 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
  * When chef accepts a booking:
  * 1. Both client and chef receive magic links via Supabase Auth
  * 2. Client receives informational email via Resend (transactional)
- * 3. Magic links redirect to /auth/callback?next=/dashboard
+ * 3. Magic links redirect to /auth/callback?next=/chat/{conversationId}
  * 4. No duplicate users (shouldCreateUser: false for existing users)
  */
 
@@ -169,8 +169,8 @@ export async function GET(request: NextRequest) {
       // - Resend: Transactional notification email (informational only)
       
       const clientEmail = bookingRequest.email.toLowerCase().trim()
-      const redirectUrlForClient = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
-      const redirectUrlForChef = `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`
+      const redirectUrlForClient = `${baseUrl}/auth/callback?next=${encodeURIComponent(`/chat/${conversationId}`)}`
+      const redirectUrlForChef = `${baseUrl}/auth/callback?next=${encodeURIComponent(`/chat/${conversationId}`)}`
 
       // ============================================
       // PHASE 1: Send informational email to CLIENT first

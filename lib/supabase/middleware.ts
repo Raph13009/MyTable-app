@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh the session by calling getUser
   // This will update the session if it's expired or refresh the tokens
+  // Note: ne jamais rediriger /admin vers /dashboard (la page admin gère elle-même l'auth)
   const { data: { user } } = await supabase.auth.getUser()
   
   // Log for debugging (only in development)
