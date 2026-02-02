@@ -295,10 +295,12 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // Lancer l'envoi des emails en arrière-plan (ne bloque pas la réponse)
-      sendEmailsAsync().catch((error) => {
+      // Envoyer les emails avant de répondre pour éviter l'arrêt du runtime
+      try {
+        await sendEmailsAsync()
+      } catch (error) {
         console.error('[decision] ❌ Unhandled error in email sending:', error)
-      })
+      }
       
       // Rediriger immédiatement vers la page de confirmation (sans attendre les emails)
       if (chef) {
@@ -321,4 +323,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(errorUrl)
   }
 }
-

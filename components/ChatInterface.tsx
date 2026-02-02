@@ -446,41 +446,31 @@ export default function ChatInterface({
         tempId,
       })
 
-      const { data: insertedMessage, error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_email: currentUser.email!,
-          content: sanitizedContent,
-        } as any)
-        .select()
-        .single()
-
-      if (error) {
-        // ROLLBACK: Retirer le message optimiste en cas d'erreur
-        setMessages((prev) => prev.filter(m => m.id !== tempId))
-        // Remettre le texte dans le champ
-        setNewMessage(messageContentToSend)
-        throw error
-      }
-
-      console.log('[ChatInterface] Message sent successfully:', insertedMessage)
-      
-      // Envoyer une notification email au destinataire (non bloquant)
-      fetch('/api/send-message-notification', {
+      const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           conversationId,
-          senderEmail: currentUser.email,
           messageContent: messageContentToSend,
         }),
-      }).catch((emailError) => {
-        console.error('[ChatInterface] Error sending notification email:', emailError)
-        // Ne pas bloquer l'envoi du message si l'email échoue
       })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}))
+        const errorMessage = errorBody?.error || 'Erreur lors de l\'envoi'
+        // ROLLBACK: Retirer le message optimiste en cas d'erreur
+        setMessages((prev) => prev.filter(m => m.id !== tempId))
+        // Remettre le texte dans le champ
+        setNewMessage(messageContentToSend)
+        throw new Error(errorMessage)
+      }
+
+      const responseBody = await response.json()
+      const insertedMessage = responseBody?.message
+
+      console.log('[ChatInterface] Message sent successfully:', insertedMessage)
       
       // REVALIDATION: Vérifier après 500ms si le message est bien arrivé via subscription
       // Si non, faire un refetch manuel
@@ -3047,4 +3037,3 @@ export default function ChatInterface({
     </div>
   )
 }
-

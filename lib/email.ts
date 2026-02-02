@@ -36,14 +36,22 @@ export async function sendEmail({ to, subject, html }: EmailOptions): Promise<vo
   // Option 1: Utiliser Resend (actuel)
   if (process.env.EMAIL_PROVIDER === 'resend' || !process.env.EMAIL_PROVIDER) {
     try {
-      await resend.emails.send({
+      const startTime = Date.now()
+      const response = await resend.emails.send({
         from: 'MyTable <contact@guidemytable.fr>',
         to,
         subject,
         html,
       })
+      const duration = Date.now() - startTime
+      console.log('[email] ✅ Resend sent', {
+        to,
+        subject,
+        messageId: (response as any)?.id,
+        durationMs: duration,
+      })
     } catch (error) {
-      console.error('Error sending email with Resend:', error)
+      console.error('[email] ❌ Error sending email with Resend:', error)
       throw error
     }
   }
@@ -695,4 +703,3 @@ export const emailTemplates = {
     })
   },
 }
-
