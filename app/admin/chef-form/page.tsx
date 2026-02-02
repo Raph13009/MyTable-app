@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -33,6 +33,7 @@ export default function ChefFormPage() {
   const [menus, setMenus] = useState<Menu[]>([])
   const [newMenu, setNewMenu] = useState({ name: '', description: '', price: '' })
   const [currentProfilePicture, setCurrentProfilePicture] = useState<string | null>(null)
+  const isSubmittingRef = useRef(false)
 
   useEffect(() => {
     if (isEditing && chefId) {
@@ -119,9 +120,12 @@ export default function ChefFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
 
     if (formData.email !== formData.emailConfirm) {
       alert('Les emails ne correspondent pas')
+      isSubmittingRef.current = false
       return
     }
 
@@ -194,6 +198,7 @@ export default function ChefFormPage() {
       alert(error.message || 'Erreur lors de la sauvegarde')
     } finally {
       setLoading(false)
+      isSubmittingRef.current = false
     }
   }
 

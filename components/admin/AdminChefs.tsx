@@ -77,13 +77,16 @@ export default function AdminChefs() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce chef ?')) return
 
     try {
-      // Supprimer les menus
-      await supabase.from('menus').delete().eq('chef_id', chefId)
+      const response = await fetch('/api/admin/delete-chef', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chefId }),
+      })
 
-      // Supprimer le chef
-      const { error } = await supabase.from('chefs').delete().eq('id', chefId)
-
-      if (error) throw error
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Erreur lors de la suppression')
+      }
 
       fetchChefs()
     } catch (error) {
@@ -321,4 +324,3 @@ export default function AdminChefs() {
     </div>
   )
 }
-

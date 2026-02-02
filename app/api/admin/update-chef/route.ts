@@ -31,6 +31,36 @@ export async function POST(request: NextRequest) {
     } = body
 
     const supabaseAdmin = createAdminClient()
+    const normalizedMenus = Array.isArray(menus)
+      ? menus
+          .map((menu: any) => {
+            const menuName = String(menu?.name || '').trim()
+            if (!menuName) return null
+            const menuDescription = String(menu?.description || '').trim()
+            const rawPrice = menu?.price
+            const priceNumber = rawPrice === null || rawPrice === undefined || rawPrice === ''
+              ? null
+              : Number.parseFloat(rawPrice.toString())
+            const safePrice = Number.isFinite(priceNumber) ? priceNumber : null
+            return {
+              name: menuName,
+              description: menuDescription || null,
+              price: safePrice,
+              key: `${menuName}__${menuDescription || ''}__${safePrice ?? ''}`,
+            }
+          })
+          .filter(Boolean)
+      : []
+    const dedupedMenus = (() => {
+      const seen = new Set<string>()
+      return (normalizedMenus as Array<{ name: string; description: string | null; price: number | null; key: string }>).filter(
+        (menu) => {
+          if (seen.has(menu.key)) return false
+          seen.add(menu.key)
+          return true
+        }
+      )
+    })()
 
     // Mettre à jour le chef
     const { error: chefError } = await supabaseAdmin
@@ -57,12 +87,12 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('menus').delete().eq('chef_id', chefId)
 
       // Ajouter les nouveaux menus
-      if (menus.length > 0) {
-        const menusToInsert = menus.map((menu: any) => ({
+      if (dedupedMenus.length > 0) {
+        const menusToInsert = dedupedMenus.map((menu) => ({
           chef_id: chefId,
           name: menu.name,
           description: menu.description || null,
-          price: menu.price ? parseFloat(menu.price.toString()) : null,
+          price: menu.price === null ? null : menu.price,
         }))
 
         const { error: menusError } = await supabaseAdmin.from('menus').insert(menusToInsert)
@@ -81,4 +111,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
