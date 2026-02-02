@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
           price: menu.price === null ? null : menu.price,
         }))
 
+        // @ts-expect-error - Supabase type inference issue
         const { error: menusError } = await supabaseAdmin.from('menus').insert(menusToInsert)
         if (menusError) {
           console.error('Error updating menus:', menusError)
