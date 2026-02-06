@@ -350,6 +350,7 @@ export const emailSubjects = {
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
   bookingReminderToChef: 'Relance - demande de réservation en attente',
+  bookingNewToAdmin: 'Nouvelle demande de réservation',
   bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée',
@@ -494,6 +495,31 @@ export const emailTemplates = {
     return emailLayout({
       title: `Relance - demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
       content: contentWithButtons,
+      baseUrl,
+    })
+  },
+
+  bookingNewToAdmin: (
+    clientName: string,
+    clientEmail: string,
+    chefName: string,
+    chefEmail: string | null,
+    bookingDetails: any,
+    baseUrl?: string
+  ) => {
+    const detailsHtml = buildBookingDetailsHtml(bookingDetails)
+    const content = `
+      <p>Bonjour,</p>
+      <p>Une nouvelle demande de réservation a été créée.</p>
+      ${detailsHtml}
+      <div class="email-details">
+        <p><strong>Client :</strong> ${clientName} (${clientEmail})</p>
+        <p><strong>Chef :</strong> ${chefName}${chefEmail ? ` (${chefEmail})` : ''}</p>
+      </div>
+    `
+    return emailLayout({
+      title: 'Nouvelle demande de réservation',
+      content,
       baseUrl,
     })
   },

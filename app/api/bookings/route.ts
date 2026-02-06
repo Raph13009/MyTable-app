@@ -621,6 +621,20 @@ export async function POST(request: NextRequest) {
       ),
     })
 
+    // Email simple à l'admin (contact) pour chaque nouvelle réservation
+    await sendEmail({
+      to: 'contact@guidemytable.fr',
+      subject: emailSubjects.bookingNewToAdmin,
+      html: emailTemplates.bookingNewToAdmin(
+        `${firstName} ${lastName}`,
+        email,
+        (chef as any).name,
+        (chef as any).email || null,
+        bookingDetails,
+        baseUrl
+      ),
+    })
+
     const duration = Date.now() - startTime
     console.log(`[bookings:${requestId}] ========== BOOKING REQUEST SUCCESS ==========`)
     console.log(`[bookings:${requestId}] Duration: ${duration}ms`)
@@ -645,4 +659,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
