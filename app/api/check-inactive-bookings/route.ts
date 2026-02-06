@@ -213,6 +213,7 @@ export async function GET(request: NextRequest) {
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + 7)
 
+        // @ts-expect-error - Supabase type inference issue
         await supabase.from('decision_tokens').insert([
           {
             booking_request_id: booking.id,
