@@ -349,6 +349,7 @@ export const emailSubjects = {
   menuUpdated: 'Votre menu a été mis à jour',
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
+  bookingReminderToChef: 'Relance - demande de réservation en attente',
   bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée',
@@ -362,6 +363,67 @@ export const emailSubjects = {
 /**
  * Templates d'emails
  */
+function buildBookingDetailsHtml(bookingDetails: any): string {
+  // Construire les détails selon le type de service
+  let detailsHtml = `
+    <div class="email-details">
+      <p><strong>Type de prestation :</strong> ${bookingDetails.serviceTypeLabel || 'Réservation'}</p>
+      <p><strong>Client :</strong> ${bookingDetails.firstName} ${bookingDetails.lastName}</p>
+      <p><strong>Ville :</strong> ${bookingDetails.city} (${bookingDetails.postalCode})</p>
+      <p><strong>Nombre de convives :</strong> ${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}</p>
+  `
+
+  // Détails spécifiques selon le type de service
+  if (bookingDetails.serviceType === 'repas_domicile') {
+    if (bookingDetails.bookingDate) {
+      detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
+    }
+    if (bookingDetails.mealTimeLabel) {
+      detailsHtml += `<p><strong>Moment du repas :</strong> ${bookingDetails.mealTimeLabel}</p>`
+    }
+    if (bookingDetails.menuName) {
+      detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
+    }
+    if (bookingDetails.hasAllergies) {
+      detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
+    }
+  } else if (bookingDetails.serviceType === 'cours_cuisine') {
+    if (bookingDetails.bookingDate) {
+      detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
+    }
+    if (bookingDetails.budget) {
+      detailsHtml += `<p><strong>Budget global :</strong> ${bookingDetails.budget.toFixed(2)} €</p>`
+    }
+    if (bookingDetails.courseTopic) {
+      detailsHtml += `<p><strong>Sujet du cours :</strong> ${bookingDetails.courseTopic}</p>`
+    }
+  } else if (bookingDetails.serviceType === 'mise_en_demeure') {
+    if (bookingDetails.selectedDates && Array.isArray(bookingDetails.selectedDates) && bookingDetails.selectedDates.length > 0) {
+      const datesFormatted = bookingDetails.selectedDates.map((date: string) => 
+        new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      ).join(', ')
+      detailsHtml += `<p><strong>Dates sélectionnées :</strong> ${datesFormatted}</p>`
+    }
+    if (bookingDetails.mealOptionsLabel) {
+      detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
+    }
+    if (bookingDetails.totalPrice) {
+      // Utiliser i18n pour le libellé
+      const budgetLabel = getBudgetGlobalLabel('fr')
+      detailsHtml += `<p><strong>${budgetLabel} :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
+    }
+  }
+
+  // Notes communes à tous les types
+  if (bookingDetails.notes) {
+    detailsHtml += `<p><strong>Notes :</strong> ${bookingDetails.notes}</p>`
+  }
+
+  detailsHtml += `</div>`
+
+  return detailsHtml
+}
+
 export const emailTemplates = {
   bookingConfirmationToClient: (clientName: string, chefName: string, baseUrl?: string) => {
     const content = `
@@ -380,62 +442,7 @@ export const emailTemplates = {
   },
 
   bookingRequestToChef: (chefName: string, bookingDetails: any, acceptUrl: string, refuseUrl: string, baseUrl?: string) => {
-    // Construire les détails selon le type de service
-    let detailsHtml = `
-      <div class="email-details">
-        <p><strong>Type de prestation :</strong> ${bookingDetails.serviceTypeLabel || 'Réservation'}</p>
-        <p><strong>Client :</strong> ${bookingDetails.firstName} ${bookingDetails.lastName}</p>
-        <p><strong>Ville :</strong> ${bookingDetails.city} (${bookingDetails.postalCode})</p>
-        <p><strong>Nombre de convives :</strong> ${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}</p>
-    `
-
-    // Détails spécifiques selon le type de service
-    if (bookingDetails.serviceType === 'repas_domicile') {
-      if (bookingDetails.bookingDate) {
-        detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
-      }
-      if (bookingDetails.mealTimeLabel) {
-        detailsHtml += `<p><strong>Moment du repas :</strong> ${bookingDetails.mealTimeLabel}</p>`
-      }
-      if (bookingDetails.menuName) {
-        detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
-      }
-      if (bookingDetails.hasAllergies) {
-        detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
-      }
-    } else if (bookingDetails.serviceType === 'cours_cuisine') {
-      if (bookingDetails.bookingDate) {
-        detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
-      }
-      if (bookingDetails.budget) {
-        detailsHtml += `<p><strong>Budget global :</strong> ${bookingDetails.budget.toFixed(2)} €</p>`
-      }
-      if (bookingDetails.courseTopic) {
-        detailsHtml += `<p><strong>Sujet du cours :</strong> ${bookingDetails.courseTopic}</p>`
-      }
-    } else if (bookingDetails.serviceType === 'mise_en_demeure') {
-      if (bookingDetails.selectedDates && Array.isArray(bookingDetails.selectedDates) && bookingDetails.selectedDates.length > 0) {
-        const datesFormatted = bookingDetails.selectedDates.map((date: string) => 
-          new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-        ).join(', ')
-        detailsHtml += `<p><strong>Dates sélectionnées :</strong> ${datesFormatted}</p>`
-      }
-      if (bookingDetails.mealOptionsLabel) {
-        detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
-      }
-      if (bookingDetails.totalPrice) {
-        // Utiliser i18n pour le libellé
-        const budgetLabel = getBudgetGlobalLabel('fr')
-        detailsHtml += `<p><strong>${budgetLabel} :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
-      }
-    }
-
-    // Notes communes à tous les types
-    if (bookingDetails.notes) {
-      detailsHtml += `<p><strong>Notes :</strong> ${bookingDetails.notes}</p>`
-    }
-
-    detailsHtml += `</div>`
+    const detailsHtml = buildBookingDetailsHtml(bookingDetails)
     
     const content = `
       <p>Bonjour ${chefName},</p>
@@ -454,6 +461,38 @@ export const emailTemplates = {
     
     return emailLayout({
       title: `Nouvelle demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
+      content: contentWithButtons,
+      baseUrl,
+    })
+  },
+
+  bookingReminderToChef: (
+    chefName: string,
+    bookingDetails: any,
+    acceptUrl: string,
+    refuseUrl: string,
+    timeElapsedLabel: string,
+    baseUrl?: string
+  ) => {
+    const detailsHtml = buildBookingDetailsHtml(bookingDetails)
+    
+    const content = `
+      <p>Bonjour ${chefName},</p>
+      <p>Petit rappel : une demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'} de la part de <strong>${bookingDetails.firstName} ${bookingDetails.lastName}</strong> est toujours en attente.</p>
+      <p><strong>Temps écoulé :</strong> ${timeElapsedLabel}</p>
+      ${detailsHtml}
+      <p>Merci de répondre dès que possible :</p>
+    `
+    
+    const contentWithButtons = content + `
+      <div class="email-cta">
+        <a href="${acceptUrl}" class="email-button-yellow">Accepter et accéder au chat</a>
+        <a href="${refuseUrl}" class="email-button-secondary">Refuser</a>
+      </div>
+    `
+    
+    return emailLayout({
+      title: `Relance - demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
       content: contentWithButtons,
       baseUrl,
     })

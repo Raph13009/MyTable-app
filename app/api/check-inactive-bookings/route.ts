@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendEmail, emailLayout } from '@/lib/email'
-import { getBaseUrl } from '@/lib/utils'
+import { sendEmail, emailLayout, emailSubjects, emailTemplates } from '@/lib/email'
+import { getBaseUrl, generateDecisionToken, hashToken } from '@/lib/utils'
+import { formatDateForDisplay } from '@/lib/dateUtils'
+import { getServiceTypeLabel } from '@/lib/i18n/constants'
 
 /**
- * Endpoint pour vérifier les booking_requests en attente depuis plus de 18h
+ * Endpoint pour vérifier les booking_requests en attente depuis plus de 12h
  * et envoyer un email d'alerte à contact@guidemytable.fr
  * 
  * Ce endpoint peut être appelé :
@@ -16,14 +18,14 @@ export async function GET(request: NextRequest) {
     const supabase = createAdminClient()
     const baseUrl = getBaseUrl()
 
-    // Calculer la date limite (18h avant maintenant)
+    // Calculer la date limite (12h avant maintenant)
     const now = new Date()
-    const eighteenHoursAgo = new Date(now.getTime() - 18 * 60 * 60 * 1000)
-    const eighteenHoursAgoISO = eighteenHoursAgo.toISOString()
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000)
+    const twelveHoursAgoISO = twelveHoursAgo.toISOString()
 
-    console.log('[check-inactive-bookings] Checking for bookings created before:', eighteenHoursAgoISO)
+    console.log('[check-inactive-bookings] Checking for bookings created before:', twelveHoursAgoISO)
 
-    // Récupérer les booking_requests en attente créées il y a plus de 18h
+    // Récupérer les booking_requests en attente créées il y a plus de 12h
     const { data: inactiveBookings, error: bookingsError } = await supabase
       .from('booking_requests')
       .select(`
@@ -34,14 +36,32 @@ export async function GET(request: NextRequest) {
         phone,
         created_at,
         chef_id,
+        service_type,
+        booking_date,
+        meal_time,
+        city,
+        postal_code,
+        guests_count,
+        children_count,
+        has_allergies,
+        allergies_details,
+        notes,
+        budget,
+        course_topic,
+        selected_dates,
+        meal_options,
+        total_price,
         chefs (
           name,
           email,
           phone
+        ),
+        menus (
+          name
         )
       `)
       .eq('status', 'pending')
-      .lt('created_at', eighteenHoursAgoISO)
+      .lt('created_at', twelveHoursAgoISO)
 
     if (bookingsError) {
       console.error('[check-inactive-bookings] Error fetching inactive bookings:', bookingsError)
@@ -73,6 +93,8 @@ export async function GET(request: NextRequest) {
       const hoursElapsed = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60))
       const minutesElapsed = Math.floor(((now.getTime() - createdAt.getTime()) / (1000 * 60)) % 60)
 
+      const timeElapsedLabel = `${hoursElapsed}h ${minutesElapsed}min`
+
       const content = `
         <p><strong style="font-size: 18px; color: #000;">⚠️ Inactivité d'un chef</strong></p>
         
@@ -81,7 +103,7 @@ export async function GET(request: NextRequest) {
             Le chef <strong>${chefName}</strong> n'a toujours pas donné de réponse à <strong>${clientName}</strong>
           </p>
           <p style="margin: 8px 0 0 0; font-size: 14px; color: #666;">
-            Temps écoulé : ${hoursElapsed}h ${minutesElapsed}min
+            Temps écoulé : ${timeElapsedLabel}
           </p>
         </div>
         
@@ -170,11 +192,117 @@ export async function GET(request: NextRequest) {
         baseUrl,
       })
 
-      return sendEmail({
-        to: 'contact@guidemytable.fr',
-        subject: `Inactivité d'un chef - ${chefName} n'a pas répondu à ${clientName}`,
-        html: emailHtml,
-      })
+      const emailJobs: Promise<void>[] = []
+
+      // Email d'alerte à l'admin
+      emailJobs.push(
+        sendEmail({
+          to: 'contact@guidemytable.fr',
+          subject: `Inactivité d'un chef - ${chefName} n'a pas répondu à ${clientName}`,
+          html: emailHtml,
+        })
+      )
+
+      // Email de relance au chef (si email disponible)
+      if (chef?.email) {
+        const acceptToken = generateDecisionToken()
+        const refuseToken = generateDecisionToken()
+        const acceptTokenHash = await hashToken(acceptToken)
+        const refuseTokenHash = await hashToken(refuseToken)
+
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + 7)
+
+        await supabase.from('decision_tokens').insert([
+          {
+            booking_request_id: booking.id,
+            token_hash: acceptTokenHash,
+            action: 'accept',
+            expires_at: expiresAt.toISOString(),
+          },
+          {
+            booking_request_id: booking.id,
+            token_hash: refuseTokenHash,
+            action: 'refuse',
+            expires_at: expiresAt.toISOString(),
+          },
+        ])
+
+        const acceptUrl = `${baseUrl}/decision?token=${acceptToken}&action=accept`
+        const refuseUrl = `${baseUrl}/decision?token=${refuseToken}&action=refuse`
+
+        const serviceType = booking.service_type || 'repas_domicile'
+        const serviceTypeLabel = getServiceTypeLabel(serviceType, 'fr')
+
+        const bookingDetails: any = {
+          firstName: booking.first_name,
+          lastName: booking.last_name,
+          phone: booking.phone,
+          serviceType,
+          serviceTypeLabel,
+          city: booking.city,
+          postalCode: booking.postal_code,
+          guestsCount: booking.guests_count,
+          childrenCount: booking.children_count || 0,
+          hasAllergies: booking.has_allergies,
+          allergiesDetails: booking.allergies_details || '',
+          notes: booking.notes || '',
+        }
+
+        if (serviceType === 'repas_domicile') {
+          bookingDetails.bookingDate = booking.booking_date
+            ? formatDateForDisplay(booking.booking_date, 'fr-FR')
+            : null
+          bookingDetails.mealTimeLabel = booking.meal_time === 'dejeuner'
+            ? 'Déjeuner'
+            : booking.meal_time === 'diner'
+              ? 'Dîner'
+              : null
+          bookingDetails.menuName = booking.menus?.name || null
+        } else if (serviceType === 'cours_cuisine') {
+          bookingDetails.bookingDate = booking.booking_date
+            ? formatDateForDisplay(booking.booking_date, 'fr-FR')
+            : null
+          bookingDetails.budget = booking.budget ? Number(booking.budget) : null
+          bookingDetails.courseTopic = booking.course_topic || null
+        } else if (serviceType === 'mise_en_demeure') {
+          bookingDetails.selectedDates = Array.isArray(booking.selected_dates)
+            ? booking.selected_dates
+            : null
+          const mealOptions = booking.meal_options
+          if (mealOptions && typeof mealOptions === 'object' && !Array.isArray(mealOptions)) {
+            const allOptions = Object.values(mealOptions).flat() as string[]
+            const uniqueOptions = [...new Set(allOptions)]
+            bookingDetails.mealOptionsLabel = uniqueOptions.map(opt =>
+              opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+            ).join(', ')
+          } else if (Array.isArray(mealOptions)) {
+            bookingDetails.mealOptionsLabel = mealOptions.map(opt =>
+              opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
+            ).join(', ')
+          }
+          if (booking.total_price) {
+            bookingDetails.totalPrice = Number(booking.total_price)
+          }
+        }
+
+        emailJobs.push(
+          sendEmail({
+            to: chef.email,
+            subject: emailSubjects.bookingReminderToChef,
+            html: emailTemplates.bookingReminderToChef(
+              chefName,
+              bookingDetails,
+              acceptUrl,
+              refuseUrl,
+              timeElapsedLabel,
+              baseUrl
+            ),
+          })
+        )
+      }
+
+      await Promise.all(emailJobs)
     })
 
     // Envoyer tous les emails en parallèle
