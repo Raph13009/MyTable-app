@@ -103,7 +103,13 @@ export interface Database {
           meal_options: string[] | null
           total_price: number | null
           menu_content: Json | null
-          status: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
+          request_sent_at: string
+          fallback_enabled: boolean
+          fallback_next_chef_ids: string[]
+          fallback_group_id: string | null
+          fallback_timeout_at: string | null
+          fallback_previous_booking_id: string | null
+          status: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
         }
@@ -133,7 +139,13 @@ export interface Database {
           meal_options?: string[] | null
           total_price?: number | null
           menu_content?: Json | null
-          status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
+          request_sent_at?: string
+          fallback_enabled?: boolean
+          fallback_next_chef_ids?: string[]
+          fallback_group_id?: string | null
+          fallback_timeout_at?: string | null
+          fallback_previous_booking_id?: string | null
+          status?: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
         }
@@ -162,7 +174,13 @@ export interface Database {
           meal_options?: string[] | null
           total_price?: number | null
           menu_content?: Json | null
-          status?: 'pending' | 'accepted' | 'refused' | 'validated_by_client' | 'cancelled' | 'completed'
+          request_sent_at?: string
+          fallback_enabled?: boolean
+          fallback_next_chef_ids?: string[]
+          fallback_group_id?: string | null
+          fallback_timeout_at?: string | null
+          fallback_previous_booking_id?: string | null
+          status?: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
         }
@@ -268,4 +286,3 @@ export interface Database {
     }
   }
 }
-

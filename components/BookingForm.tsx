@@ -20,12 +20,14 @@ import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
+type NearbyChef = Pick<Chef, 'id' | 'name' | 'profile_picture' | 'city' | 'postal_code' | 'slug'>
 
 type ServiceType = 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
 
 interface BookingFormProps {
   chef: Chef
   menus: Menu[]
+  nearbyChefs?: NearbyChef[]
 }
 
 type DatePickerMultiProps = {
@@ -185,7 +187,7 @@ const DatePickerMulti = ({ selectedDates, onDatesChange, minDate, locale }: Date
   )
 }
 
-export default function BookingForm({ chef, menus }: BookingFormProps) {
+export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFormProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -193,6 +195,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsPopup, setShowTermsPopup] = useState(false)
+  const [showNearbyChefPopup, setShowNearbyChefPopup] = useState(false)
+  const [selectedNearbyChef, setSelectedNearbyChef] = useState<NearbyChef | null>(null)
   const [mounted, setMounted] = useState(false)
   const [submissionError, setSubmissionError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [idempotencyToken, setIdempotencyToken] = useState<string | null>(null)
@@ -200,6 +204,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
   const [showGlobalError, setShowGlobalError] = useState(false)
   const [globalErrorMessage, setGlobalErrorMessage] = useState<string>('')
   const globalErrorRef = useRef<HTMLDivElement>(null)
+  const chefPostalPrefix = (chef.postal_code || '').replace(/\D/g, '').slice(0, 2)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -224,6 +229,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
     allergiesDetails: '',
     menuId: menus.length > 0 ? menus[0].id : '',
     notes: '',
+    shareWithNearbyChefs: false,
+    nearbyChefIds: [] as string[],
   })
 
     // Réinitialiser le formulaire à chaque montage du composant
@@ -255,6 +262,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       allergiesDetails: '',
       menuId: menus.length > 0 ? menus[0].id : '',
       notes: '',
+      shareWithNearbyChefs: false,
+      nearbyChefIds: [],
     })
   }, [chef.id, menus])
 
@@ -272,7 +281,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
   // Bloquer le scroll du body quand la popup est ouverte
   useEffect(() => {
-    if (showTermsPopup) {
+    if (showTermsPopup || showNearbyChefPopup) {
       const scrollY = window.scrollY
       document.body.style.position = 'fixed'
       document.body.style.top = `-${scrollY}px`
@@ -287,7 +296,7 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         window.scrollTo(0, scrollY)
       }
     }
-  }, [showTermsPopup])
+  }, [showTermsPopup, showNearbyChefPopup])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name?: string; value: string } }) => {
     const { name, value } = e.target
@@ -427,6 +436,15 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       missingFields.push('Détails des allergies')
     }
 
+    if (formData.shareWithNearbyChefs) {
+      if (formData.nearbyChefIds.length === 0) {
+        newErrors.nearbyChefIds = 'Veuillez sélectionner au moins un chef qualifié à proximité'
+        missingFields.push('Chefs qualifiés à proximité')
+      } else if (formData.nearbyChefIds.length > 3) {
+        newErrors.nearbyChefIds = 'Vous pouvez sélectionner 3 chefs maximum'
+      }
+    }
+
     if (!acceptedTerms) {
       newErrors.terms = t('booking.errors.termsRequired')
       missingFields.push('Acceptation des conditions')
@@ -453,6 +471,27 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
 
   const handleBack = () => {
     setCurrentPage(1)
+  }
+
+  const toggleNearbyChef = (chefId: string, checked: boolean) => {
+    setFormData(prev => {
+      const current = prev.nearbyChefIds
+      if (checked) {
+        if (current.includes(chefId) || current.length >= 3) {
+          return prev
+        }
+        return { ...prev, nearbyChefIds: [...current, chefId] }
+      }
+      return { ...prev, nearbyChefIds: current.filter(id => id !== chefId) }
+    })
+
+    if (errors.nearbyChefIds) {
+      setErrors(prev => {
+        const nextErrors = { ...prev }
+        delete nextErrors.nearbyChefIds
+        return nextErrors
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false) => {
@@ -490,7 +529,14 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
       })
 
       // Exclure emailConfirm du body (c'est juste pour validation)
-      const { emailConfirm, periodStartDate, periodEndDate, ...bookingData } = formData
+      const {
+        emailConfirm,
+        periodStartDate,
+        periodEndDate,
+        shareWithNearbyChefs,
+        nearbyChefIds,
+        ...bookingData
+      } = formData
       
       // Préparer les données selon le type de service
       let periodDays = null
@@ -521,6 +567,8 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         selectedDates,
         mealOptions,
         totalPrice,
+        fallbackEnabled: shareWithNearbyChefs,
+        fallbackChefIds: shareWithNearbyChefs ? nearbyChefIds : [],
         idempotencyToken, // Token pour éviter les doublons
       }
 
@@ -1161,6 +1209,75 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
           />
         )}
 
+        {nearbyChefs.length > 0 && chefPostalPrefix.length === 2 && (
+          <div className="border-2 border-gray-200 rounded-xl p-4 sm:p-5 bg-gray-50 space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.shareWithNearbyChefs}
+                onChange={(e) =>
+                  setFormData(prev => ({
+                    ...prev,
+                    shareWithNearbyChefs: e.target.checked,
+                    nearbyChefIds: e.target.checked ? prev.nearbyChefIds : [],
+                  }))
+                }
+                className="w-5 h-5 mt-0.5 border-2 border-gray-300 rounded focus:outline-none focus:border-[#FBCF03]"
+              />
+              <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                Les Chefs MyTable sont très demandés et il peut arriver que votre chef soit indisponible à cette date.
+                Souhaitez-vous aussi envoyer votre demande de réservation à des Chefs qualifiés à proximité ?
+              </span>
+            </label>
+
+            {formData.shareWithNearbyChefs && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700 font-medium">
+                  Zone: {chefPostalPrefix}xx | Sélection max: 3 chefs
+                </p>
+                <div className="space-y-2">
+                  {nearbyChefs.map((nearbyChef) => {
+                    const selected = formData.nearbyChefIds.includes(nearbyChef.id)
+                    const disabled = !selected && formData.nearbyChefIds.length >= 3
+                    return (
+                      <div
+                        key={nearbyChef.id}
+                        className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
+                          selected ? 'border-[#FBCF03] bg-yellow-50' : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <label className="flex items-center gap-3 flex-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={disabled}
+                            onChange={(e) => toggleNearbyChef(nearbyChef.id, e.target.checked)}
+                            className="w-4 h-4 text-[#FBCF03] border-gray-300 rounded focus:ring-[#FBCF03] disabled:opacity-40"
+                          />
+                          <span className="text-sm text-black font-medium">{nearbyChef.name}</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedNearbyChef(nearbyChef)
+                            setShowNearbyChefPopup(true)
+                          }}
+                          className="text-sm font-semibold text-black underline hover:text-gray-700"
+                        >
+                          Voir le profil
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                {errors.nearbyChefIds && (
+                  <p className="text-sm text-red-500">{errors.nearbyChefIds}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <Textarea
           label={t('booking.notes')}
           name="notes"
@@ -1373,7 +1490,75 @@ export default function BookingForm({ chef, menus }: BookingFormProps) {
         </div>,
         document.body
       )}
+
+      {mounted && showNearbyChefPopup && selectedNearbyChef && createPortal(
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm p-4 z-50"
+          onClick={() => setShowNearbyChefPopup(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-black">Profil du Chef</h3>
+              <button
+                onClick={() => setShowNearbyChefPopup(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={t('common.close')}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col items-center text-center">
+              {(() => {
+                const nameParts = selectedNearbyChef.name.trim().split(' ')
+                const firstName = nameParts[0] || selectedNearbyChef.name
+                const lastName = nameParts.slice(1).join(' ')
+                return (
+                  <>
+              {selectedNearbyChef.profile_picture ? (
+                <img
+                  src={selectedNearbyChef.profile_picture}
+                  alt={selectedNearbyChef.name}
+                  className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 mb-4"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200 mb-4">
+                  <span className="text-2xl font-bold text-gray-700">
+                    {selectedNearbyChef.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <p className="text-lg font-semibold text-black">{firstName}</p>
+              <p className="text-sm text-gray-700">{lastName || '-'}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedNearbyChef.city || 'Ville non renseignée'}
+              </p>
+              <p className="text-sm text-gray-500">
+                {selectedNearbyChef.postal_code || 'Code postal non renseigné'}
+              </p>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </form>
   )
 }
-

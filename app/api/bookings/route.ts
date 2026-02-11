@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
       allergiesDetails,
       menuId,
       notes,
+      fallbackEnabled: fallbackEnabledRaw,
+      fallbackChefIds: fallbackChefIdsRaw,
       idempotencyToken,
     } = body
 
@@ -95,6 +97,13 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+
+    const requestedFallbackChefIds = Array.isArray(fallbackChefIdsRaw)
+      ? fallbackChefIdsRaw.filter((id: unknown): id is string => typeof id === 'string')
+      : []
+    const dedupedFallbackChefIds = [...new Set(requestedFallbackChefIds)]
+      .filter((id) => id !== chefId)
+      .slice(0, 3)
     if (serviceType === 'mise_en_demeure') {
       if (!selectedDates || !Array.isArray(selectedDates) || selectedDates.length === 0) {
         return NextResponse.json(
@@ -155,6 +164,33 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[bookings:${requestId}] Chef found:`, (chef as any).name)
+
+    const chefPostalPrefix = String((chef as any).postal_code || '').replace(/\D/g, '').slice(0, 2)
+    let validFallbackChefIds: string[] = []
+
+    if (dedupedFallbackChefIds.length > 0 && chefPostalPrefix.length === 2) {
+      const { data: nearbyFallbackChefs } = await supabase
+        .from('chefs')
+        .select('id, postal_code')
+        .in('id', dedupedFallbackChefIds)
+
+      const allowedIds = new Set(
+        (nearbyFallbackChefs || [])
+        .map((row: any) => ({
+          id: row.id as string,
+          postalPrefix: String(row.postal_code || '').replace(/\D/g, '').slice(0, 2),
+        }))
+        .filter((row) => row.postalPrefix === chefPostalPrefix)
+        .map((row) => row.id)
+      )
+
+      validFallbackChefIds = dedupedFallbackChefIds.filter((id) => allowedIds.has(id))
+    }
+
+    const fallbackEnabled = Boolean(fallbackEnabledRaw) && validFallbackChefIds.length > 0
+    const fallbackTimeoutAt = fallbackEnabled
+      ? new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+      : null
 
     // Vérifier l'idempotence AVANT de créer la conversation
     // On utilise une combinaison email + chefId + bookingDate + serviceType comme clé unique
@@ -342,6 +378,10 @@ export async function POST(request: NextRequest) {
           allergies_details: hasAllergies ? allergiesDetails : null,
           menu_id: menuId || null,
           notes: notes || null,
+          request_sent_at: new Date().toISOString(),
+          fallback_enabled: fallbackEnabled,
+          fallback_next_chef_ids: validFallbackChefIds,
+          fallback_timeout_at: fallbackTimeoutAt,
           status: 'pending',
         } as any)
         .select()
@@ -372,6 +412,17 @@ export async function POST(request: NextRequest) {
       // @ts-expect-error - Supabase type inference issue
       .update({ booking_request_id: bookingRequestId } as any)
       .eq('id', conversationId)
+
+    await (supabase
+      .from('booking_requests') as any)
+      .update({
+        request_sent_at: new Date().toISOString(),
+        fallback_enabled: fallbackEnabled,
+        fallback_next_chef_ids: validFallbackChefIds,
+        fallback_group_id: fallbackEnabled ? bookingRequestId : null,
+        fallback_timeout_at: fallbackTimeoutAt,
+      })
+      .eq('id', bookingRequestId)
 
     // Créer l'utilisateur auth pour le CLIENT uniquement (chaque client est différent)
     let clientUserId: string | null = null

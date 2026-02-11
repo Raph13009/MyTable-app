@@ -349,6 +349,7 @@ export const emailSubjects = {
   menuUpdated: 'Votre menu a été mis à jour',
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
+  bookingReplacementRequestToChef: 'Remplacement prioritaire - demande de réservation',
   bookingReminderToChef: 'Relance - demande de réservation en attente',
   bookingNewToAdmin: 'Nouvelle demande de réservation',
   bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
@@ -384,6 +385,12 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     }
     if (bookingDetails.menuName) {
       detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
+    }
+    if (bookingDetails.menuPricePerPerson) {
+      detailsHtml += `<p><strong>Budget par personne :</strong> ${bookingDetails.menuPricePerPerson.toFixed(2)} €</p>`
+    }
+    if (bookingDetails.estimatedTotalPrice) {
+      detailsHtml += `<p><strong>Budget total estimé :</strong> ${bookingDetails.estimatedTotalPrice.toFixed(2)} €</p>`
     }
     if (bookingDetails.hasAllergies) {
       detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
@@ -462,6 +469,47 @@ export const emailTemplates = {
     
     return emailLayout({
       title: `Nouvelle demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
+      content: contentWithButtons,
+      baseUrl,
+    })
+  },
+
+  bookingReplacementRequestToChef: (
+    chefName: string,
+    bookingDetails: any,
+    acceptUrl: string,
+    refuseUrl: string,
+    baseUrl?: string
+  ) => {
+    const detailsHtml = buildBookingDetailsHtml(bookingDetails)
+    const guestsText = `${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}`
+    const budgetPerPersonText = bookingDetails.menuPricePerPerson
+      ? `${bookingDetails.menuPricePerPerson.toFixed(2)} €`
+      : 'non communiqué'
+    const totalBudgetText = bookingDetails.estimatedTotalPrice
+      ? `${bookingDetails.estimatedTotalPrice.toFixed(2)} €`
+      : (bookingDetails.totalPrice ? `${bookingDetails.totalPrice.toFixed(2)} €` : 'non communiqué')
+
+    const content = `
+      <p>Bonjour ${chefName},</p>
+      <p>Vous avez été sélectionné comme <strong>chef de remplacement</strong> pour une prestation de <strong>${guestsText} convives</strong>.</p>
+      <p><strong>Budget par personne :</strong> ${budgetPerPersonText}<br/>
+      <strong>Budget total estimé :</strong> ${totalBudgetText}</p>
+      <p>Cette demande est également envoyée à d'autres chefs qualifiés à proximité.</p>
+      <p><strong>Le premier chef qui accepte obtient la mission.</strong> Si le bouton n'aboutit pas, c'est qu'un autre chef a déjà confirmé avant vous.</p>
+      ${detailsHtml}
+      <p>Merci de répondre rapidement :</p>
+    `
+
+    const contentWithButtons = content + `
+      <div class="email-cta">
+        <a href="${acceptUrl}" class="email-button-yellow">Accepter et accéder au chat</a>
+        <a href="${refuseUrl}" class="email-button-secondary">Refuser</a>
+      </div>
+    `
+
+    return emailLayout({
+      title: `Remplacement prioritaire - ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'}`,
       content: contentWithButtons,
       baseUrl,
     })

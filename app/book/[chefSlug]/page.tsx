@@ -3,12 +3,15 @@ import { redirect } from 'next/navigation'
 import BookingForm from '@/components/BookingForm'
 import BookingHeader from '@/components/BookingHeader'
 import BookPageTitle from '@/components/BookPageTitle'
+import { Database } from '@/types/database'
 
 interface PageProps {
   params: {
     chefSlug: string
   }
 }
+
+type Chef = Database['public']['Tables']['chefs']['Row']
 
 export default async function BookPage({ params }: PageProps) {
   const supabase = await createClient()
@@ -25,11 +28,25 @@ export default async function BookPage({ params }: PageProps) {
     redirect('/')
   }
 
+  const typedChef = chef as Chef
+  const postalPrefix = (typedChef.postal_code || '').replace(/\D/g, '').slice(0, 2)
+
   const { data: menus } = await supabase
     .from('menus')
     .select('*')
-    .eq('chef_id', (chef as any).id)
+    .eq('chef_id', typedChef.id)
     .order('name')
+
+  let nearbyChefs: Chef[] = []
+  if (postalPrefix.length === 2) {
+    const { data } = await supabase
+      .from('chefs')
+      .select('*')
+      .like('postal_code', `${postalPrefix}%`)
+      .neq('id', typedChef.id)
+      .limit(6)
+    nearbyChefs = (data || []) as Chef[]
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -51,13 +68,12 @@ export default async function BookPage({ params }: PageProps) {
       <div className="pt-24 sm:pt-28 md:pt-32">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="mb-8">
-            <BookPageTitle chefName={(chef as any).name} />
+            <BookPageTitle chefName={typedChef.name} />
           </div>
 
-          <BookingForm key={chefSlug} chef={chef} menus={menus || []} />
+          <BookingForm key={chefSlug} chef={typedChef} menus={menus || []} nearbyChefs={nearbyChefs} />
         </div>
       </div>
     </div>
   )
 }
-

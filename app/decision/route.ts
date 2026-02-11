@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
+import { createNextFallbackBooking, expireOtherPendingInFallbackGroup } from '@/lib/fallbackBookings'
 
 /**
  * ============================================
@@ -92,14 +93,31 @@ export async function GET(request: NextRequest) {
       .neq('id', matchingToken.id)
 
     const baseUrl = getBaseUrl()
-    const siteUrl = baseUrl
 
     if (action === 'refuse') {
       // Mettre à jour le statut
-      await (supabase
+      const { data: refusedBooking } = await (supabase
         .from('booking_requests') as any)
         .update({ status: 'refused' })
+        .eq('status', 'pending')
         .eq('id', bookingRequest.id)
+        .select('id')
+        .maybeSingle()
+
+      if (!refusedBooking?.id) {
+        const alreadyHandledUrl = new URL('/?error=already_handled', request.url)
+        alreadyHandledUrl.searchParams.set(
+          'message',
+          'Cette demande a déjà été traitée ou attribuée à un autre chef.'
+        )
+        return NextResponse.redirect(alreadyHandledUrl)
+      }
+
+      let fallbackDispatched = false
+      if (bookingRequest.fallback_enabled) {
+        const fallbackResult = await createNextFallbackBooking(supabase as any, bookingRequest, 'refused')
+        fallbackDispatched = Boolean(fallbackResult)
+      }
 
       // Récupérer les infos du chef pour l'email
       const { data: chef } = await supabase
@@ -112,16 +130,18 @@ export async function GET(request: NextRequest) {
       const chefFirstName = chef ? ((chef as any).name?.split(' ')[0] || (chef as any).name) : 'Chef'
       const clientFirstName = bookingRequest.first_name || ''
 
-      // Envoyer email au client
-      await sendEmail({
-        to: bookingRequest.email,
-        subject: emailSubjects.bookingRefusedToClient,
-        html: emailTemplates.bookingRefusedToClient(
-          clientFirstName,
-          chefFirstName,
-          baseUrl
-        ),
-      })
+      if (!fallbackDispatched) {
+        // Envoyer email au client uniquement si aucun chef fallback n'a été contacté
+        await sendEmail({
+          to: bookingRequest.email,
+          subject: emailSubjects.bookingRefusedToClient,
+          html: emailTemplates.bookingRefusedToClient(
+            clientFirstName,
+            chefFirstName,
+            baseUrl
+          ),
+        })
+      }
 
       // Rediriger vers guidemytable.fr après refus
       return NextResponse.redirect('https://guidemytable.fr/', 302)
@@ -130,12 +150,23 @@ export async function GET(request: NextRequest) {
       const { data: updatedBooking } = await (supabase
         .from('booking_requests') as any)
         .update({ status: 'accepted' })
+        .eq('status', 'pending')
         .eq('id', bookingRequest.id)
         .select('conversation_id')
-        .single()
+        .maybeSingle()
 
       if (!updatedBooking) {
-        return NextResponse.redirect(new URL('/?error=update_failed', request.url))
+        const alreadyAssignedUrl = new URL('/?error=already_assigned', request.url)
+        alreadyAssignedUrl.searchParams.set(
+          'message',
+          'La mission a déjà été attribuée à un autre chef.'
+        )
+        return NextResponse.redirect(alreadyAssignedUrl)
+      }
+
+      const fallbackGroupId = bookingRequest.fallback_group_id || bookingRequest.id
+      if (fallbackGroupId) {
+        await expireOtherPendingInFallbackGroup(supabase as any, fallbackGroupId, bookingRequest.id)
       }
 
       const conversationId = (updatedBooking as any).conversation_id
