@@ -1072,7 +1072,12 @@ export default function ChatInterface({
     setShowFinalizeModal(false)
     
     try {
-      const response = await fetch('/api/booking-validate', {
+      const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
+      const endpoint = isMiseEnDemeure
+        ? '/api/booking-finalize-clicked'
+        : '/api/booking-validate'
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1087,11 +1092,16 @@ export default function ChatInterface({
         throw new Error(error.error || 'Erreur lors de la finalisation')
       }
 
-      // Mettre à jour le statut localement
-      setBookingStatus('validated_by_client')
-      
-      // Recharger la page pour afficher le message système
-      window.location.reload()
+      if (isMiseEnDemeure) {
+        alert('Merci. Votre demande de finalisation a bien été transmise. Le lien de paiement vous sera envoyé par email.')
+        // Le statut reste "accepted" pour ce flow. Rechargement pour synchroniser l'UI.
+        window.location.reload()
+      } else {
+        // Mettre à jour le statut localement
+        setBookingStatus('validated_by_client')
+        // Recharger la page pour afficher le message système
+        window.location.reload()
+      }
     } catch (error: any) {
       console.error('[ChatInterface] Error finalizing booking:', error)
       alert(error.message || 'Erreur lors de la finalisation de la réservation')

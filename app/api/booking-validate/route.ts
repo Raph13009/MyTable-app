@@ -165,10 +165,10 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = getBaseUrl()
 
-    // Envoyer les emails
+    // Envoyer les emails (séparément pour ne jamais bloquer l'email admin)
+    const chef = (bookingRequest as any).chefs
+
     try {
-      // Email au client
-      const chef = (bookingRequest as any).chefs
       await sendEmail({
         to: (bookingRequest as any).email,
         subject: emailSubjects.bookingValidatedToClient,
@@ -178,9 +178,13 @@ export async function POST(request: NextRequest) {
           baseUrl
         ),
       })
+      console.log('[booking-validate] ✅ Client email sent successfully')
+    } catch (clientEmailError) {
+      console.error('[booking-validate] ❌ Error sending client email:', clientEmailError)
+    }
 
-      // Email au chef
-      if (chef && chef.email) {
+    if (chef && chef.email) {
+      try {
         await sendEmail({
           to: chef.email,
           subject: emailSubjects.bookingValidatedToChef,
@@ -196,36 +200,35 @@ export async function POST(request: NextRequest) {
             baseUrl
           ),
         })
+        console.log('[booking-validate] ✅ Chef email sent successfully')
+      } catch (chefEmailError) {
+        console.error('[booking-validate] ❌ Error sending chef email:', chefEmailError)
       }
+    }
 
-      // Email à l'admin
-      console.log('[booking-validate] Sending email to admin: contact@guidemytable.fr')
-      try {
-        await sendEmail({
-          to: 'contact@guidemytable.fr',
-          subject: emailSubjects.bookingValidatedToAdmin,
-          html: emailTemplates.bookingValidatedToAdmin(
-            `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
-            (bookingRequest as any).email,
-            chef?.name || 'Chef',
-            chef?.email || '',
-            bookingDate,
-            guestsCount,
-            childrenCount,
-            totalAmount,
-            (bookingRequest as any).menus?.name || null,
-            extras,
-            baseUrl
-          ),
-        })
-        console.log('[booking-validate] ✅ Admin email sent successfully')
-      } catch (adminEmailError) {
-        console.error('[booking-validate] ❌ Error sending admin email:', adminEmailError)
-        // Ne pas bloquer si l'envoi d'email admin échoue, mais logger l'erreur
-      }
-    } catch (emailError) {
-      console.error('[booking-validate] Error sending emails:', emailError)
-      // Ne pas bloquer si l'envoi d'email échoue
+    console.log('[booking-validate] Sending email to admin: contact@guidemytable.fr')
+    try {
+      await sendEmail({
+        to: 'contact@guidemytable.fr',
+        subject: emailSubjects.bookingValidatedToAdmin,
+        html: emailTemplates.bookingValidatedToAdmin(
+          `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
+          (bookingRequest as any).email,
+          chef?.name || 'Chef',
+          chef?.email || '',
+          bookingDate,
+          guestsCount,
+          childrenCount,
+          totalAmount,
+          (bookingRequest as any).menus?.name || null,
+          extras,
+          baseUrl
+        ),
+      })
+      console.log('[booking-validate] ✅ Admin email sent successfully')
+    } catch (adminEmailError) {
+      console.error('[booking-validate] ❌ Error sending admin email:', adminEmailError)
+      // Ne pas bloquer la réponse API si l'email admin échoue
     }
 
     return NextResponse.json({ success: true })
@@ -234,4 +237,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 })
   }
 }
-
