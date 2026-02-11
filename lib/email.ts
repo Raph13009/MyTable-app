@@ -683,15 +683,33 @@ export const emailTemplates = {
     })
   },
 
-  bookingValidatedToAdmin: (clientName: string, clientEmail: string, chefName: string, chefEmail: string, bookingDate: string, guestsCount: number, childrenCount: number, totalAmount: number, menuName: string | null, extras: Array<{ name: string; price: number }>, baseUrl?: string) => {
-    const extrasList = extras.length > 0 
-      ? extras.map(e => `<li>${e.name} : ${e.price.toFixed(2)} €</li>`).join('')
+  bookingValidatedToAdmin: (
+    clientName: string,
+    clientEmail: string,
+    chefName: string,
+    chefEmail: string,
+    bookingDate: string,
+    guestsCount: number,
+    childrenCount: number,
+    totalAmount: number,
+    menuName: string | null,
+    extras: Array<{ name: string; price: number | string }>,
+    baseUrl?: string
+  ) => {
+    const safeTotalAmount = Number.isFinite(Number(totalAmount)) ? Number(totalAmount) : 0
+    const safeExtras = Array.isArray(extras) ? extras : []
+    const extrasList = safeExtras.length > 0
+      ? safeExtras.map((e) => {
+          const price = Number(e?.price)
+          const safePrice = Number.isFinite(price) ? price : 0
+          return `<li>${e?.name || 'Extra'} : ${safePrice.toFixed(2)} €</li>`
+        }).join('')
       : '<li>Aucun extra</li>'
     
     // Calculer le montant avec commission (total - 15%)
     const commissionRate = 0.15
-    const commissionAmount = totalAmount * commissionRate
-    const amountAfterCommission = totalAmount - commissionAmount
+    const commissionAmount = safeTotalAmount * commissionRate
+    const amountAfterCommission = safeTotalAmount - commissionAmount
     
     const content = `
       <p><strong style="font-size: 18px; color: #000;">Action requise : Envoyer le lien de paiement</strong></p>
@@ -700,7 +718,7 @@ export const emailTemplates = {
         <p style="margin: 0; font-weight: 600; color: #000; font-size: 16px;">📧 Envoyer le lien de paiement d'une valeur de <strong>${amountAfterCommission.toFixed(2)} €</strong> au client :</p>
         <p style="margin: 8px 0 0 0; font-size: 15px; color: #000;"><strong>${clientEmail}</strong></p>
         <p style="margin: 12px 0 0 0; font-size: 14px; color: #666; font-style: italic;">
-          <strong>Note importante :</strong> Le montant à facturer est de <strong>${amountAfterCommission.toFixed(2)} €</strong> (prix total ${totalAmount.toFixed(2)} € - commission plateforme de ${commissionAmount.toFixed(2)} € soit 15%)
+          <strong>Note importante :</strong> Le montant à facturer est de <strong>${amountAfterCommission.toFixed(2)} €</strong> (prix total ${safeTotalAmount.toFixed(2)} € - commission plateforme de ${commissionAmount.toFixed(2)} € soit 15%)
         </p>
       </div>
       
@@ -747,7 +765,7 @@ export const emailTemplates = {
         
         <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #000;">
           <p style="margin: 0; color: #666; font-size: 13px;"><strong>Montant total :</strong></p>
-          <p style="margin: 4px 0 0 0; color: #000; font-size: 20px; font-weight: 700;">${totalAmount.toFixed(2)} €</p>
+          <p style="margin: 4px 0 0 0; color: #000; font-size: 20px; font-weight: 700;">${safeTotalAmount.toFixed(2)} €</p>
         </div>
       </div>
       
@@ -756,7 +774,7 @@ export const emailTemplates = {
           ⚠️ Action requise : Envoyer le lien de paiement de <strong>${amountAfterCommission.toFixed(2)} €</strong> à ${clientEmail} dans les 24 heures
         </p>
         <p style="margin: 8px 0 0 0; font-size: 14px; color: #000;">
-          (Prix total : ${totalAmount.toFixed(2)} € - Commission plateforme 15% : ${commissionAmount.toFixed(2)} € = ${amountAfterCommission.toFixed(2)} €)
+          (Prix total : ${safeTotalAmount.toFixed(2)} € - Commission plateforme 15% : ${commissionAmount.toFixed(2)} € = ${amountAfterCommission.toFixed(2)} €)
         </p>
       </div>
     `
