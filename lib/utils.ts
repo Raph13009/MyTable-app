@@ -92,3 +92,46 @@ export function getBaseUrl(override?: string): string {
 
   return "http://localhost:3000"
 }
+
+export function sanitizeMessage(value: string): string {
+  const input = String(value ?? "")
+
+  // Basic escaping to avoid HTML/script injection in message rendering contexts.
+  const escaped = input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+
+  // Mask personal contact data.
+  const maskedEmails = escaped.replace(
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+    "[email masqué]"
+  )
+
+  const maskedPhones = maskedEmails.replace(
+    /(?:\+?\d[\d\s().-]{7,}\d)/g,
+    "[numéro masqué]"
+  )
+
+  // Keep the message size bounded for DB / UI stability.
+  return maskedPhones.trim().slice(0, 4000)
+}
+
+export async function verifyToken(rawToken: string, expectedHash: string): Promise<boolean> {
+  if (!rawToken || !expectedHash) return false
+
+  const computedHash = await hashToken(rawToken)
+
+  // Constant-time comparison when Node crypto is available.
+  try {
+    const { timingSafeEqual } = await import("crypto")
+    const a = Buffer.from(computedHash, "hex")
+    const b = Buffer.from(expectedHash, "hex")
+    if (a.length !== b.length) return false
+    return timingSafeEqual(a, b)
+  } catch {
+    return computedHash === expectedHash
+  }
+}

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function Stepper({
   children,
   initialStep = 1,
-  onStepChange = () => {},
+  onStepChange = (_step) => {},
   onFinalStepCompleted = () => {},
   stepCircleContainerClassName = '',
   stepContainerClassName = '',
@@ -197,7 +197,7 @@ const stepVariants = {
   })
 };
 
-export function Step({ children }) {
+export function Step({ children = null }) {
   return <div className="px-8">{children}</div>;
 }
 

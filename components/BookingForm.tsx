@@ -767,7 +767,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         cardClassName="!max-w-4xl !w-full !rounded-none !shadow-none !border-0 !bg-transparent"
         stepCircleContainerClassName="!border-0 !shadow-none !bg-transparent"
         stepContainerClassName="!w-full !px-0 !pt-2 sm:!pt-7 !pb-0 !items-center"
-        renderStepIndicator={({ step, currentStep: stepperStep, onStepClick }) => {
+        renderStepIndicator={({ step, currentStep: stepperStep, onStepClick }: { step: number; currentStep: number; onStepClick: (clicked: number) => void }) => {
           const label = stepLabels[step - 1]
           const isCompleted = step < stepperStep
           const isActive = step === stepperStep
