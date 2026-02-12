@@ -83,6 +83,7 @@ export async function createNextFallbackBooking(
     selected_dates: currentBooking.selected_dates,
     meal_options: currentBooking.meal_options,
     total_price: currentBooking.total_price,
+    is_price_custom: currentBooking.is_price_custom || false,
     menu_content: currentBooking.menu_content,
     status: 'pending',
     request_sent_at: now.toISOString(),

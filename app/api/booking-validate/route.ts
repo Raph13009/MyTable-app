@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       guestsCount,
       budget: (bookingRequest as any).budget,
       totalPrice: (bookingRequest as any).total_price,
+      isPriceCustom: (bookingRequest as any).is_price_custom,
       extras,
     })
 

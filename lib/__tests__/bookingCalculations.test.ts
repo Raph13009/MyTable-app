@@ -148,6 +148,25 @@ describe('calculateBookingTotal', () => {
   })
 
   describe('Cas edge et valeurs par défaut', () => {
+    it('devrait prioriser un prix personnalisé quand isPriceCustom est true', () => {
+      const result = calculateBookingTotal('repas_domicile', {
+        menuPrice: 50,
+        guestsCount: 4,
+        totalPrice: 180,
+        isPriceCustom: true,
+        extras: [{ name: 'Extra', price: 30 }],
+      })
+      expect(result).toBe(180)
+    })
+
+    it('devrait gérer un prix personnalisé en string', () => {
+      const result = calculateBookingTotal('cours_cuisine', {
+        totalPrice: '249.90',
+        isPriceCustom: true,
+      })
+      expect(result).toBe(249.9)
+    })
+
     it('devrait retourner seulement les extras si service_type est null', () => {
       const result = calculateBookingTotal(null, {
         menuPrice: 50,

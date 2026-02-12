@@ -102,6 +102,7 @@ export interface Database {
           selected_dates: Json | null
           meal_options: string[] | null
           total_price: number | null
+          is_price_custom: boolean
           menu_content: Json | null
           request_sent_at: string
           fallback_enabled: boolean
@@ -138,6 +139,7 @@ export interface Database {
           selected_dates?: Json | null
           meal_options?: string[] | null
           total_price?: number | null
+          is_price_custom?: boolean
           menu_content?: Json | null
           request_sent_at?: string
           fallback_enabled?: boolean
@@ -173,6 +175,7 @@ export interface Database {
           selected_dates?: Json | null
           meal_options?: string[] | null
           total_price?: number | null
+          is_price_custom?: boolean
           menu_content?: Json | null
           request_sent_at?: string
           fallback_enabled?: boolean

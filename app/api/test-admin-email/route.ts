@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
       guestsCount,
       budget: bookingRequest.budget,
       totalPrice: bookingRequest.total_price,
+      isPriceCustom: bookingRequest.is_price_custom,
       extras,
     })
 
@@ -141,4 +142,3 @@ export async function GET(request: NextRequest) {
     }, { status: 500 })
   }
 }
-

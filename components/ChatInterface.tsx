@@ -152,6 +152,12 @@ export default function ChatInterface({
   const [extras, setExtras] = useState<Array<{ name: string; price: number }>>([])
   const [newExtraName, setNewExtraName] = useState('')
   const [newExtraPrice, setNewExtraPrice] = useState('')
+  const [isPriceCustom, setIsPriceCustom] = useState(Boolean(bookingRequest?.is_price_custom))
+  const [customPriceInput, setCustomPriceInput] = useState(
+    bookingRequest?.is_price_custom && bookingRequest?.total_price !== null && bookingRequest?.total_price !== undefined
+      ? Number(bookingRequest.total_price).toFixed(2)
+      : ''
+  )
   const [savingExtras, setSavingExtras] = useState(false)
   const [savingMenu, setSavingMenu] = useState(false)
   
@@ -747,6 +753,16 @@ export default function ChatInterface({
     }
   }, [bookingRequest?.menu_content])
 
+  useEffect(() => {
+    const customEnabled = Boolean(bookingRequest?.is_price_custom)
+    setIsPriceCustom(customEnabled)
+    if (customEnabled && bookingRequest?.total_price !== null && bookingRequest?.total_price !== undefined) {
+      setCustomPriceInput(Number(bookingRequest.total_price).toFixed(2))
+    } else {
+      setCustomPriceInput('')
+    }
+  }, [bookingRequest?.is_price_custom, bookingRequest?.total_price])
+
   // Vérifier s'il y a des changements non sauvegardés
   useEffect(() => {
     // DEFENSIVE: Ensure guestsCount and childrenCount are numbers, not functions
@@ -766,8 +782,18 @@ export default function ChatInterface({
     const guestsChanged = safeGuestsCount !== (bookingRequest?.guests_count || 1)
     const childrenChanged = safeChildrenCount !== (bookingRequest?.children_count || 0)
     const extrasChanged = JSON.stringify(extras) !== JSON.stringify(localExtras)
-    setHasUnsavedChanges(guestsChanged || childrenChanged || extrasChanged)
-  }, [guestsCount, childrenCount, extras, bookingRequest?.guests_count, bookingRequest?.children_count, localExtras])
+    const parsedValue = parseFloat(customPriceInput.replace(',', '.'))
+    const hasValidValue = Number.isFinite(parsedValue) && parsedValue > 0
+    const currentCustomBase = bookingRequest?.total_price !== null && bookingRequest?.total_price !== undefined
+      ? parseFloat(String(bookingRequest.total_price))
+      : null
+    const customChanged = isChef && hasValidValue && (
+      !bookingRequest?.is_price_custom ||
+      currentCustomBase === null ||
+      Math.abs(parsedValue - currentCustomBase) > 0.009
+    )
+    setHasUnsavedChanges(guestsChanged || childrenChanged || extrasChanged || customChanged)
+  }, [guestsCount, childrenCount, extras, bookingRequest?.guests_count, bookingRequest?.children_count, bookingRequest?.is_price_custom, bookingRequest?.total_price, localExtras, customPriceInput, isChef])
 
   const handleAddExtra = async () => {
     if (!newExtraName.trim() || !newExtraPrice.trim()) {
@@ -873,8 +899,16 @@ export default function ChatInterface({
     setUpdatingGuests(true)
 
     try {
-      // Sauvegarder les extras si modifiés (chef uniquement)
-      if (isChef && JSON.stringify(extras) !== JSON.stringify(localExtras)) {
+      const extrasChanged = JSON.stringify(extras) !== JSON.stringify(localExtras)
+      const hasCustomInput = customPriceInput.trim().length > 0
+      const customPriceUpdateRequested = isChef && customPriceChanged
+
+      if (isChef && hasCustomInput && !hasValidCustomPriceInput) {
+        throw new Error('Le prix personnalisé doit être un nombre supérieur à 0')
+      }
+
+      // Sauvegarder extras et/ou prix personnalisé (chef uniquement)
+      if (isChef && (extrasChanged || customPriceUpdateRequested)) {
         const response = await fetch('/api/booking-extras', {
           method: 'POST',
           headers: {
@@ -883,16 +917,18 @@ export default function ChatInterface({
           body: JSON.stringify({
             bookingRequestId: bookingRequest.id,
             extras: extras,
+            customPrice: customPriceUpdateRequested ? customPriceValue : null,
+            isPriceCustom: customPriceUpdateRequested,
           }),
         })
 
         if (!response.ok) {
-          throw new Error('Failed to save extras')
+          throw new Error('Erreur lors de la sauvegarde des modifications de prix/extras')
         }
 
         // Envoyer un message pour chaque extra ajouté/supprimé
-        const addedExtras = extras.filter(e => !localExtras.find(le => le.name === e.name && le.price === e.price))
-        const removedExtras = localExtras.filter(le => !extras.find(e => e.name === le.name && e.price === le.price))
+        const addedExtras = extrasChanged ? extras.filter(e => !localExtras.find(le => le.name === e.name && le.price === e.price)) : []
+        const removedExtras = extrasChanged ? localExtras.filter(le => !extras.find(e => e.name === le.name && e.price === le.price)) : []
 
         for (const extra of addedExtras) {
           const notificationMessage = `Extra ajouté : ${extra.name} (+${extra.price.toFixed(2)} €)`
@@ -921,6 +957,26 @@ export default function ChatInterface({
             } as any)
           } catch (e) {
             console.error('[ChatInterface] Error sending extra removal notification:', e)
+          }
+        }
+
+        if (customPriceUpdateRequested && customPriceValue !== null) {
+          setIsPriceCustom(true)
+          if (bookingRequest) {
+            ;(bookingRequest as any).is_price_custom = true
+            ;(bookingRequest as any).total_price = customPriceValue
+          }
+
+          const notificationMessage = `✨ Prix personnalisé défini : ${customPriceValue.toFixed(2)} €`
+          const sanitizedNotification = sanitizeMessage(notificationMessage)
+          try {
+            await supabase.from('messages').insert({
+              conversation_id: conversationId,
+              sender_email: currentUser.email!,
+              content: sanitizedNotification,
+            } as any)
+          } catch (e) {
+            console.error('[ChatInterface] Error sending custom price notification:', e)
           }
         }
 
@@ -1016,11 +1072,24 @@ export default function ChatInterface({
   const menuPrice = menuDetails?.price || 0
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
   const menuTotal = menuPrice * currentGuestsCount
+  const parsedCustomPrice = parseFloat(customPriceInput.replace(',', '.'))
+  const hasValidCustomPriceInput = Number.isFinite(parsedCustomPrice) && parsedCustomPrice > 0
+  const customPriceValue = hasValidCustomPriceInput ? parsedCustomPrice : null
+  const existingCustomTotalPrice = bookingRequest?.total_price !== null && bookingRequest?.total_price !== undefined
+    ? parseFloat(String(bookingRequest.total_price))
+    : null
+  const customPriceChanged = isChef && hasValidCustomPriceInput && (
+    !bookingRequest?.is_price_custom ||
+    existingCustomTotalPrice === null ||
+    Math.abs(parsedCustomPrice - existingCustomTotalPrice) > 0.009
+  )
+  const effectiveIsPriceCustom = isPriceCustom || customPriceChanged
   const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
     menuPrice,
     guestsCount: currentGuestsCount,
     budget: bookingRequest?.budget,
-    totalPrice: bookingRequest?.total_price,
+    totalPrice: effectiveIsPriceCustom && customPriceValue !== null ? customPriceValue : bookingRequest?.total_price,
+    isPriceCustom: effectiveIsPriceCustom,
     extras,
   })
 
@@ -2277,9 +2346,39 @@ export default function ChatInterface({
               {/* Total */}
               <div className="pt-3.5 border-t border-gray-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold text-black tracking-tight">{t('booking.total')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold text-black tracking-tight">{t('booking.total')}</span>
+                    {effectiveIsPriceCustom && (
+                      <span className="inline-flex items-center rounded-full bg-[#FBCF03]/20 px-2 py-0.5 text-[11px] font-semibold text-black">
+                        Prix personnalisé
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xl font-bold text-black tracking-tight">{totalPrice.toFixed(2)} €</span>
                 </div>
+                {isChef && canModifyBooking && (
+                  <div className="mt-3 bg-white rounded-xl border border-gray-300 shadow-md p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-black">Prix personnalisé</p>
+                      {effectiveIsPriceCustom && (
+                        <span className="text-[11px] font-medium text-gray-600">Actif</span>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      value={customPriceInput}
+                      onChange={(e) => setCustomPriceInput(e.target.value)}
+                      placeholder="Ex: 450"
+                      step="0.01"
+                      min="0"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/30 focus:border-[#FBCF03]/40 text-base transition-all duration-150"
+                      disabled={savingExtras}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-2">
+                      Le prix saisi ici devient le montant final envoyé au client et à l&apos;admin.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2494,7 +2593,14 @@ export default function ChatInterface({
                     </span>
                   </div>
                   <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
-                    <span className="text-base font-semibold text-black">Total</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-semibold text-black">Total</span>
+                      {effectiveIsPriceCustom && (
+                        <span className="inline-flex items-center rounded-full bg-[#FBCF03]/20 px-2 py-0.5 text-[11px] font-semibold text-black">
+                          Prix personnalisé
+                        </span>
+                      )}
+                    </div>
                     <span className="text-lg font-bold text-black">{totalPrice.toFixed(2)} €</span>
                   </div>
                 </div>

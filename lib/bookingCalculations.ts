@@ -6,6 +6,7 @@
  * @param guestsCount - Nombre de convives (pour repas_domicile uniquement)
  * @param budget - Budget global (pour cours_cuisine uniquement)
  * @param totalPrice - Prix total (pour mise_en_demeure uniquement)
+ * @param isPriceCustom - Si true, totalPrice est traité comme le montant final (override)
  * @param extras - Tableau des extras avec { name: string; price: number }
  * @returns Le montant total calculé
  */
@@ -16,6 +17,7 @@ export function calculateBookingTotal(
     guestsCount?: number | string | null
     budget?: number | string | null
     totalPrice?: number | string | null
+    isPriceCustom?: boolean | null
     extras?: Array<{ name: string; price: number | string }> | null
   }
 ): number {
@@ -33,8 +35,14 @@ export function calculateBookingTotal(
     guestsCount = 0,
     budget = 0,
     totalPrice = 0,
+    isPriceCustom = false,
     extras = [],
   } = options
+
+  // Prix personnalisé saisi par le chef: total final forcé (sans addition automatique des extras)
+  if (isPriceCustom) {
+    return normalizeNumber(totalPrice)
+  }
 
   // Calculer le total des extras
   const extrasTotal = (extras || []).reduce((sum, extra) => sum + normalizeNumber(extra?.price), 0)
