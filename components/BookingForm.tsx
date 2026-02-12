@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
-import { Checkbox } from '@/components/ui/Checkbox'
+import Stepper, { Step } from '@/components/Stepper'
 import { Database } from '@/types/database'
 import { useTranslation } from '@/hooks/useTranslation'
 import { 
@@ -26,6 +26,7 @@ type ServiceType = 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
 
 interface BookingFormProps {
   chef: Chef
+  chefName: string
   menus: Menu[]
   nearbyChefs?: NearbyChef[]
 }
@@ -187,7 +188,7 @@ const DatePickerMulti = ({ selectedDates, onDatesChange, minDate, locale }: Date
   )
 }
 
-export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFormProps) {
+export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }: BookingFormProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -203,6 +204,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
   const [retryCount, setRetryCount] = useState(0)
   const [showGlobalError, setShowGlobalError] = useState(false)
   const [globalErrorMessage, setGlobalErrorMessage] = useState<string>('')
+  const [isStepVisible, setIsStepVisible] = useState(true)
   const globalErrorRef = useRef<HTMLDivElement>(null)
   const chefPostalPrefix = (chef.postal_code || '').replace(/\D/g, '').slice(0, 2)
 
@@ -267,11 +269,15 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
     })
   }, [chef.id, menus])
 
-  // Scroll en haut lors du passage à la page 2
+  // Scroll en haut lors du changement d'étape
   useEffect(() => {
-    if (currentPage === 2) {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentPage])
+
+  useEffect(() => {
+    setIsStepVisible(false)
+    const timer = setTimeout(() => setIsStepVisible(true), 30)
+    return () => clearTimeout(timer)
   }, [currentPage])
 
   // Pour le portal
@@ -340,17 +346,6 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
   const validatePage1 = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.firstName.trim()) newErrors.firstName = t('booking.errors.firstNameRequired')
-    if (!formData.lastName.trim()) newErrors.lastName = t('booking.errors.lastNameRequired')
-    if (!formData.email.trim()) newErrors.email = t('booking.errors.emailRequired')
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = t('booking.errors.emailInvalid')
-    }
-    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = t('booking.errors.emailConfirmRequired')
-    else if (formData.email !== formData.emailConfirm) {
-      newErrors.emailConfirm = t('booking.errors.emailsDontMatch')
-    }
-    if (!formData.phone.trim()) newErrors.phone = t('booking.errors.phoneRequired')
     if (!formData.serviceType) {
       newErrors.serviceType = t('booking.errors.serviceTypeRequired')
     }
@@ -431,7 +426,23 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
       }
     }
 
-    if (formData.hasAllergies && !formData.allergiesDetails.trim()) {
+    // Créer un message d'erreur détaillé
+    if (missingFields.length > 0) {
+      const errorMessage = `Attention : champs manquants. Veuillez remplir : ${missingFields.join(', ')}`
+      setGlobalErrorMessage(errorMessage)
+    } else {
+      setGlobalErrorMessage('')
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const validatePage3 = () => {
+    const newErrors: Record<string, string> = {}
+    const missingFields: string[] = []
+
+    if (formData.serviceType === 'repas_domicile' && formData.hasAllergies && !formData.allergiesDetails.trim()) {
       newErrors.allergiesDetails = t('booking.errors.allergiesDetailsRequired')
       missingFields.push('Détails des allergies')
     }
@@ -445,12 +456,6 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
       }
     }
 
-    if (!acceptedTerms) {
-      newErrors.terms = t('booking.errors.termsRequired')
-      missingFields.push('Acceptation des conditions')
-    }
-
-    // Créer un message d'erreur détaillé
     if (missingFields.length > 0) {
       const errorMessage = `Attention : champs manquants. Veuillez remplir : ${missingFields.join(', ')}`
       setGlobalErrorMessage(errorMessage)
@@ -458,19 +463,56 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
       setGlobalErrorMessage('')
     }
 
-    setErrors(newErrors)
+    setErrors(prev => ({ ...prev, ...newErrors }))
+    return Object.keys(newErrors).length === 0
+  }
+
+  const validatePage4 = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.firstName.trim()) newErrors.firstName = t('booking.errors.firstNameRequired')
+    if (!formData.lastName.trim()) newErrors.lastName = t('booking.errors.lastNameRequired')
+    if (!formData.email.trim()) newErrors.email = t('booking.errors.emailRequired')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = t('booking.errors.emailInvalid')
+    }
+    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = t('booking.errors.emailConfirmRequired')
+    else if (formData.email !== formData.emailConfirm) {
+      newErrors.emailConfirm = t('booking.errors.emailsDontMatch')
+    }
+    if (!formData.phone.trim()) newErrors.phone = t('booking.errors.phoneRequired')
+    if (!acceptedTerms) newErrors.terms = t('booking.errors.termsRequired')
+
+    setErrors(prev => ({ ...prev, ...newErrors }))
     return Object.keys(newErrors).length === 0
   }
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault()
-    if (validatePage1()) {
+    if (currentPage === 1 && validatePage1()) {
       setCurrentPage(2)
+      return
+    }
+    if (currentPage === 2 && validatePage2()) {
+      setCurrentPage(3)
+      return
+    }
+    if (currentPage === 3 && validatePage3()) {
+      setShowGlobalError(false)
+      setCurrentPage(4)
+      return
+    }
+
+    if (currentPage === 3) {
+      setShowGlobalError(true)
+      setTimeout(() => {
+        globalErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
     }
   }
 
   const handleBack = () => {
-    setCurrentPage(1)
+    setCurrentPage(prev => Math.max(1, prev - 1))
   }
 
   const toggleNearbyChef = (chefId: string, checked: boolean) => {
@@ -497,12 +539,23 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
   const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false) => {
     e.preventDefault()
 
+    if (!validatePage1()) {
+      setCurrentPage(1)
+      return
+    }
+
     if (!validatePage2()) {
-      // Afficher le message d'erreur global et faire défiler vers lui
-      setShowGlobalError(true)
-      setTimeout(() => {
-        globalErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
+      setCurrentPage(2)
+      return
+    }
+
+    if (!validatePage3()) {
+      setCurrentPage(3)
+      return
+    }
+
+    if (!validatePage4()) {
+      setCurrentPage(4)
       return
     }
 
@@ -688,87 +741,135 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
     { value: 'mise_en_demeure', label: t('booking.serviceType.mise_en_demeure') },
   ]
 
-  // Page 1: Informations personnelles + Sélection du type de service
+  const stepLabels = [
+    t('booking.formStepper.serviceType'),
+    t('booking.formStepper.serviceDetails'),
+    t('booking.formStepper.additionalInfo'),
+    t('booking.formStepper.personalInfo'),
+  ]
+  const totalSteps = stepLabels.length
+
+  const goToStep = (targetStep: number) => {
+    if (targetStep < 1 || targetStep > totalSteps) return
+    if (targetStep > currentPage) return
+    setCurrentPage(targetStep)
+  }
+
+  const renderStepper = () => (
+    <div className="px-4 sm:px-6">
+      <Stepper
+        initialStep={currentPage}
+        onStepChange={(step) => goToStep(step)}
+        disableStepIndicators
+        hideContent
+        hideFooter
+        containerClassName="!min-h-0 !p-0 !justify-start !items-stretch !aspect-auto -mt-2 sm:mt-0"
+        cardClassName="!max-w-4xl !w-full !rounded-none !shadow-none !border-0 !bg-transparent"
+        stepCircleContainerClassName="!border-0 !shadow-none !bg-transparent"
+        stepContainerClassName="!w-full !px-0 !pt-2 sm:!pt-7 !pb-0 !items-center"
+        renderStepIndicator={({ step, currentStep: stepperStep, onStepClick }) => {
+          const label = stepLabels[step - 1]
+          const isCompleted = step < stepperStep
+          const isActive = step === stepperStep
+          const isClickable = step <= currentPage
+
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                if (isClickable) onStepClick(step)
+              }}
+              disabled={!isClickable}
+              aria-label={`${t('booking.formStepper.stepLabel')} ${step}: ${label}`}
+              aria-current={isActive ? 'step' : undefined}
+              className={`relative flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#E8BC00] ${
+                isCompleted
+                  ? 'bg-[#E8BC00] text-white'
+                  : isActive
+                  ? 'scale-105 border-2 border-[#E8BC00] bg-white text-[#C99D00] shadow-[0_0_0_3px_rgba(232,188,0,0.12)]'
+                  : 'border border-neutral-300 bg-white text-neutral-400'
+              } ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+            >
+              <span className={`pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs transition-colors hidden sm:block ${
+                isActive ? 'font-semibold text-neutral-900' : isCompleted ? 'font-medium text-neutral-500' : 'font-normal text-neutral-400'
+              }`}>
+                {label}
+              </span>
+              {isCompleted ? (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              )}
+            </button>
+          )
+        }}
+      >
+        <Step />
+        <Step />
+        <Step />
+        <Step />
+      </Stepper>
+    </div>
+  )
+
+  const renderChildrenLabel = (tooltipId: string) => (
+    <span className="inline-flex items-center gap-1.5">
+      <span>{t('booking.children')}</span>
+      <span className="group relative inline-flex items-center">
+        <button
+          type="button"
+          aria-label="Informations sur le nombre d'enfants"
+          aria-describedby={tooltipId}
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/60 focus-visible:ring-offset-1"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        <span
+          id={tooltipId}
+          role="tooltip"
+          className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-56 max-w-[220px] -translate-y-1/2 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-neutral-700 shadow-sm ring-1 ring-neutral-200 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:left-1/2 sm:top-[calc(100%+8px)] sm:ml-0 sm:w-60 sm:max-w-[240px] sm:-translate-x-1/2 sm:translate-y-0"
+        >
+          Indiquez le nombre d&apos;enfants parmi les convives. Par defaut, tous les convives sont consideres comme adultes.
+        </span>
+      </span>
+    </span>
+  )
+
+  // Page 1: Type de service
   if (currentPage === 1) {
     return (
-      <form onSubmit={handleNext} className="space-y-6">
-        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-          <h2 className="text-2xl font-bold text-black mb-4">{t('booking.personalInfo')}</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label={`${t('booking.firstName')} *`}
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              error={errors.firstName}
-              required
-              autoComplete="given-name"
-              inputMode="text"
-            />
-            <Input
-              label="Nom *"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              error={errors.lastName}
-              required
-              autoComplete="family-name"
-              inputMode="text"
-            />
-          </div>
+      <form onSubmit={handleNext} className="space-y-6 md:space-y-5 min-h-[70vh] flex flex-col">
+        {renderStepper()}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label={`${t('booking.email')} *`}
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              error={errors.email}
-              required
-              autoComplete="email"
-              inputMode="email"
-            />
-            <Input
-              label={`${t('booking.confirmEmail')} *`}
-              type="email"
-              name="emailConfirm"
-              value={formData.emailConfirm}
-              onChange={handleChange}
-              error={errors.emailConfirm}
-              required
-              autoComplete="email"
-              inputMode="email"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Téléphone *"
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              error={errors.phone}
-              required
-              autoComplete="tel"
-              inputMode="tel"
-            />
-          </div>
+        <div className="pt-1 md:pt-0 md:pb-1">
+          <h1 className="text-2xl sm:text-3xl font-semibold mb-2" suppressHydrationWarning>
+            {t('booking.title')}{' '}
+            <span className="text-black underline decoration-[#FBCF03] decoration-2 underline-offset-4">
+              {chefName}
+            </span>
+          </h1>
+          <p className="text-sm sm:text-base text-neutral-600 md:mt-1.5" suppressHydrationWarning>
+            {t('booking.subtitle')}
+          </p>
         </div>
 
-        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-          <h2 className="text-2xl font-bold text-black mb-4">{t('booking.serviceTypeLabel')}</h2>
+        <div className="p-1 md:px-0 md:py-1 space-y-6 md:space-y-6 flex-1">
+          <h2 className="text-lg sm:text-xl md:text-[19px] font-semibold md:font-medium tracking-[0.02em] text-neutral-900 pt-1 md:pt-0">
+            {t('booking.serviceTypeLabel')}
+          </h2>
           
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-4">
             {serviceTypeOptions.map((option) => (
               <label
                 key={option.value}
-                className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-center gap-4 p-5 md:p-6 border rounded-xl md:rounded-2xl cursor-pointer transition-all duration-200 ${
                   formData.serviceType === option.value
-                    ? 'border-[#FBCF03] bg-yellow-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-yellow-500 bg-yellow-50/50 shadow-md'
+                    : 'bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-sm'
                 }`}
               >
                 <input
@@ -777,21 +878,21 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                   value={option.value}
                   checked={formData.serviceType === option.value}
                   onChange={handleChange}
-                  className="mr-3 w-4 h-4 text-[#FBCF03] focus:ring-[#FBCF03]"
+                  className="w-4.5 h-4.5 text-[#FBCF03] focus:ring-[#FBCF03]"
                 />
-                <span className="text-lg font-medium">{option.label}</span>
+                <span className="text-[17px] sm:text-lg md:text-lg font-medium text-neutral-900">{option.label}</span>
               </label>
             ))}
           </div>
           {errors.serviceType && (
-            <p className="text-red-500 text-sm">{errors.serviceType}</p>
+            <p className="text-red-500 text-sm -mt-2">{errors.serviceType}</p>
           )}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end mt-auto pt-2 md:pt-1">
           <Button 
             type="submit" 
-            className="min-w-[200px] md:min-w-[200px] w-full md:w-auto rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:brightness-105 font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {t('booking.next')}
           </Button>
@@ -800,15 +901,18 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
     )
   }
 
-  // Page 2: Détails selon le type de service
+  // Pages 2, 3, 4
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-black mb-4">{t('booking.reservationDetails')}</h2>
+    <form onSubmit={currentPage === 4 ? handleSubmit : handleNext} className="space-y-4 min-h-[70vh] flex flex-col">
+      {renderStepper()}
+
+      {currentPage === 2 && (
+      <div className={`px-1 sm:px-2 space-y-3 sm:space-y-4 ${formData.serviceType === 'repas_domicile' ? 'md:space-y-2' : ''} flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+        <h2 className={`text-xl sm:text-2xl font-semibold text-black ${formData.serviceType === 'repas_domicile' ? 'mb-0 md:text-[22px]' : 'mb-1'}`}>{t('booking.reservationDetails')}</h2>
         
         {formData.serviceType === 'repas_domicile' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
               <div className="w-full min-w-0 overflow-hidden">
                 <Input
                   label={`${t('booking.date')} *`}
@@ -819,7 +923,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                   error={errors.bookingDate}
                   min={getMinDate()}
                   required
-                  className="w-full min-w-0 max-w-full"
+                  className="w-full min-w-0 max-w-full py-2.5 sm:py-3 md:py-2"
                 />
               </div>
               <Select
@@ -832,9 +936,11 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                   { value: 'diner', label: t('booking.mealTimeDinner') }
                 ]}
                 error={errors.mealTime}
+                className="py-2.5 sm:py-3 md:py-2"
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
               <Select
                 label={`${t('booking.guests')} *`}
                 name="guestsCount"
@@ -842,30 +948,28 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                 onChange={handleChange}
                 options={guestsOptions}
                 error={errors.guestsCount}
+                className="py-2.5 sm:py-3 md:py-2"
               />
+              <div>
+                <Input
+                  label={renderChildrenLabel('children-info-repas')}
+                  type="number"
+                  name="childrenCount"
+                  value={formData.childrenCount}
+                  onChange={handleChange}
+                  error={errors.childrenCount}
+                  min="0"
+                  max={formData.guestsCount}
+                  placeholder="0"
+                  autoComplete="off"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="py-2.5 sm:py-3 md:py-2"
+                />
+              </div>
             </div>
 
-            <div className="w-full">
-              <Input
-                label={t('booking.children')}
-                type="number"
-                name="childrenCount"
-                value={formData.childrenCount}
-                onChange={handleChange}
-                error={errors.childrenCount}
-                min="0"
-                max={formData.guestsCount}
-                placeholder="0"
-                autoComplete="off"
-                inputMode="numeric"
-                pattern="[0-9]*"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
               <Input
                 label={`${t('booking.city')} *`}
                 name="city"
@@ -875,6 +979,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                 required
                 autoComplete="address-level2"
                 inputMode="text"
+                className="py-2.5 sm:py-3 md:py-2"
               />
               <Input
                 label="Code postal *"
@@ -885,6 +990,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                 required
                 autoComplete="postal-code"
                 inputMode="numeric"
+                className="py-2.5 sm:py-3 md:py-2"
               />
             </div>
 
@@ -896,6 +1002,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                   value={formData.menuId}
                   onChange={handleChange}
                   options={menuOptions}
+                  className="py-2.5 sm:py-3 md:py-2 focus:border-[#FBCF03] focus:ring-[#FBCF03]/40"
                 />
               </div>
             )}
@@ -931,7 +1038,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
 
             <div className="w-full">
               <Input
-                label={t('booking.children')}
+                label={renderChildrenLabel('children-info-cours')}
                 type="number"
                 name="childrenCount"
                 value={formData.childrenCount}
@@ -944,9 +1051,6 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                 inputMode="numeric"
                 pattern="[0-9]*"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1020,7 +1124,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
 
             <div className="w-full">
               <Input
-                label={t('booking.children')}
+                label={renderChildrenLabel('children-info-mise')}
                 type="number"
                 name="childrenCount"
                 value={formData.childrenCount}
@@ -1033,9 +1137,6 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                 inputMode="numeric"
                 pattern="[0-9]*"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1184,17 +1285,25 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
           </>
         )}
       </div>
+      )}
 
-      <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6">
-        <h2 className="text-2xl font-bold text-black mb-4">{t('booking.additionalInfo')}</h2>
+      {currentPage === 3 && (
+      <div className={`px-1 sm:px-2 space-y-5 sm:space-y-6 flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-[0.01em] text-neutral-900">{t('booking.additionalInfo')}</h2>
         
         {formData.serviceType === 'repas_domicile' && (
-          <Checkbox
-            label={t('booking.hasAllergies')}
-            name="hasAllergies"
-            checked={formData.hasAllergies}
-            onChange={handleChange}
-          />
+          <div className="pt-1">
+            <label className="inline-flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="hasAllergies"
+                checked={formData.hasAllergies}
+                onChange={handleChange}
+                className="h-5 w-5 rounded-md border border-neutral-300 accent-[#FBCF03] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/40 focus-visible:ring-offset-1"
+              />
+              <span className="text-sm font-medium text-neutral-800">{t('booking.hasAllergies')}</span>
+            </label>
+          </div>
         )}
 
         {formData.serviceType === 'repas_domicile' && formData.hasAllergies && (
@@ -1206,33 +1315,52 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
             error={errors.allergiesDetails}
             rows={3}
             required={formData.hasAllergies}
+            className="rounded-xl border border-neutral-200 bg-white px-4 py-3.5 focus:border-[#FBCF03] focus:ring-2 focus:ring-[#FBCF03]/20"
           />
         )}
 
         {nearbyChefs.length > 0 && chefPostalPrefix.length === 2 && (
-          <div className="border-2 border-gray-200 rounded-xl p-4 sm:p-5 bg-gray-50 space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.shareWithNearbyChefs}
-                onChange={(e) =>
-                  setFormData(prev => ({
-                    ...prev,
-                    shareWithNearbyChefs: e.target.checked,
-                    nearbyChefIds: e.target.checked ? prev.nearbyChefIds : [],
-                  }))
-                }
-                className="w-5 h-5 mt-0.5 border-2 border-gray-300 rounded focus:outline-none focus:border-[#FBCF03]"
-              />
-              <span className="text-sm sm:text-base text-gray-700 leading-relaxed">
-                Les Chefs MyTable sont très demandés et il peut arriver que votre chef soit indisponible à cette date.
-                Souhaitez-vous aussi envoyer votre demande de réservation à des Chefs qualifiés à proximité ?
-              </span>
+          <div className="space-y-4">
+            <label
+              htmlFor="share-nearby-chefs"
+              className={`group block cursor-pointer rounded-xl border px-5 py-4 shadow-sm transition-all duration-200 ${
+                formData.shareWithNearbyChefs
+                  ? 'border-[#FBCF03]/70 bg-[#FBCF03]/10 shadow-md'
+                  : 'border-[#FBCF03]/30 bg-white hover:-translate-y-0.5 hover:border-[#FBCF03]/50 hover:shadow-md'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <input
+                  id="share-nearby-chefs"
+                  type="checkbox"
+                  checked={formData.shareWithNearbyChefs}
+                  onChange={(e) =>
+                    setFormData(prev => ({
+                      ...prev,
+                      shareWithNearbyChefs: e.target.checked,
+                      nearbyChefIds: e.target.checked ? prev.nearbyChefIds : [],
+                    }))
+                  }
+                  className="mt-0.5 h-5 w-5 flex-shrink-0 rounded-md border border-neutral-300 accent-[#FBCF03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/40 focus-visible:ring-offset-1"
+                  aria-describedby="share-nearby-chefs-description"
+                />
+                <div className="min-w-0">
+                  <p className="text-base font-semibold leading-tight text-neutral-900">
+                    {t('booking.recommendedNearbyChefsTitle')}
+                  </p>
+                  <p id="share-nearby-chefs-description" className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
+                    {t('booking.recommendedNearbyChefsDescription')}
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-neutral-500">
+                    {t('booking.recommendedNearbyChefsMicrocopy')}
+                  </p>
+                </div>
+              </div>
             </label>
 
             {formData.shareWithNearbyChefs && (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-700 font-medium">
+              <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 transition-all duration-200">
+                <p className="text-sm text-neutral-700 font-medium">
                   Zone: {chefPostalPrefix}xx | Sélection max: 3 chefs
                 </p>
                 <div className="space-y-2">
@@ -1240,19 +1368,16 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
                     const selected = formData.nearbyChefIds.includes(nearbyChef.id)
                     const disabled = !selected && formData.nearbyChefIds.length >= 3
                     return (
-                      <div
-                        key={nearbyChef.id}
-                        className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
-                          selected ? 'border-[#FBCF03] bg-yellow-50' : 'border-gray-200 bg-white'
-                        }`}
-                      >
+                      <div key={nearbyChef.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${
+                        selected ? 'border-[#FBCF03] bg-[#FBCF03]/5' : 'border-neutral-200 bg-white hover:border-[#FBCF03]/50'
+                      }`}>
                         <label className="flex items-center gap-3 flex-1 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={selected}
                             disabled={disabled}
                             onChange={(e) => toggleNearbyChef(nearbyChef.id, e.target.checked)}
-                            className="w-4 h-4 text-[#FBCF03] border-gray-300 rounded focus:ring-[#FBCF03] disabled:opacity-40"
+                            className="h-4.5 w-4.5 rounded-md border border-neutral-300 accent-[#FBCF03] transition-colors focus:ring-[#FBCF03]/40 disabled:opacity-40"
                           />
                           <span className="text-sm text-black font-medium">{nearbyChef.name}</span>
                         </label>
@@ -1285,41 +1410,110 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
           onChange={handleChange}
           rows={4}
           placeholder={t('booking.notesPlaceholder')}
+          className="rounded-xl border border-neutral-300 bg-white px-4 py-3 md:py-2.5 text-[15px] placeholder:text-neutral-400 focus:border-[#FBCF03] focus:ring-2 focus:ring-[#FBCF03]/20"
         />
       </div>
+      )}
 
-      <div className="bg-white border-2 border-gray-200 rounded-lg p-4 sm:p-6">
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            name="acceptedTerms"
-            checked={acceptedTerms}
-            onChange={(e) => setAcceptedTerms(e.target.checked)}
-            className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 border-2 border-gray-300 rounded focus:outline-none focus:border-[#FBCF03] transition-colors cursor-pointer flex-shrink-0"
-          />
-          <span className="text-sm sm:text-base text-gray-700 leading-relaxed flex-1 pt-0.5">
-            <span className="whitespace-normal">
-              {t('booking.acceptTerms')}{' '}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  setShowTermsPopup(true)
-                }}
-                className="text-[#FBCF03] underline hover:text-[#E6BA00] font-semibold transition-colors inline"
-              >
-                {t('booking.termsAndConditions')}
-              </button>
-              {' '}*
-            </span>
-          </span>
-        </label>
-        {errors.terms && (
-          <p className="text-red-500 text-sm mt-3 ml-8 sm:ml-9">{errors.terms}</p>
-        )}
-      </div>
+      {currentPage === 4 && (
+        <div className={`px-1 sm:px-2 space-y-4 flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+          <h2 className="text-2xl font-bold text-black mb-2">{t('booking.personalInfo')}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label={`${t('booking.firstName')} *`}
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              error={errors.firstName}
+              required
+              autoComplete="given-name"
+              inputMode="text"
+            />
+            <Input
+              label="Nom *"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              error={errors.lastName}
+              required
+              autoComplete="family-name"
+              inputMode="text"
+            />
+          </div>
 
-      {errors.submit && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label={`${t('booking.email')} *`}
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={errors.email}
+              required
+              autoComplete="email"
+              inputMode="email"
+            />
+            <Input
+              label={`${t('booking.confirmEmail')} *`}
+              type="email"
+              name="emailConfirm"
+              value={formData.emailConfirm}
+              onChange={handleChange}
+              error={errors.emailConfirm}
+              required
+              autoComplete="email"
+              inputMode="email"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Téléphone *"
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              error={errors.phone}
+              required
+              autoComplete="tel"
+              inputMode="tel"
+            />
+          </div>
+
+          <div className="pt-1">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                name="acceptedTerms"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-5 w-5 flex-shrink-0 cursor-pointer rounded-md border border-neutral-300 accent-[#FBCF03] transition-colors focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/40 focus:ring-offset-1"
+              />
+              <span className="flex-1 pt-0.5 text-sm sm:text-[15px] leading-relaxed text-neutral-600">
+                <span className="whitespace-normal">
+                  {t('booking.acceptTerms')}{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setShowTermsPopup(true)
+                    }}
+                    className="inline text-neutral-800 underline decoration-neutral-400 underline-offset-2 transition-colors hover:text-black hover:decoration-neutral-700"
+                  >
+                    {t('booking.termsAndConditions')}
+                  </button>
+                  {' '}*
+                </span>
+              </span>
+            </label>
+            {errors.terms && (
+              <p className="text-red-500 text-sm mt-3 ml-8 sm:ml-9">{errors.terms}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentPage === 4 && errors.submit && (
         <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
           <p className="text-red-500 font-medium mb-2">{errors.submit}</p>
           {submissionError?.canRetry && (
@@ -1340,7 +1534,7 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
         </div>
       )}
 
-      {submissionError && !errors.submit && (
+      {currentPage === 4 && submissionError && !errors.submit && (
         <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4">
           <p className="text-amber-800 font-medium mb-2">{submissionError.message}</p>
           {submissionError.canRetry && (
@@ -1361,38 +1555,45 @@ export default function BookingForm({ chef, menus, nearbyChefs = [] }: BookingFo
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-4">
-        {showGlobalError && (
+      <div className="flex flex-col items-center gap-4 mt-auto">
+        {currentPage === 3 && showGlobalError && (
           <div ref={globalErrorRef} className="w-full sm:w-auto bg-red-50 border-2 border-red-500 rounded-lg p-4 -mt-2 mb-2">
             <p className="text-red-500 text-center font-medium text-sm">
               {globalErrorMessage || t('booking.errors.missingRequiredFields')}
             </p>
           </div>
         )}
-        <Button 
-          type="submit" 
-          disabled={loading} 
-          className="w-full sm:w-auto min-w-[200px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-4 px-8 text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {t('common.loading')}
-            </span>
-          ) : (
-            t('booking.submit')
-          )}
-        </Button>
-        <button
-          type="button"
-          onClick={handleBack}
-          className="text-gray-600 hover:text-black underline text-sm transition-colors"
-        >
-          {t('booking.back')}
-        </button>
+        <div className="w-full flex flex-col items-center gap-2">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {currentPage === 4 ? (
+              loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {t('common.loading')}
+                </span>
+              ) : (
+                t('booking.submit')
+              )
+            ) : (
+              t('booking.next')
+            )}
+          </Button>
+
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/60 focus-visible:ring-offset-2 rounded"
+          >
+            {t('booking.back')}
+          </button>
+        </div>
       </div>
 
       {/* Popup des termes et conditions */}

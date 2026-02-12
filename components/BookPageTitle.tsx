@@ -24,13 +24,13 @@ export default function BookPageTitle({ chefName }: BookPageTitleProps) {
 
   return (
     <>
-      <h1 className="text-4xl font-bold mb-2" suppressHydrationWarning>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-1.5" suppressHydrationWarning>
         {title}{' '}
         <span className="text-black underline decoration-[#FBCF03] decoration-2 underline-offset-4">
           {chefName}
         </span>
       </h1>
-      <p className="text-gray-600" suppressHydrationWarning>
+      <p className="text-sm sm:text-base text-gray-600" suppressHydrationWarning>
         {subtitle}
       </p>
     </>

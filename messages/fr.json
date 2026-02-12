@@ -95,6 +95,9 @@
     "allergiesDetails": "Précisez vos allergies",
     "notes": "Notes (optionnel)",
     "additionalInfo": "Informations complémentaires",
+    "recommendedNearbyChefsTitle": "Maximisez vos chances d'avoir un chef disponible",
+    "recommendedNearbyChefsDescription": "Si votre chef est indisponible, nous transmettons automatiquement votre demande à des chefs qualifiés proches de vous.",
+    "recommendedNearbyChefsMicrocopy": "Recommandé pour garantir votre réservation",
     "notesPlaceholder": "Toute information supplémentaire que vous souhaitez partager...",
     "acceptTerms": "J'accepte les",
     "termsAndConditions": "termes et conditions",
@@ -165,6 +168,13 @@
     "increase": "Augmenter",
     "decreaseChildren": "Diminuer enfants",
     "increaseChildren": "Augmenter enfants",
+    "formStepper": {
+      "stepLabel": "ÉTAPE",
+      "serviceType": "Type de service",
+      "serviceDetails": "Détails prestation",
+      "additionalInfo": "Infos complémentaires",
+      "personalInfo": "Infos perso"
+    },
     "errors": {
       "firstNameRequired": "Le prénom est requis",
       "lastNameRequired": "Le nom est requis",

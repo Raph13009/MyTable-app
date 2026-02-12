@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import BookingForm from '@/components/BookingForm'
 import BookingHeader from '@/components/BookingHeader'
-import BookPageTitle from '@/components/BookPageTitle'
 import { Database } from '@/types/database'
 
 interface PageProps {
@@ -49,15 +48,15 @@ export default async function BookPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#FCFCFA]">
       {/* Bannière jaune avec logo - Fixe (ne se replie jamais) */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b-2 border-black shadow-lg will-change-transform">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 relative">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#FBCF03] border-b border-black/20 shadow-md will-change-transform">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 relative">
           <div className="flex items-center justify-center">
             <img 
               src="/logo-banner.jpeg" 
               alt="MyTable" 
-              className="h-16 sm:h-20 md:h-24 w-auto object-contain"
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
             />
           </div>
           <BookingHeader />
@@ -65,13 +64,9 @@ export default async function BookPage({ params }: PageProps) {
       </div>
 
       {/* Contenu avec padding pour compenser la bannière fixe */}
-      <div className="pt-24 sm:pt-28 md:pt-32">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="mb-8">
-            <BookPageTitle chefName={typedChef.name} />
-          </div>
-
-          <BookingForm key={chefSlug} chef={typedChef} menus={menus || []} nearbyChefs={nearbyChefs} />
+      <div className="pt-20 sm:pt-24 md:pt-24">
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+          <BookingForm key={chefSlug} chef={typedChef} chefName={typedChef.name} menus={menus || []} nearbyChefs={nearbyChefs} />
         </div>
       </div>
     </div>
