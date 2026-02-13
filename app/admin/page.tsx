@@ -17,7 +17,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [activeSection, setActiveSection] = useState<'messaging' | 'chefs'>('messaging')
+  const [activeSection, setActiveSection] = useState<'messaging' | 'chefs'>('chefs')
 
   useEffect(() => {
     checkAuth()
@@ -194,16 +194,6 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8">
             <button
-              onClick={() => setActiveSection('messaging')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeSection === 'messaging'
-                  ? 'border-[#FBCF03] text-black'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Messagerie
-            </button>
-            <button
               onClick={() => setActiveSection('chefs')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeSection === 'chefs'
@@ -212,6 +202,16 @@ export default function AdminPage() {
               }`}
             >
               Gestion des chefs
+            </button>
+            <button
+              onClick={() => setActiveSection('messaging')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSection === 'messaging'
+                  ? 'border-[#FBCF03] text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Messagerie
             </button>
           </nav>
         </div>
@@ -226,4 +226,3 @@ export default function AdminPage() {
     </div>
   )
 }
-
