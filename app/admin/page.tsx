@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminMessaging from '@/components/admin/AdminMessaging'
 import AdminChefs from '@/components/admin/AdminChefs'
+import AdminAnalytics from '@/components/admin/AdminAnalytics'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
 
@@ -17,7 +18,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [activeSection, setActiveSection] = useState<'messaging' | 'chefs'>('chefs')
+  const [activeSection, setActiveSection] = useState<'messaging' | 'chefs' | 'analytics'>('chefs')
 
   useEffect(() => {
     checkAuth()
@@ -213,6 +214,16 @@ export default function AdminPage() {
             >
               Messagerie
             </button>
+            <button
+              onClick={() => setActiveSection('analytics')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSection === 'analytics'
+                  ? 'border-[#FBCF03] text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Analytics
+            </button>
           </nav>
         </div>
       </div>
@@ -220,7 +231,13 @@ export default function AdminPage() {
       {/* Content avec padding pour les headers fixes */}
       <div className="pt-32 sm:pt-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeSection === 'messaging' ? <AdminMessaging /> : <AdminChefs />}
+        {activeSection === 'messaging' ? (
+          <AdminMessaging />
+        ) : activeSection === 'analytics' ? (
+          <AdminAnalytics />
+        ) : (
+          <AdminChefs />
+        )}
         </div>
       </div>
     </div>
