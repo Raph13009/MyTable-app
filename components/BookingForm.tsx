@@ -1659,19 +1659,19 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
               </div>
 
               {/* Contenu */}
-              <div className="space-y-4 text-gray-700 leading-relaxed">
-                <p className="text-base">
+              <div className="space-y-5 text-gray-700 leading-relaxed">
+                <p className="text-[15px]">
                   {t('booking.termsIntro')}
                 </p>
                 
-                <div className="space-y-3">
+                <div className="space-y-3 rounded-xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
                   <h3 className="font-semibold text-black text-lg">1. {t('booking.dataUsage')}</h3>
                   <p className="text-base">
                     {t('booking.dataUsageText')}
                   </p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 rounded-xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
                   <h3 className="font-semibold text-black text-lg">2. {t('booking.dataProtection')}</h3>
                   <p className="text-base">
                     {t('booking.dataProtectionText')}
@@ -1683,14 +1683,21 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   </ul>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 rounded-xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
                   <h3 className="font-semibold text-black text-lg">3. {t('booking.yourRights')}</h3>
                   <p className="text-base">
                     {t('booking.yourRightsText')}
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="rounded-xl border border-[#EAEAEA] bg-[#FBCF03]/10 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-black mb-1">4. Acceptation</p>
+                  <p className="text-sm font-medium text-black">
+                    {t('booking.termsAcceptance')}
+                  </p>
+                </div>
+
+                <div className="space-y-4 rounded-xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
                   <h3 className="font-semibold text-black text-lg">5. Annulation et conditions de remboursement</h3>
                   <p className="text-base">
                     Les présentes conditions s&apos;appliquent à toutes les prestations réservées via la plateforme Guide My Table, incluant :
@@ -1775,12 +1782,6 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   </div>
                 </div>
 
-                <div className="bg-[#FBCF03]/10 border-l-4 border-[#FBCF03] p-4 rounded-lg mt-6">
-                  <p className="text-sm font-semibold text-black mb-1">4. Acceptation</p>
-                  <p className="text-sm font-medium text-black">
-                    {t('booking.termsAcceptance')}
-                  </p>
-                </div>
               </div>
             </div>
 
