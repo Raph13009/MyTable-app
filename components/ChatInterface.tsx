@@ -2154,9 +2154,14 @@ export default function ChatInterface({
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm font-medium text-black">
-                          {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? t('booking.guest') : t('booking.guests_plural')}
-                        </p>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium text-black">
+                            {bookingRequest.guests_count} {bookingRequest.guests_count === 1 ? t('booking.guest') : t('booking.guests_plural')}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            dont {bookingRequest.children_count || 0} {(bookingRequest.children_count || 0) === 1 ? t('booking.child') : t('booking.children_plural')}
+                          </p>
+                        </div>
                       )}
                     </div>
                     {/* Allergies uniquement pour repas à domicile */}

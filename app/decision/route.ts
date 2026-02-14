@@ -143,10 +143,8 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Rediriger vers la page d'accueil avec message de confirmation puis auto-redirect vers guidemytable.fr
-      const refusedUrl = new URL('/', request.url)
-      refusedUrl.searchParams.set('status', 'refused')
-      refusedUrl.searchParams.set('message', 'Votre demande de refus a bien été prise en compte.')
+      // Rediriger vers une page de confirmation explicite
+      const refusedUrl = new URL('/booking-refused', request.url)
       return NextResponse.redirect(refusedUrl, 302)
     } else if (action === 'accept') {
       // Mettre à jour le statut

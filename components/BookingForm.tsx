@@ -1665,14 +1665,14 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 </p>
                 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">{t('booking.dataUsage')}</h3>
+                  <h3 className="font-semibold text-black text-lg">1. {t('booking.dataUsage')}</h3>
                   <p className="text-base">
                     {t('booking.dataUsageText')}
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">{t('booking.dataProtection')}</h3>
+                  <h3 className="font-semibold text-black text-lg">2. {t('booking.dataProtection')}</h3>
                   <p className="text-base">
                     {t('booking.dataProtectionText')}
                   </p>
@@ -1684,7 +1684,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-black text-lg">{t('booking.yourRights')}</h3>
+                  <h3 className="font-semibold text-black text-lg">3. {t('booking.yourRights')}</h3>
                   <p className="text-base">
                     {t('booking.yourRightsText')}
                   </p>
@@ -1776,6 +1776,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 </div>
 
                 <div className="bg-[#FBCF03]/10 border-l-4 border-[#FBCF03] p-4 rounded-lg mt-6">
+                  <p className="text-sm font-semibold text-black mb-1">4. Acceptation</p>
                   <p className="text-sm font-medium text-black">
                     {t('booking.termsAcceptance')}
                   </p>
