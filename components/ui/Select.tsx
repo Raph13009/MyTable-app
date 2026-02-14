@@ -17,6 +17,7 @@ interface SelectProps {
   placeholder?: string
   onChange?: (event: { target: { name?: string; value: string } }) => void
   className?: string
+  dropdownDirection?: 'down' | 'up'
 }
 
 /**
@@ -33,6 +34,7 @@ export function Select({
   placeholder = 'Choisir...',
   onChange,
   className,
+  dropdownDirection = 'down',
 }: SelectProps) {
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -126,7 +128,8 @@ export function Select({
             ref={listRef}
             role="listbox"
             className={cn(
-              'absolute z-30 mt-2 w-full',
+              'absolute z-30 w-full',
+              dropdownDirection === 'up' ? 'bottom-full mb-2' : 'mt-2',
               'bg-white border-2 border-gray-200 rounded-lg shadow-xl',
               'max-h-64 overflow-auto',
               'focus:outline-none'
@@ -160,4 +163,3 @@ export function Select({
     </div>
   )
 }
-

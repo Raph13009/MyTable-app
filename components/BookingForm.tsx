@@ -1135,6 +1135,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 error={errors.budget}
                 options={cookingClassBudgetOptions}
                 placeholder="Sélectionner un budget"
+                dropdownDirection="up"
               />
               <p className="mt-1 text-xs text-gray-500">
                 {t('booking.budgetHint')}
@@ -1295,6 +1296,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 error={errors.budget}
                 options={homeChefBudgetOptions}
                 placeholder="Sélectionner un budget"
+                dropdownDirection="up"
               />
               <p className="mt-1 text-xs text-gray-500">
                 {t('booking.budgetGlobalPeriodHint')}
