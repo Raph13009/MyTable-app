@@ -19,6 +19,10 @@ export interface Database {
           city: string | null
           postal_code: string | null
           profile_picture: string | null
+          cuisine_style: string | null
+          dish_photos: string[] | null
+          min_guests: number | null
+          max_guests: number | null
           created_at: string
           updated_at: string
         }
@@ -31,6 +35,10 @@ export interface Database {
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null
+          cuisine_style?: string | null
+          dish_photos?: string[] | null
+          min_guests?: number | null
+          max_guests?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -43,6 +51,10 @@ export interface Database {
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null
+          cuisine_style?: string | null
+          dish_photos?: string[] | null
+          min_guests?: number | null
+          max_guests?: number | null
           created_at?: string
           updated_at?: string
         }

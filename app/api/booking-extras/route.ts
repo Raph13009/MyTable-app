@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { bookingRequestId, extras, customPrice, isPriceCustom } = await request.json()
+    const { bookingRequestId, extras } = await request.json()
 
     if (!bookingRequestId) {
       return NextResponse.json({ error: 'Missing bookingRequestId' }, { status: 400 })
@@ -47,28 +47,6 @@ export async function POST(request: NextRequest) {
 
     if (normalizedChefEmail !== normalizedUserEmail) {
       return NextResponse.json({ error: 'Only the chef can add extras' }, { status: 403 })
-    }
-
-    // Sauvegarder le prix personnalisé si fourni
-    if (isPriceCustom === true) {
-      const normalizedCustomPrice = Number(customPrice)
-      if (!Number.isFinite(normalizedCustomPrice) || normalizedCustomPrice <= 0) {
-        return NextResponse.json({ error: 'Prix personnalisé invalide' }, { status: 400 })
-      }
-
-      const { error: pricingError } = await supabaseAdmin
-        .from('booking_requests')
-        // @ts-expect-error - Supabase type inference issue
-        .update({
-          total_price: normalizedCustomPrice,
-          is_price_custom: true,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('id', bookingRequestId)
-
-      if (pricingError) {
-        throw pricingError
-      }
     }
 
     // Sauvegarder les extras dans le champ extras (JSONB)

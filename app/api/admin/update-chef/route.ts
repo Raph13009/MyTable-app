@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
       city,
       postal_code,
       profile_picture,
+      cuisine_style,
+      dish_photos,
+      min_guests,
+      max_guests,
       menus,
     } = body
 
@@ -62,6 +66,30 @@ export async function POST(request: NextRequest) {
       )
     })()
 
+    const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
+    const normalizedDishPhotos = Array.isArray(dish_photos)
+      ? dish_photos
+          .map((url: unknown) => (typeof url === 'string' ? url.trim() : ''))
+          .filter((url: string) => url.length > 0)
+          .slice(0, 3)
+      : []
+    const normalizedMinGuests = min_guests === null || min_guests === undefined || min_guests === ''
+      ? null
+      : Number.parseInt(String(min_guests), 10)
+    const normalizedMaxGuests = max_guests === null || max_guests === undefined || max_guests === ''
+      ? null
+      : Number.parseInt(String(max_guests), 10)
+
+    if (normalizedMinGuests !== null && (!Number.isFinite(normalizedMinGuests) || normalizedMinGuests < 1)) {
+      return NextResponse.json({ error: 'Le minimum de convives est invalide' }, { status: 400 })
+    }
+    if (normalizedMaxGuests !== null && (!Number.isFinite(normalizedMaxGuests) || normalizedMaxGuests < 1)) {
+      return NextResponse.json({ error: 'Le maximum de convives est invalide' }, { status: 400 })
+    }
+    if (normalizedMinGuests !== null && normalizedMaxGuests !== null && normalizedMinGuests > normalizedMaxGuests) {
+      return NextResponse.json({ error: 'Le minimum de convives doit être inférieur ou égal au maximum' }, { status: 400 })
+    }
+
     // Mettre à jour le chef
     const { error: chefError } = await supabaseAdmin
       .from('chefs')
@@ -74,6 +102,10 @@ export async function POST(request: NextRequest) {
         city: city || null,
         postal_code: postal_code || null,
         profile_picture: profile_picture || null,
+        cuisine_style: normalizedCuisineStyle || null,
+        dish_photos: normalizedDishPhotos,
+        min_guests: normalizedMinGuests,
+        max_guests: normalizedMaxGuests,
       } as any)
       .eq('id', chefId)
 

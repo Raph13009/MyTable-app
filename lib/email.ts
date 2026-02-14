@@ -493,6 +493,13 @@ export const emailTemplates = {
     const content = `
       <p>Bonjour ${chefName},</p>
       <p>Vous avez été sélectionné comme <strong>chef de remplacement</strong> pour une prestation de <strong>${guestsText} convives</strong>.</p>
+      <p style="margin: 0 0 10px 0; color: #444;">
+        Le Chef initialement prévu pour ce client n'est plus disponible. <strong>Tentez votre chance&nbsp;!</strong>
+      </p>
+      <p style="margin: 0 0 14px 0; color: #444;">
+        <strong>Important :</strong> le montant affiché ci-dessous correspond au budget de cette demande de remplacement,
+        et peut être différent du prix habituel de vos menus.
+      </p>
       <p><strong>Budget par personne :</strong> ${budgetPerPersonText}<br/>
       <strong>Budget total estimé :</strong> ${totalBudgetText}</p>
       <p>Cette demande est également envoyée à d'autres chefs qualifiés à proximité.</p>

@@ -3,9 +3,13 @@
 import Image from 'next/image'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 export default function HomePage() {
   const [countdown, setCountdown] = useState(5)
+  const searchParams = useSearchParams()
+  const status = searchParams.get('status')
+  const message = searchParams.get('message')
 
   useEffect(() => {
     // Redirection automatique après 5 secondes
@@ -50,10 +54,10 @@ export default function HomePage() {
           {/* Message principal */}
           <div className="space-y-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-              Bienvenue sur MyTable
+              {status === 'refused' ? 'Demande traitée' : 'Bienvenue sur MyTable'}
             </h1>
             <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-              Vous allez être redirigé vers la page principale.
+              {message || 'Vous allez être redirigé vers la page principale.'}
             </p>
           </div>
 
@@ -76,4 +80,3 @@ export default function HomePage() {
     </div>
   )
 }
-

@@ -12,6 +12,8 @@ interface Menu {
   price: number | null
 }
 
+type AdminSection = 'informations' | 'menus' | 'photos'
+
 export default function ChefFormPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -19,8 +21,10 @@ export default function ChefFormPage() {
   const isEditing = !!chefId
   const supabase = createClient()
 
-  const [loading, setLoading] = useState(false)
+  const [isPageLoading, setIsPageLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [activeSection, setActiveSection] = useState<AdminSection>('informations')
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,12 +32,47 @@ export default function ChefFormPage() {
     phone: '',
     city: '',
     postal_code: '',
+    cuisine_style: '',
+    min_guests: '',
+    max_guests: '',
     profile_picture: null as File | null,
   })
   const [menus, setMenus] = useState<Menu[]>([])
   const [newMenu, setNewMenu] = useState({ name: '', description: '', price: '' })
   const [currentProfilePicture, setCurrentProfilePicture] = useState<string | null>(null)
+  const [pendingProfilePreview, setPendingProfilePreview] = useState<string | null>(null)
+  const [dishPhotoFiles, setDishPhotoFiles] = useState<File[]>([])
+  const [dishPhotoPreviews, setDishPhotoPreviews] = useState<string[]>([])
+  const [currentDishPhotos, setCurrentDishPhotos] = useState<string[]>([])
+  const [primaryDishIndex, setPrimaryDishIndex] = useState(0)
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+    visible: false,
+    message: '',
+    type: 'success',
+  })
+
+  const profileFileInputRef = useRef<HTMLInputElement | null>(null)
+  const dishFileInputRef = useRef<HTMLInputElement | null>(null)
   const isSubmittingRef = useRef(false)
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+      reader.onerror = () => reject(new Error('Impossible de lire le fichier'))
+      reader.readAsDataURL(file)
+    })
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
+    setToast({ visible: true, message, type })
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }))
+    }, 2500)
+  }
 
   useEffect(() => {
     if (isEditing && chefId) {
@@ -42,10 +81,18 @@ export default function ChefFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chefId, isEditing])
 
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const fetchChefData = async () => {
     if (!chefId) return
     try {
-      setLoading(true)
+      setIsPageLoading(true)
       const { data: chef, error } = await supabase
         .from('chefs')
         .select('*')
@@ -62,37 +109,79 @@ export default function ChefFormPage() {
         phone: chefData.phone || '',
         city: chefData.city || '',
         postal_code: chefData.postal_code || '',
+        cuisine_style: chefData.cuisine_style || '',
+        min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
+        max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
         profile_picture: null,
       })
       setCurrentProfilePicture(chefData.profile_picture)
+      setCurrentDishPhotos(Array.isArray(chefData.dish_photos) ? chefData.dish_photos : [])
+      setPrimaryDishIndex(0)
 
-      // Récupérer les menus
       const { data: menusData } = await supabase
         .from('menus')
         .select('*')
-        .eq('chef_id', chefId!)
+        .eq('chef_id', chefId)
 
       setMenus(menusData || [])
     } catch (error) {
       console.error('Error fetching chef:', error)
-      alert('Erreur lors du chargement du chef')
+      showToast('Erreur lors du chargement du chef', 'error')
       router.push('/admin?section=chefs')
     } finally {
-      setLoading(false)
+      setIsPageLoading(false)
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, profile_picture: e.target.files[0] })
+      const file = e.target.files[0]
+      const preview = await fileToDataUrl(file)
+      setPendingProfilePreview(preview)
+      setFormData((prev) => ({ ...prev, profile_picture: file }))
     }
   }
 
-  const uploadProfilePicture = async (file: File, chefId: string): Promise<string | null> => {
+  const removeProfilePicture = () => {
+    setFormData(prev => ({ ...prev, profile_picture: null }))
+    setCurrentProfilePicture(null)
+    if (profileFileInputRef.current) {
+      profileFileInputRef.current.value = ''
+    }
+  }
+
+  const appendDishFiles = async (files: File[]) => {
+    if (!files.length) return
+    const remainingSlots = Math.max(0, 3 - (currentDishPhotos.length + dishPhotoFiles.length))
+    const selected = files.slice(0, remainingSlots)
+    if (!selected.length) return
+    const previews = await Promise.all(selected.map((file) => fileToDataUrl(file)))
+    setDishPhotoFiles(prev => [...prev, ...selected])
+    setDishPhotoPreviews(prev => [...prev, ...previews])
+  }
+
+  const handleDishPhotosChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    await appendDishFiles(Array.from(e.target.files))
+  }
+
+  const removeCurrentDishPhoto = (index: number) => {
+    setCurrentDishPhotos(prev => prev.filter((_, i) => i !== index))
+    setPrimaryDishIndex((prev) => Math.max(0, prev === index ? 0 : prev > index ? prev - 1 : prev))
+  }
+
+  const removePendingDishPhoto = (index: number) => {
+    setDishPhotoFiles(prev => prev.filter((_, i) => i !== index))
+    setDishPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+    const offsetIndex = currentDishPhotos.length + index
+    setPrimaryDishIndex((prev) => Math.max(0, prev === offsetIndex ? 0 : prev > offsetIndex ? prev - 1 : prev))
+  }
+
+  const uploadProfilePicture = async (file: File, uploadChefId: string): Promise<string | null> => {
     try {
       setUploading(true)
       const fileExt = file.name.split('.').pop()
-      const fileName = `${chefId}-${Math.random().toString(36).substring(7)}.${fileExt}`
+      const fileName = `${uploadChefId}-${Math.random().toString(36).substring(7)}.${fileExt}`
       const filePath = `chef-profiles/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -111,8 +200,44 @@ export default function ChefFormPage() {
       return publicUrl
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      alert('Erreur lors de l\'upload de la photo')
+      showToast('Erreur lors de l\'upload de la photo', 'error')
       return null
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const uploadDishPhotos = async (files: File[], uploadChefId: string): Promise<string[]> => {
+    if (!files.length) return []
+    try {
+      setUploading(true)
+      const uploads = files.map(async (file) => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${uploadChefId}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `chef-dishes/${uploadChefId}/${fileName}`
+        const { error: uploadError } = await supabase.storage
+          .from('chef-profiles')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          })
+
+        if (uploadError) {
+          throw uploadError
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('chef-profiles').getPublicUrl(filePath)
+
+        return publicUrl
+      })
+
+      return await Promise.all(uploads)
+    } catch (error) {
+      console.error('Error uploading dish photos:', error)
+      showToast('Erreur lors de l\'upload des photos de plats', 'error')
+      return []
     } finally {
       setUploading(false)
     }
@@ -124,13 +249,31 @@ export default function ChefFormPage() {
     isSubmittingRef.current = true
 
     if (formData.email !== formData.emailConfirm) {
-      alert('Les emails ne correspondent pas')
+      showToast('Les emails ne correspondent pas', 'error')
+      isSubmittingRef.current = false
+      return
+    }
+
+    const minGuestsValue = formData.min_guests.trim() ? Number.parseInt(formData.min_guests, 10) : null
+    const maxGuestsValue = formData.max_guests.trim() ? Number.parseInt(formData.max_guests, 10) : null
+    if (minGuestsValue !== null && (!Number.isFinite(minGuestsValue) || minGuestsValue < 1)) {
+      showToast('Le minimum de convives doit être supérieur ou égal à 1', 'error')
+      isSubmittingRef.current = false
+      return
+    }
+    if (maxGuestsValue !== null && (!Number.isFinite(maxGuestsValue) || maxGuestsValue < 1)) {
+      showToast('Le maximum de convives doit être supérieur ou égal à 1', 'error')
+      isSubmittingRef.current = false
+      return
+    }
+    if (minGuestsValue !== null && maxGuestsValue !== null && minGuestsValue > maxGuestsValue) {
+      showToast('Le minimum de convives doit être inférieur ou égal au maximum', 'error')
       isSubmittingRef.current = false
       return
     }
 
     try {
-      setLoading(true)
+      setIsSaving(true)
       const slug = formData.name
         .toLowerCase()
         .normalize('NFD')
@@ -139,30 +282,43 @@ export default function ChefFormPage() {
         .replace(/(^-|-$)/g, '')
 
       let profilePictureUrl = currentProfilePicture
+      const tempId = chefId || crypto.randomUUID()
+
       if (formData.profile_picture) {
-        const tempId = chefId || crypto.randomUUID()
         const uploadedUrl = await uploadProfilePicture(formData.profile_picture, tempId)
         if (uploadedUrl) {
           profilePictureUrl = uploadedUrl
         }
       }
 
+      const uploadedDishPhotos = await uploadDishPhotos(dishPhotoFiles, tempId)
+      const mergedDishPhotos = [...currentDishPhotos, ...uploadedDishPhotos].slice(0, 3)
+      const dishPhotos = [...mergedDishPhotos]
+      if (dishPhotos.length > 1 && primaryDishIndex >= 0 && primaryDishIndex < dishPhotos.length) {
+        const [primaryPhoto] = dishPhotos.splice(primaryDishIndex, 1)
+        dishPhotos.unshift(primaryPhoto)
+      }
+
+      const payload = {
+        slug,
+        name: formData.name,
+        email: formData.email.toLowerCase().trim(),
+        phone: formData.phone || null,
+        city: formData.city || null,
+        postal_code: formData.postal_code || null,
+        cuisine_style: formData.cuisine_style || null,
+        min_guests: minGuestsValue,
+        max_guests: maxGuestsValue,
+        dish_photos: dishPhotos,
+        profile_picture: profilePictureUrl,
+        menus,
+      }
+
       if (isEditing && chefId) {
-        // Mettre à jour le chef via API
         const response = await fetch('/api/admin/update-chef', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chefId: chefId!,
-            slug,
-            name: formData.name,
-            email: formData.email.toLowerCase().trim(),
-            phone: formData.phone || null,
-            city: formData.city || null,
-            postal_code: formData.postal_code || null,
-            profile_picture: profilePictureUrl,
-            menus,
-          }),
+          body: JSON.stringify({ chefId, ...payload }),
         })
 
         if (!response.ok) {
@@ -170,20 +326,10 @@ export default function ChefFormPage() {
           throw new Error(error.error || 'Erreur lors de la mise à jour')
         }
       } else {
-        // Créer un nouveau chef via API
         const response = await fetch('/api/admin/create-chef', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slug,
-            name: formData.name,
-            email: formData.email.toLowerCase().trim(),
-            phone: formData.phone || null,
-            city: formData.city || null,
-            postal_code: formData.postal_code || null,
-            profile_picture: profilePictureUrl,
-            menus,
-          }),
+          body: JSON.stringify(payload),
         })
 
         if (!response.ok) {
@@ -191,13 +337,24 @@ export default function ChefFormPage() {
           throw new Error(error.error || 'Erreur lors de la création')
         }
       }
-
-      router.push('/admin?section=chefs')
+      setCurrentProfilePicture(profilePictureUrl)
+      setCurrentDishPhotos(dishPhotos)
+      setPrimaryDishIndex(0)
+      setFormData((prev) => ({ ...prev, profile_picture: null }))
+      if (profileFileInputRef.current) {
+        profileFileInputRef.current.value = ''
+      }
+      if (dishFileInputRef.current) {
+        dishFileInputRef.current.value = ''
+      }
+      showToast(isEditing ? 'Modifications enregistrées' : 'Chef créé avec succès', 'success')
     } catch (error: any) {
       console.error('Error saving chef:', error)
-      alert(error.message || 'Erreur lors de la sauvegarde')
+      showToast(error.message || 'Erreur lors de la sauvegarde', 'error')
     } finally {
-      setLoading(false)
+      setIsSaving(false)
+      setDishPhotoFiles([])
+      setDishPhotoPreviews([])
       isSubmittingRef.current = false
     }
   }
@@ -221,298 +378,456 @@ export default function ChefFormPage() {
     setMenus((prev) => prev.filter((menu) => menu.id !== menuId))
   }
 
-  if (loading && isEditing) {
+  const publicSlug = formData.name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+  const profilePreviewUrl = pendingProfilePreview || currentProfilePicture
+  const allDishPhotos = [
+    ...currentDishPhotos.map((url) => ({ kind: 'current' as const, url })),
+    ...dishPhotoPreviews.map((url) => ({ kind: 'pending' as const, url })),
+  ]
+
+  if (isPageLoading && isEditing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Chargement...</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-500">Chargement du profil...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/admin?section=chefs')}
-                className="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Retour"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-2xl sm:text-3xl font-bold text-black">
-                {isEditing ? 'Modifier le chef' : 'Ajouter un chef'}
-              </h1>
+    <div className="min-h-screen bg-white text-[#111111]">
+      <header className="sticky top-0 z-10 border-b border-[#EAEAEA] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/admin?section=chefs')}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#EAEAEA] bg-white text-[#111111] transition hover:bg-gray-50"
+              aria-label="Retour"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-lg font-semibold">{isEditing ? 'Modifier le chef' : 'Ajouter un chef'}</h1>
+              <p className="text-sm text-[#6B7280]">Interface de configuration du profil</p>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Form Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6 sm:p-8 lg:p-12 space-y-8 sm:space-y-10">
-            {/* Photo de profil */}
-            <div className="space-y-4">
-              <label className="block text-base sm:text-lg font-semibold text-black">
-                Photo de profil
-              </label>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div className="flex-shrink-0">
-                  {formData.profile_picture ? (
-                    <img
-                      src={URL.createObjectURL(formData.profile_picture)}
-                      alt="Preview"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
-                    />
-                  ) : currentProfilePicture ? (
-                    <img
-                      src={currentProfilePicture}
-                      alt="Current"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-4 border-gray-100 shadow-md">
-                      <span className="text-4xl font-semibold text-gray-700">👨‍🍳</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 w-full">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                  />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Format recommandé : JPG, PNG. Taille max : 5MB
-                  </p>
-                </div>
-              </div>
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-0 px-4 py-6 sm:px-6 lg:grid-cols-[280px_1fr] lg:px-8">
+        <aside className="h-fit border-b border-[#EAEAEA] bg-white pb-6 lg:sticky lg:top-24 lg:border-b-0 lg:border-r lg:pr-6">
+          <div className="flex flex-col items-center lg:items-start">
+            <div className="relative mb-4">
+              {profilePreviewUrl ? (
+                <img src={profilePreviewUrl} alt="Avatar chef" className="h-[120px] w-[120px] rounded-full object-cover ring-1 ring-[#EAEAEA]" />
+              ) : (
+                <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gray-100 text-3xl">👨‍🍳</div>
+              )}
             </div>
+            <p className="text-base font-semibold">{formData.name || 'Chef'}</p>
+            <p className="mb-4 text-sm text-[#6B7280]">{formData.email || 'email@exemple.com'}</p>
+            <a
+              href={publicSlug ? `/book/${publicSlug}` : '#'}
+              target="_blank"
+              rel="noreferrer"
+              className={`inline-flex h-10 items-center rounded-[10px] border px-4 text-sm ${publicSlug ? 'border-[#EAEAEA] hover:bg-gray-50' : 'cursor-not-allowed border-[#F0F0F0] text-[#9CA3AF]'}`}
+            >
+              Voir le formulaire
+            </a>
+          </div>
 
-            <div className="border-t border-gray-200 pt-8"></div>
+          <nav className="mt-8 space-y-1">
+            {[
+              { key: 'informations', label: 'Informations' },
+              { key: 'menus', label: 'Menus' },
+              { key: 'photos', label: 'Photos' },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActiveSection(item.key as AdminSection)}
+                className={`w-full rounded-[10px] px-3 py-2 text-left text-sm transition ${
+                  activeSection === item.key ? 'bg-gray-100 text-[#111111]' : 'text-[#6B7280] hover:bg-gray-50 hover:text-[#111111]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-            {/* Informations de base */}
-            <div className="space-y-6 sm:space-y-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-black">Informations de base</h2>
-              
-              <div>
-                <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                  Nom du chef *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                  placeholder="Ex: Jean Dupont"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                <div>
-                  <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                    placeholder="chef@example.com"
-                  />
+        <main className="pt-6 lg:pl-8 lg:pt-0">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {activeSection === 'informations' && (
+              <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Informations</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Nom du chef</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Ex: Jean Dupont"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="chef@example.com"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Confirmer email</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.emailConfirm}
+                      onChange={(e) => setFormData({ ...formData, emailConfirm: e.target.value })}
+                      placeholder="chef@example.com"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+33 6 12 34 56 78"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Ville</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Paris"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Code postal</label>
+                    <input
+                      type="text"
+                      value={formData.postal_code}
+                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                      placeholder="75001"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Style de cuisine</label>
+                    <input
+                      type="text"
+                      value={formData.cuisine_style}
+                      onChange={(e) => setFormData({ ...formData, cuisine_style: e.target.value })}
+                      placeholder="Cuisine française moderne"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Convives min</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.min_guests}
+                      onChange={(e) => setFormData({ ...formData, min_guests: e.target.value })}
+                      placeholder="2"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Convives max</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.max_guests}
+                      onChange={(e) => setFormData({ ...formData, max_guests: e.target.value })}
+                      placeholder="12"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                    Confirmer l&apos;email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.emailConfirm}
-                    onChange={(e) => setFormData({ ...formData, emailConfirm: e.target.value })}
-                    className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                    placeholder="chef@example.com"
-                  />
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => router.push('/admin?section=chefs')} className="inline-flex h-11 items-center justify-center rounded-[10px] border border-[#EAEAEA] bg-white px-5 text-sm font-medium text-[#111111] hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || uploading}
+                    className={`inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                      isSaving || uploading
+                        ? 'bg-black text-white opacity-80'
+                        : 'bg-gradient-to-r from-[#FBCF03] to-[#E8BC00] text-black shadow-sm hover:from-[#f4c800] hover:to-[#d9ad00]'
+                    }`}
+                  >
+                    {(isSaving || uploading) && (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                      </svg>
+                    )}
+                    {isSaving || uploading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
+                  </button>
                 </div>
-              </div>
+              </section>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                <div>
-                  <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                    Téléphone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                    placeholder="+33 6 12 34 56 78"
-                  />
-                </div>
-                <div>
-                  <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                    Code postal
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.postal_code}
-                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                    className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                    placeholder="75001"
-                  />
-                </div>
-              </div>
+            {activeSection === 'menus' && (
+              <section>
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Menus</h2>
 
-              <div>
-                <label className="block text-base sm:text-lg font-semibold text-black mb-3">
-                  Ville
-                </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                  placeholder="Paris"
-                />
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 pt-8"></div>
-
-            {/* Menus */}
-            <div className="space-y-6 sm:space-y-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-black">Menus</h2>
-              
-              {menus.length > 0 && (
-                <div className="space-y-4">
-                  {menus.map((menu) => (
-                    <div
-                      key={menu.id}
-                      className="p-6 sm:p-8 bg-gray-50 rounded-xl border-2 border-gray-200"
-                    >
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg sm:text-xl font-bold text-black mb-3">
-                            {menu.name}
-                          </h3>
-                          {menu.description && (
-                            <p className="text-base sm:text-lg text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">
-                              {menu.description}
-                            </p>
-                          )}
-                          {menu.price && (
-                            <p className="text-lg sm:text-xl font-semibold text-black">
-                              {menu.price.toFixed(2)} €
-                            </p>
-                          )}
+                {menus.length > 0 && (
+                  <div className="space-y-4">
+                    {menus.map((menu) => (
+                      <div key={menu.id} className="rounded-[12px] border border-[#EAEAEA] p-4 transition hover:bg-gray-50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-black">{menu.name}</h3>
+                            {menu.description && <p className="mt-1 text-sm text-[#6B7280]">{menu.description}</p>}
+                            {menu.price && <p className="mt-2 text-sm font-semibold text-black">{menu.price.toFixed(2)} €</p>}
+                          </div>
+                          <details className="relative">
+                            <summary className="cursor-pointer list-none rounded px-2 py-1 text-[#6B7280] hover:bg-gray-100">⋯</summary>
+                            <div className="absolute right-0 mt-2 w-32 rounded-[10px] border border-[#EAEAEA] bg-white p-1 shadow-sm">
+                              <button type="button" className="w-full rounded px-2 py-1 text-left text-sm text-[#6B7280] hover:bg-gray-50">
+                                Modifier
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeMenu(menu.id)}
+                                className="w-full rounded px-2 py-1 text-left text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          </details>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeMenu(menu.id)}
-                          className="flex-shrink-0 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                          aria-label="Supprimer le menu"
-                        >
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-5 rounded-[12px] border border-[#EAEAEA] bg-white p-4">
+                  <p className="mb-3 text-sm font-semibold">Ajouter un menu</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Nom du menu</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Menu Découverte"
+                        value={newMenu.name}
+                        onChange={(e) => setNewMenu({ ...newMenu, name: e.target.value })}
+                        className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Description</label>
+                      <textarea
+                        placeholder="Description du menu"
+                        value={newMenu.description}
+                        onChange={(e) => setNewMenu({ ...newMenu, description: e.target.value })}
+                        rows={3}
+                        className="w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 py-2.5 text-sm outline-none transition focus:border-black"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Prix (€)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={newMenu.price}
+                          onChange={(e) => setNewMenu({ ...newMenu, price: e.target.value })}
+                          className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button type="button" onClick={addMenu} disabled={!newMenu.name.trim()} className="inline-flex h-11 items-center rounded-[10px] bg-black px-5 text-sm font-medium text-white disabled:opacity-50">
+                          Ajouter le menu
                         </button>
                       </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              )}
 
-              {/* Formulaire d'ajout de menu */}
-              <div className="p-6 sm:p-8 bg-[#FBCF03]/10 rounded-xl border-2 border-[#FBCF03]/30">
-                <h3 className="text-lg sm:text-xl font-semibold text-black mb-6">
-                  Ajouter un menu
-                </h3>
-                <div className="space-y-6">
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => router.push('/admin?section=chefs')} className="inline-flex h-11 items-center justify-center rounded-[10px] border border-[#EAEAEA] bg-white px-5 text-sm font-medium text-[#111111] hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || uploading}
+                    className={`inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                      isSaving || uploading
+                        ? 'bg-black text-white opacity-80'
+                        : 'bg-gradient-to-r from-[#FBCF03] to-[#E8BC00] text-black shadow-sm hover:from-[#f4c800] hover:to-[#d9ad00]'
+                    }`}
+                  >
+                    {(isSaving || uploading) && (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                      </svg>
+                    )}
+                    {isSaving || uploading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeSection === 'photos' && (
+              <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Photos</h2>
+                <div className="space-y-5">
                   <div>
-                    <label className="block text-base font-semibold text-black mb-3">
-                      Nom du menu *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Menu Découverte"
-                      value={newMenu.name}
-                      onChange={(e) => setNewMenu({ ...newMenu, name: e.target.value })}
-                      className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-base font-semibold text-black mb-3">
-                      Description
-                    </label>
-                    <textarea
-                      placeholder="Décrivez le menu en détail..."
-                      value={newMenu.description}
-                      onChange={(e) => setNewMenu({ ...newMenu, description: e.target.value })}
-                      rows={6}
-                      className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all resize-y"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div>
-                      <label className="block text-base font-semibold text-black mb-3">
-                        Prix (€)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={newMenu.price}
-                        onChange={(e) => setNewMenu({ ...newMenu, price: e.target.value })}
-                        className="w-full px-5 py-4 text-base sm:text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FBCF03] focus:border-[#FBCF03] transition-all"
-                      />
-                    </div>
-                    <div className="flex items-end">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photo de profil</p>
+                    <div className="flex items-center gap-4">
+                      <div className="group relative">
+                        {profilePreviewUrl ? (
+                          <img src={profilePreviewUrl} alt="Avatar chef" className="h-[120px] w-[120px] rounded-full object-cover ring-1 ring-[#EAEAEA]" />
+                        ) : (
+                          <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gray-100 text-3xl">👨‍🍳</div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-full bg-black/45 opacity-0 transition group-hover:opacity-100">
+                          <button type="button" onClick={() => profileFileInputRef.current?.click()} className="rounded bg-white/90 px-2 py-1 text-xs">
+                            Changer
+                          </button>
+                          <button type="button" onClick={removeProfilePicture} className="rounded bg-white/90 px-2 py-1 text-xs text-red-600">
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                      <input ref={profileFileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                       <button
                         type="button"
-                        onClick={addMenu}
-                        disabled={!newMenu.name.trim()}
-                        className="w-full px-6 py-4 bg-[#FBCF03] text-black font-bold text-base sm:text-lg rounded-xl hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => profileFileInputRef.current?.click()}
+                        className="inline-flex h-10 items-center rounded-[10px] border border-[#EAEAEA] px-4 text-sm hover:bg-gray-50"
                       >
-                        Ajouter le menu
+                        Choisir une image
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="border-t border-gray-200 pt-8">
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                <button
-                  type="button"
-                  onClick={() => router.push('/admin?section=chefs')}
-                  className="flex-1 px-6 py-4 text-base sm:text-lg font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || uploading}
-                  className="flex-1 px-6 py-4 text-base sm:text-lg font-bold bg-[#FBCF03] text-black rounded-xl hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? 'Upload...' : loading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photos des plats (max 3)</p>
+                    <div
+                      className={`rounded-[12px] border border-dashed p-5 text-center ${allDishPhotos.length >= 3 ? 'border-gray-200 bg-gray-50' : 'border-[#EAEAEA] bg-white'}`}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (allDishPhotos.length >= 3) return
+                        const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'))
+                        void appendDishFiles(files)
+                      }}
+                    >
+                      <input
+                        ref={dishFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleDishPhotosChange}
+                        className="hidden"
+                        disabled={allDishPhotos.length >= 3}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => dishFileInputRef.current?.click()}
+                        disabled={allDishPhotos.length >= 3}
+                        className="mx-auto mb-2 inline-flex h-10 items-center rounded-[10px] border border-[#EAEAEA] px-4 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Glissez vos photos ici ou cliquez pour ajouter
+                      </button>
+                      <p className="text-xs text-[#6B7280]">JPG, PNG - 5MB max</p>
+                      {allDishPhotos.length >= 3 && <p className="mt-1 text-xs text-[#6B7280]">Maximum atteint</p>}
+                    </div>
+                  </div>
+
+                  {allDishPhotos.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {allDishPhotos.map((photo, index) => (
+                        <div key={`${photo.url}-${index}`} className="group relative overflow-hidden rounded-[12px] border border-[#EAEAEA]">
+                          <img src={photo.url} alt={`Plat ${index + 1}`} className="aspect-square w-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/35" />
+                          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => setPrimaryDishIndex(index)}
+                              className={`rounded px-2 py-1 text-xs ${primaryDishIndex === index ? 'bg-yellow-200 text-black' : 'bg-white/90 text-black'}`}
+                            >
+                              ★ Principale
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (photo.kind === 'current') {
+                                  removeCurrentDishPhoto(index)
+                                } else {
+                                  removePendingDishPhoto(index - currentDishPhotos.length)
+                                }
+                              }}
+                              className="rounded bg-white/90 px-2 py-1 text-xs text-red-600"
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => router.push('/admin?section=chefs')} className="inline-flex h-11 items-center justify-center rounded-[10px] border border-[#EAEAEA] bg-white px-5 text-sm font-medium text-[#111111] hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || uploading}
+                    className={`inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                      isSaving || uploading
+                        ? 'bg-black text-white opacity-80'
+                        : 'bg-gradient-to-r from-[#FBCF03] to-[#E8BC00] text-black shadow-sm hover:from-[#f4c800] hover:to-[#d9ad00]'
+                    }`}
+                  >
+                    {(isSaving || uploading) && (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                      </svg>
+                    )}
+                    {isSaving || uploading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
+                  </button>
+                </div>
+              </section>
+            )}
+          </form>
+        </main>
+      </div>
+      <div className={`pointer-events-none fixed bottom-5 right-5 z-50 transition-all duration-300 ${toast.visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
+        <div className={`rounded-lg px-4 py-2.5 text-sm text-white shadow-lg ${toast.type === 'error' ? 'bg-[#1f1f1f]' : 'bg-black'}`}>
+          {toast.type === 'success' ? '✔ ' : '✖ '}
+          {toast.message}
+        </div>
       </div>
     </div>
   )

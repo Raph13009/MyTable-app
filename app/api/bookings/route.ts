@@ -4,6 +4,48 @@ import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 
+const COURSE_BUDGET_MAP: Record<string, number> = {
+  lt_40: 40,
+  '40': 40,
+  '50': 50,
+  '60': 60,
+  '70': 70,
+  gt_70: 70,
+}
+
+const HOME_CHEF_BUDGET_MAP: Record<string, number> = {
+  lt_200: 200,
+  '200': 200,
+  '250': 250,
+  '300': 300,
+  '350': 350,
+  '400': 400,
+  gt_400: 400,
+}
+
+function normalizeBudgetSelection(
+  rawValue: unknown,
+  serviceType: 'cours_cuisine' | 'mise_en_demeure'
+): number | null {
+  if (typeof rawValue === 'number') {
+    return Number.isFinite(rawValue) && rawValue > 0 ? rawValue : null
+  }
+
+  const value = String(rawValue ?? '').trim()
+  if (!value) return null
+
+  const mappedValue = serviceType === 'cours_cuisine'
+    ? COURSE_BUDGET_MAP[value]
+    : HOME_CHEF_BUDGET_MAP[value]
+
+  if (mappedValue) return mappedValue
+
+  const parsed = Number.parseFloat(value.replace(',', '.'))
+  if (Number.isFinite(parsed) && parsed > 0) return parsed
+
+  return null
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -40,6 +82,12 @@ export async function POST(request: NextRequest) {
       fallbackChefIds: fallbackChefIdsRaw,
       idempotencyToken,
     } = body
+    const normalizedCourseBudget = serviceType === 'cours_cuisine'
+      ? normalizeBudgetSelection(budget, 'cours_cuisine')
+      : null
+    const normalizedHomeChefTotalPrice = serviceType === 'mise_en_demeure'
+      ? normalizeBudgetSelection(totalPrice, 'mise_en_demeure')
+      : null
 
     console.log(`[bookings:${requestId}] Request data:`, {
       chefId,
@@ -84,7 +132,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      if (!budget || parseFloat(budget) <= 0) {
+      if (!normalizedCourseBudget) {
         return NextResponse.json(
           { error: 'Le budget est requis pour un cours de cuisine' },
           { status: 400 }
@@ -136,7 +184,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      if (!totalPrice || parseFloat(totalPrice) <= 0) {
+      if (!normalizedHomeChefTotalPrice) {
         return NextResponse.json(
           { error: 'Le budget global est requis pour un chef à demeure' },
           { status: 400 }
@@ -337,11 +385,11 @@ export async function POST(request: NextRequest) {
         p_guests_count: parseInt(guestsCount),
         p_children_count: parseInt(childrenCount) || 0,
         p_period_days: periodDays || null,
-        p_budget: budget ? parseFloat(budget) : null,
+        p_budget: normalizedCourseBudget,
         p_course_topic: courseTopic || null,
         p_selected_dates: selectedDatesJson,
         p_meal_options: mealOptionsJson,
-        p_total_price: totalPrice ? parseFloat(totalPrice) : null,
+        p_total_price: normalizedHomeChefTotalPrice,
         p_has_allergies: hasAllergies || false,
         p_allergies_details: hasAllergies ? allergiesDetails : null,
         p_menu_id: menuId || null,
@@ -369,11 +417,11 @@ export async function POST(request: NextRequest) {
           guests_count: parseInt(guestsCount),
           children_count: parseInt(childrenCount) || 0,
           period_days: periodDays || null,
-          budget: budget ? parseFloat(budget) : null,
+          budget: normalizedCourseBudget,
           course_topic: courseTopic || null,
           selected_dates: selectedDates && Array.isArray(selectedDates) ? selectedDates : null,
           meal_options: mealOptionsForDb,
-          total_price: totalPrice ? parseFloat(totalPrice) : null,
+          total_price: normalizedHomeChefTotalPrice,
           has_allergies: hasAllergies || false,
           allergies_details: hasAllergies ? allergiesDetails : null,
           menu_id: menuId || null,
@@ -625,7 +673,7 @@ export async function POST(request: NextRequest) {
       bookingDetails.menuName = menuName || null
     } else if (serviceType === 'cours_cuisine') {
       bookingDetails.bookingDate = bookingDate ? formatDateForDisplay(bookingDate, 'fr-FR') : null
-      bookingDetails.budget = budget ? parseFloat(budget) : null
+      bookingDetails.budget = normalizedCourseBudget
       bookingDetails.courseTopic = courseTopic || null
     } else if (serviceType === 'mise_en_demeure') {
       bookingDetails.selectedDates = selectedDates && Array.isArray(selectedDates) ? selectedDates : null
@@ -645,7 +693,7 @@ export async function POST(request: NextRequest) {
           ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
           : null
       }
-      bookingDetails.totalPrice = totalPrice ? parseFloat(totalPrice) : null
+      bookingDetails.totalPrice = normalizedHomeChefTotalPrice
     }
 
     // Envoyer l'email de confirmation au client

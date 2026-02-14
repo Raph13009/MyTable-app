@@ -20,7 +20,7 @@ import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
-type NearbyChef = Pick<Chef, 'id' | 'name' | 'profile_picture' | 'city' | 'postal_code' | 'slug'>
+type NearbyChef = Pick<Chef, 'id' | 'name' | 'profile_picture' | 'slug' | 'cuisine_style' | 'dish_photos' | 'min_guests' | 'max_guests'>
 
 type ServiceType = 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
 
@@ -198,6 +198,9 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
   const [showTermsPopup, setShowTermsPopup] = useState(false)
   const [showNearbyChefPopup, setShowNearbyChefPopup] = useState(false)
   const [selectedNearbyChef, setSelectedNearbyChef] = useState<NearbyChef | null>(null)
+  const [showDishLightbox, setShowDishLightbox] = useState(false)
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [submissionError, setSubmissionError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [idempotencyToken, setIdempotencyToken] = useState<string | null>(null)
@@ -205,6 +208,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
   const [showGlobalError, setShowGlobalError] = useState(false)
   const [globalErrorMessage, setGlobalErrorMessage] = useState<string>('')
   const [isStepVisible, setIsStepVisible] = useState(true)
+  const [isGuestsTotalAnimating, setIsGuestsTotalAnimating] = useState(false)
   const globalErrorRef = useRef<HTMLDivElement>(null)
   const chefPostalPrefix = (chef.postal_code || '').replace(/\D/g, '').slice(0, 2)
 
@@ -280,6 +284,12 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     return () => clearTimeout(timer)
   }, [currentPage])
 
+  useEffect(() => {
+    setIsGuestsTotalAnimating(true)
+    const timer = setTimeout(() => setIsGuestsTotalAnimating(false), 150)
+    return () => clearTimeout(timer)
+  }, [formData.guestsCount, formData.childrenCount])
+
   // Pour le portal
   useEffect(() => {
     setMounted(true)
@@ -287,7 +297,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
   // Bloquer le scroll du body quand la popup est ouverte
   useEffect(() => {
-    if (showTermsPopup || showNearbyChefPopup) {
+    if (showTermsPopup || showNearbyChefPopup || showDishLightbox) {
       const scrollY = window.scrollY
       document.body.style.position = 'fixed'
       document.body.style.top = `-${scrollY}px`
@@ -302,7 +312,23 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         window.scrollTo(0, scrollY)
       }
     }
-  }, [showTermsPopup, showNearbyChefPopup])
+  }, [showTermsPopup, showNearbyChefPopup, showDishLightbox])
+
+  const openDishLightbox = (photos: string[], startIndex: number) => {
+    setLightboxPhotos(photos)
+    setLightboxIndex(startIndex)
+    setShowDishLightbox(true)
+  }
+
+  const showPrevDishPhoto = () => {
+    if (lightboxPhotos.length <= 1) return
+    setLightboxIndex(prev => (prev - 1 + lightboxPhotos.length) % lightboxPhotos.length)
+  }
+
+  const showNextDishPhoto = () => {
+    if (lightboxPhotos.length <= 1) return
+    setLightboxIndex(prev => (prev + 1) % lightboxPhotos.length)
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name?: string; value: string } }) => {
     const { name, value } = e.target
@@ -399,8 +425,9 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       } else if (!isValidBookingDate(formData.bookingDate)) {
         newErrors.bookingDate = 'Vous devez réserver au moins 3 jours avant la date de l&apos;évènement'
       }
-      if (!formData.budget || parseFloat(formData.budget) <= 0) {
-        newErrors.budget = 'Le budget est requis et doit être supérieur à 0'
+      const isValidBudget = cookingClassBudgetOptions.some((option) => option.value === formData.budget)
+      if (!formData.budget || !isValidBudget) {
+        newErrors.budget = 'Veuillez sélectionner un budget'
         missingFields.push('Budget global')
       }
       if (!formData.courseTopic.trim()) {
@@ -420,8 +447,9 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         newErrors.mealOptions = 'Veuillez sélectionner au moins une option de repas pour chaque date'
         missingFields.push('Options de repas')
       }
-      if (!formData.budget || parseFloat(formData.budget) <= 0) {
-        newErrors.budget = 'Le budget global est requis et doit être supérieur à 0'
+      const isValidBudget = homeChefBudgetOptions.some((option) => option.value === formData.budget)
+      if (!formData.budget || !isValidBudget) {
+        newErrors.budget = 'Veuillez sélectionner un budget'
         missingFields.push('Budget global')
       }
     }
@@ -600,14 +628,14 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       let totalPrice = null
 
       if (formData.serviceType === 'cours_cuisine') {
-        budget = parseFloat(formData.budget) || null
+        budget = formData.budget || null
         courseTopic = formData.courseTopic || null
       } else if (formData.serviceType === 'mise_en_demeure') {
         selectedDates = formData.selectedDates.length > 0 ? formData.selectedDates : null
         // Convertir mealOptionsByDate en format pour l'API
         // Structure: { date1: ['pdj', 'dejeuner'], date2: ['diner'], ... }
         mealOptions = Object.keys(formData.mealOptionsByDate).length > 0 ? formData.mealOptionsByDate : null
-        totalPrice = parseFloat(formData.budget) || null
+        totalPrice = formData.budget || null
         budget = null // Ne pas utiliser budget pour mise_en_demeure, utiliser totalPrice
       }
 
@@ -713,15 +741,27 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     handleSubmit(e, true)
   }
 
-  const guestsOptions = Array.from({ length: 60 }, (_, i) => ({
-    value: String(i + 1),
-    label: `${i + 1} ${i === 0 ? t('booking.guest') : t('booking.guests_plural')}`,
-  }))
-
   const menuOptions = menus.map(menu => ({
     value: menu.id,
     label: `${menu.name}${menu.price ? ` - ${menu.price}€` : ''}`,
   }))
+  const cookingClassBudgetOptions = [
+    { value: 'lt_40', label: '-40€/participant' },
+    { value: '40', label: '40€/participant' },
+    { value: '50', label: '50€/participant' },
+    { value: '60', label: '60€/participant' },
+    { value: '70', label: '70€/participant' },
+    { value: 'gt_70', label: '+70€/participant' },
+  ]
+  const homeChefBudgetOptions = [
+    { value: 'lt_200', label: '-200€/jour' },
+    { value: '200', label: '200€/jour' },
+    { value: '250', label: '250€/jour' },
+    { value: '300', label: '300€/jour' },
+    { value: '350', label: '350€/jour' },
+    { value: '400', label: '400€/jour' },
+    { value: 'gt_400', label: '+400€/jour' },
+  ]
 
   // Calculer la période à partir des dates
   const calculatePeriodDays = (startDate: string, endDate: string): string => {
@@ -763,10 +803,10 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         disableStepIndicators
         hideContent
         hideFooter
-        containerClassName="!min-h-0 !p-0 !justify-start !items-stretch !aspect-auto -mt-2 sm:mt-0"
+        containerClassName="!min-h-0 !p-0 !justify-start !items-stretch !aspect-auto -mt-2 sm:-mt-2"
         cardClassName="!max-w-4xl !w-full !rounded-none !shadow-none !border-0 !bg-transparent"
         stepCircleContainerClassName="!border-0 !shadow-none !bg-transparent"
-        stepContainerClassName="!w-full !px-0 !pt-2 sm:!pt-7 !pb-0 !items-center"
+        stepContainerClassName="!w-full !px-0 !pt-2 sm:!pt-4 !pb-0 !items-center"
         renderStepIndicator={({ step, currentStep: stepperStep, onStepClick }: { step: number; currentStep: number; onStepClick: (clicked: number) => void }) => {
           const label = stepLabels[step - 1]
           const isCompleted = step < stepperStep
@@ -790,11 +830,6 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   : 'border border-neutral-300 bg-white text-neutral-400'
               } ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
             >
-              <span className={`pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs transition-colors hidden sm:block ${
-                isActive ? 'font-semibold text-neutral-900' : isCompleted ? 'font-medium text-neutral-500' : 'font-normal text-neutral-400'
-              }`}>
-                {label}
-              </span>
               {isCompleted ? (
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -814,30 +849,96 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     </div>
   )
 
-  const renderChildrenLabel = (tooltipId: string) => (
-    <span className="inline-flex items-center gap-1.5">
-      <span>{t('booking.children')}</span>
-      <span className="group relative inline-flex items-center">
-        <button
-          type="button"
-          aria-label="Informations sur le nombre d'enfants"
-          aria-describedby={tooltipId}
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-neutral-400 transition-colors hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/60 focus-visible:ring-offset-1"
+  const renderGuestsModule = () => {
+    const MAX_TOTAL_GUESTS = 60
+    const totalGuestsRaw = parseInt(formData.guestsCount, 10)
+    const childrenRaw = parseInt(formData.childrenCount, 10)
+    const totalGuests = Number.isFinite(totalGuestsRaw) ? Math.max(1, totalGuestsRaw) : 1
+    const children = Number.isFinite(childrenRaw) ? Math.max(0, childrenRaw) : 0
+    const adults = Math.max(1, totalGuests - children)
+
+    const updateComposition = (nextAdults: number, nextChildren: number) => {
+      const safeAdults = Math.max(1, nextAdults)
+      const safeChildren = Math.max(0, nextChildren)
+      const nextTotal = safeAdults + safeChildren
+      if (nextTotal > MAX_TOTAL_GUESTS) return
+      setFormData((prev) => ({
+        ...prev,
+        guestsCount: String(nextTotal),
+        childrenCount: String(safeChildren),
+      }))
+    }
+
+    return (
+      <div className="rounded-2xl border border-[#EAEAEA] bg-white p-5 sm:p-5.5 space-y-5">
+        <p className="text-sm font-semibold text-black">{t('booking.guests')} *</p>
+
+        <div className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[15px] text-[#111111]">{t('booking.adults')}</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => updateComposition(adults - 1, children)}
+                className="h-9 w-9 rounded-full border border-[#EAEAEA] bg-white text-[#111111] hover:bg-gray-50 active:scale-95 transition-all duration-150"
+                aria-label="Réduire adultes"
+              >
+                -
+              </button>
+              <span className="min-w-[20px] text-center text-base font-medium text-black">{adults}</span>
+              <button
+                type="button"
+                onClick={() => updateComposition(adults + 1, children)}
+                className="h-9 w-9 rounded-full border border-[#EAEAEA] bg-white text-[#111111] hover:bg-gray-50 active:scale-95 transition-all duration-150"
+                aria-label="Augmenter adultes"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-[15px] text-[#111111]">{t('booking.children')}</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => updateComposition(adults, children - 1)}
+                className="h-9 w-9 rounded-full border border-[#EAEAEA] bg-white text-[#111111] hover:bg-gray-50 active:scale-95 transition-all duration-150"
+                aria-label="Réduire enfants"
+              >
+                -
+              </button>
+              <span className="min-w-[20px] text-center text-base font-medium text-black">{children}</span>
+              <button
+                type="button"
+                onClick={() => updateComposition(adults, children + 1)}
+                className="h-9 w-9 rounded-full border border-[#EAEAEA] bg-white text-[#111111] hover:bg-gray-50 active:scale-95 transition-all duration-150"
+                aria-label="Augmenter enfants"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`flex items-center justify-between border-t border-[#EAEAEA] pt-3 leading-none transition-all duration-150 ease-out ${
+            isGuestsTotalAnimating ? 'scale-[1.01] opacity-90' : 'scale-100 opacity-100'
+          }`}
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        <span
-          id={tooltipId}
-          role="tooltip"
-          className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-56 max-w-[220px] -translate-y-1/2 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-neutral-700 shadow-sm ring-1 ring-neutral-200 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:left-1/2 sm:top-[calc(100%+8px)] sm:ml-0 sm:w-60 sm:max-w-[240px] sm:-translate-x-1/2 sm:translate-y-0"
-        >
-          Indiquez le nombre d&apos;enfants parmi les convives. Par defaut, tous les convives sont consideres comme adultes.
-        </span>
-      </span>
-    </span>
-  )
+          <p className="text-sm text-[#6B7280]">{t('booking.totalGuestsCompactLabel')}</p>
+          <p className="text-base font-semibold text-black">{totalGuests}</p>
+        </div>
+
+        {(errors.guestsCount || errors.childrenCount) && (
+          <div className="space-y-1">
+            {errors.guestsCount && <p className="text-sm text-red-500">{errors.guestsCount}</p>}
+            {errors.childrenCount && <p className="text-sm text-red-500">{errors.childrenCount}</p>}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // Page 1: Type de service
   if (currentPage === 1) {
@@ -940,34 +1041,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
-              <Select
-                label={`${t('booking.guests')} *`}
-                name="guestsCount"
-                value={formData.guestsCount}
-                onChange={handleChange}
-                options={guestsOptions}
-                error={errors.guestsCount}
-                className="py-2.5 sm:py-3 md:py-2"
-              />
-              <div>
-                <Input
-                  label={renderChildrenLabel('children-info-repas')}
-                  type="number"
-                  name="childrenCount"
-                  value={formData.childrenCount}
-                  onChange={handleChange}
-                  error={errors.childrenCount}
-                  min="0"
-                  max={formData.guestsCount}
-                  placeholder="0"
-                  autoComplete="off"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="py-2.5 sm:py-3 md:py-2"
-                />
-              </div>
-            </div>
+            {renderGuestsModule()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
               <Input
@@ -1026,32 +1100,8 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   autoComplete="off"
                 />
               </div>
-              <Select
-                label={`${t('booking.guests')} *`}
-                name="guestsCount"
-                value={formData.guestsCount}
-                onChange={handleChange}
-                options={guestsOptions}
-                error={errors.guestsCount}
-              />
             </div>
-
-            <div className="w-full">
-              <Input
-                label={renderChildrenLabel('children-info-cours')}
-                type="number"
-                name="childrenCount"
-                value={formData.childrenCount}
-                onChange={handleChange}
-                error={errors.childrenCount}
-                min="0"
-                max={formData.guestsCount}
-                placeholder="0"
-                autoComplete="off"
-                inputMode="numeric"
-                pattern="[0-9]*"
-              />
-            </div>
+            {renderGuestsModule()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
@@ -1077,17 +1127,14 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
             </div>
 
             <div className="w-full">
-              <Input
+              <Select
                 label={`${t('booking.budgetGlobal')} *`}
-                type="number"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                required
+                options={cookingClassBudgetOptions}
+                placeholder="Sélectionner un budget"
               />
               <p className="mt-1 text-xs text-gray-500">
                 {t('booking.budgetHint')}
@@ -1111,33 +1158,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
         {formData.serviceType === 'mise_en_demeure' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label={`${t('booking.guests')} *`}
-                name="guestsCount"
-                value={formData.guestsCount}
-                onChange={handleChange}
-                options={guestsOptions}
-                error={errors.guestsCount}
-              />
-            </div>
-
-            <div className="w-full">
-              <Input
-                label={renderChildrenLabel('children-info-mise')}
-                type="number"
-                name="childrenCount"
-                value={formData.childrenCount}
-                onChange={handleChange}
-                error={errors.childrenCount}
-                min="0"
-                max={formData.guestsCount}
-                placeholder="0"
-                autoComplete="off"
-                inputMode="numeric"
-                pattern="[0-9]*"
-              />
-            </div>
+            {renderGuestsModule()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
@@ -1266,17 +1287,14 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
             )}
 
             <div className="w-full">
-              <Input
+              <Select
                 label="Budget global pour la période (€) *"
-                type="number"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                required
+                options={homeChefBudgetOptions}
+                placeholder="Sélectionner un budget"
               />
               <p className="mt-1 text-xs text-gray-500">
                 {t('booking.budgetGlobalPeriodHint')}
@@ -1361,7 +1379,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
             {formData.shareWithNearbyChefs && (
               <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 transition-all duration-200">
                 <p className="text-sm text-neutral-700 font-medium">
-                  Zone: {chefPostalPrefix}xx | Sélection max: 3 chefs
+                  Sélection max: 3 chefs
                 </p>
                 <div className="space-y-2">
                   {nearbyChefs.map((nearbyChef) => {
@@ -1670,6 +1688,91 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   </p>
                 </div>
 
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-black text-lg">5. Annulation et conditions de remboursement</h3>
+                  <p className="text-base">
+                    Les présentes conditions s&apos;appliquent à toutes les prestations réservées via la plateforme Guide My Table, incluant :
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 ml-4">
+                    <li>Les cours de cuisine (quel que soit le nombre de participants)</li>
+                    <li>Les prestations de chef à domicile</li>
+                    <li>Les prestations de chef à demeure (présence du Chef sur plusieurs jours au sein du logement du Client)</li>
+                  </ul>
+                  <p className="text-base">
+                    Toute annulation doit être formulée par écrit (email ou messagerie de la plateforme). Les délais mentionnés ci-dessous s&apos;entendent en jours calendaires avant la date de la prestation (ou avant la date de début pour un chef à demeure).
+                  </p>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">5.1 Modalités de paiement</h4>
+                    <p className="text-base">Le Client règle la totalité du montant de la prestation au moment de la réservation.</p>
+                    <p className="text-base">Les sommes versées sont conservées par Guide My Table jusqu&apos;à la réalisation effective de la prestation. Elles sont ensuite reversées au Chef après exécution.</p>
+                    <p className="text-base">En cas d&apos;annulation, les conditions de remboursement ci-dessous s&apos;appliquent.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-black">5.2 Conditions d&apos;annulation selon le type de prestation</h4>
+                    <div className="space-y-2">
+                      <p className="font-medium text-black">A. Cours de cuisine (quel que soit le nombre de participants)</p>
+                      <p className="text-base">Les conditions suivantes s&apos;appliquent indépendamment du nombre de participants inscrits.</p>
+                      <p className="text-base">Annulation avant J-5 : remboursement intégral (100%).</p>
+                      <p className="text-base">Annulation à partir de J-5 inclus : 30% retenus, 70% remboursés.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium text-black">B. Chef à domicile – de 1 à 8 personnes</p>
+                      <p className="text-base">Annulation avant J-5 : remboursement intégral (100%).</p>
+                      <p className="text-base">Annulation à partir de J-5 inclus : 30% retenus, 70% remboursés.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium text-black">C. Chef à domicile – de 9 à 18 personnes</p>
+                      <p className="text-base">Annulation avant J-7 : remboursement intégral (100%).</p>
+                      <p className="text-base">Annulation à partir de J-7 inclus : 30% retenus, 70% remboursés.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium text-black">D. Chef à domicile – 19 personnes et plus</p>
+                      <p className="text-base">Annulation avant J-14 : remboursement intégral (100%).</p>
+                      <p className="text-base">Annulation à partir de J-14 inclus : 30% retenus, 70% remboursés.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium text-black">E. Chef à demeure (présence sur plusieurs jours)</p>
+                      <p className="text-base">Annulation avant J-14 (avant la date de début) : remboursement intégral (100%).</p>
+                      <p className="text-base">Annulation à partir de J-14 inclus : 30% retenus, 70% remboursés.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">5.3 Répartition des 30% retenus en cas d&apos;annulation tardive</h4>
+                    <ul className="list-disc list-inside space-y-2 ml-4">
+                      <li>25% du montant total sont reversés au Chef, en compensation de la perte de disponibilité et de la préparation engagée.</li>
+                      <li>5% du montant total sont conservés par Guide My Table, au titre des frais de réservation, de gestion et d&apos;organisation.</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">5.4 Force majeure</h4>
+                    <p className="text-base">En cas de force majeure au sens de l&apos;article 1218 du Code civil (événement imprévisible, irrésistible et extérieur), les parties pourront convenir d&apos;un report de la prestation, ou d&apos;un remboursement adapté à la situation.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">5.5 Précision relative au nombre de convives</h4>
+                    <p className="text-base">Les conditions d&apos;annulation et de remboursement prévues aux présentes s&apos;appliquent sur la base du nombre de convives, du type de prestation et du montant total, tels qu&apos;ils ont été validés par le Client au moment de la finalisation de la réservation sur la plateforme.</p>
+                    <p className="text-base">Le nombre de convives retenu lors de la confirmation constitue la base contractuelle de référence pour le calcul de toute retenue ou remboursement.</p>
+                    <p className="text-base">Toute modification ultérieure du nombre de participants, notamment à la baisse, ne pourra entraîner une diminution du montant dû ni modifier les conditions d&apos;annulation applicables, sauf accord exprès et écrit de Guide My Table.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">6. Modalités de remboursement</h4>
+                    <p className="text-base">Le remboursement du solde restant est effectué via le même moyen de paiement utilisé lors de la réservation.</p>
+                    <p className="text-base">Le délai de traitement peut varier selon les banques et prestataires de paiement, mais ne dépasse pas 10 jours ouvrés à compter de la confirmation de l&apos;annulation.</p>
+                    <p className="text-base">Aucun remboursement en espèces ne sera effectué.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-black">7. Responsabilités</h4>
+                    <p className="text-base">Guide MyTable agit en tant qu&apos;intermédiaire et n&apos;est pas responsable des prestations réalisées par les Chefs privés.</p>
+                    <p className="text-base">En cas de litige, le Client et le Chef devront trouver un accord entre eux.</p>
+                  </div>
+                </div>
+
                 <div className="bg-[#FBCF03]/10 border-l-4 border-[#FBCF03] p-4 rounded-lg mt-6">
                   <p className="text-sm font-medium text-black">
                     {t('booking.termsAcceptance')}
@@ -1728,7 +1831,9 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
               {(() => {
                 const nameParts = selectedNearbyChef.name.trim().split(' ')
                 const firstName = nameParts[0] || selectedNearbyChef.name
-                const lastName = nameParts.slice(1).join(' ')
+                const dishPhotos = Array.isArray(selectedNearbyChef.dish_photos)
+                  ? selectedNearbyChef.dish_photos.filter((url): url is string => typeof url === 'string' && url.length > 0).slice(0, 3)
+                  : []
                 return (
                   <>
               {selectedNearbyChef.profile_picture ? (
@@ -1745,17 +1850,106 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 </div>
               )}
               <p className="text-lg font-semibold text-black">{firstName}</p>
-              <p className="text-sm text-gray-700">{lastName || '-'}</p>
-              <p className="text-sm text-gray-600 mt-1">
-                {selectedNearbyChef.city || 'Ville non renseignée'}
+              <p className="mt-2 text-sm text-gray-700">
+                {selectedNearbyChef.cuisine_style || 'Style de cuisine non renseigné'}
               </p>
-              <p className="text-sm text-gray-500">
-                {selectedNearbyChef.postal_code || 'Code postal non renseigné'}
-              </p>
+              {selectedNearbyChef.min_guests !== null && selectedNearbyChef.max_guests !== null && (
+                <p className="mt-1 text-sm text-gray-600">
+                  {selectedNearbyChef.min_guests} à {selectedNearbyChef.max_guests} convives
+                </p>
+              )}
+              {dishPhotos.length > 0 && (
+                <div className="mt-4 w-full">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                    Photos de plats
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {dishPhotos.map((photoUrl, index) => (
+                      <button
+                        key={`${photoUrl}-${index}`}
+                        type="button"
+                        onClick={() => openDishLightbox(dishPhotos, index)}
+                        className="group relative overflow-hidden rounded-lg border border-gray-200"
+                        aria-label={`Voir la photo ${index + 1}`}
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Plat ${index + 1}`}
+                          className="h-20 w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                        />
+                        <span className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/20" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
                   </>
                 )
               })()}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {mounted && showDishLightbox && lightboxPhotos.length > 0 && createPortal(
+        <div
+          className="fixed inset-0 bg-black/85 p-4 z-[10000]"
+          onClick={() => setShowDishLightbox(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div className="relative flex w-full max-w-4xl items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setShowDishLightbox(false)}
+              className="absolute right-2 top-2 z-20 rounded-md bg-white/10 p-2 text-white hover:bg-white/20"
+              aria-label={t('common.close')}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {lightboxPhotos.length > 1 && (
+              <button
+                type="button"
+                onClick={showPrevDishPhoto}
+                className="absolute left-0 sm:-left-12 z-20 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+                aria-label="Photo précédente"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+
+            <img
+              src={lightboxPhotos[lightboxIndex]}
+              alt={`Photo plat ${lightboxIndex + 1}`}
+              className="max-h-[85vh] w-auto max-w-full rounded-xl object-contain"
+            />
+
+            {lightboxPhotos.length > 1 && (
+              <button
+                type="button"
+                onClick={showNextDishPhoto}
+                className="absolute right-0 sm:-right-12 z-20 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+                aria-label="Photo suivante"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>,
         document.body
