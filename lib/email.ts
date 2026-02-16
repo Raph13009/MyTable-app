@@ -423,9 +423,9 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.mealOptionsLabel) {
       detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
     }
-    const homeChefPricePerPerson = Number(bookingDetails.pricePerPerson ?? bookingDetails.totalPrice)
-    if (Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) {
-      detailsHtml += `<p><strong>Prix par personne :</strong> ${homeChefPricePerPerson.toFixed(2)} €</p>`
+    const homeChefPricePerDay = Number(bookingDetails.pricePerDay ?? bookingDetails.totalPrice)
+    if (Number.isFinite(homeChefPricePerDay) && homeChefPricePerDay > 0) {
+      detailsHtml += `<p><strong>Prix par jour :</strong> ${homeChefPricePerDay.toFixed(2)} €</p>`
     } else if (bookingDetails.totalPrice) {
       // Rétrocompatibilité avec les anciennes réservations
       const budgetLabel = getBudgetGlobalLabel('fr')

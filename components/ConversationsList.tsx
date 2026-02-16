@@ -29,6 +29,7 @@ interface Conversation {
     totalPrice?: number
     budget?: number | string | null // Pour cours_cuisine
     total_price?: number | string | null // Pour mise_en_demeure
+    selected_dates?: string[] | null
     service_type?: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
     period_days?: string | null
     meal_time?: 'dejeuner' | 'diner' | null
@@ -435,12 +436,14 @@ export default function ConversationsList({ conversations, currentUser, particip
                               const guests = conversation.bookingRequest.guests_count || 0
                               displayPrice = pricePerPerson * guests
                             } else if (conversation.bookingRequest?.service_type === 'mise_en_demeure' && conversation.bookingRequest?.total_price !== undefined && conversation.bookingRequest.total_price !== null) {
-                              // Fallback: prix/pers * convives
-                              const pricePerPerson = typeof conversation.bookingRequest.total_price === 'number'
+                              // Fallback: prix/jour * nb jours sélectionnés
+                              const pricePerDay = typeof conversation.bookingRequest.total_price === 'number'
                                 ? conversation.bookingRequest.total_price
                                 : parseFloat(conversation.bookingRequest.total_price) || 0
-                              const guests = conversation.bookingRequest.guests_count || 0
-                              displayPrice = pricePerPerson * guests
+                              const selectedDates = Array.isArray(conversation.bookingRequest.selected_dates)
+                                ? conversation.bookingRequest.selected_dates
+                                : []
+                              displayPrice = selectedDates.length > 0 ? pricePerDay * selectedDates.length : null
                             }
                             
                             return displayPrice !== null && displayPrice >= 0 ? (

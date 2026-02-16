@@ -3,7 +3,7 @@
  * 
  * Ces tests vérifient que le calcul du montant total est correct pour chaque type de service :
  * - Repas à domicile : nb convives * prix menu + extras
- * - Chef à demeure : prix/pers (total_price) * convives + extras
+ * - Chef à demeure : prix/jour (total_price) * nb jours + extras
  * - Cours de cuisine : prix/pers (budget) * convives + extras
  * 
  * Pour exécuter ces tests, vous devez installer un framework de test:
@@ -110,10 +110,10 @@ describe('calculateBookingTotal', () => {
   })
 
   describe('Chef à demeure (mise_en_demeure)', () => {
-    it('devrait calculer correctement avec prix/pers et convives', () => {
+    it('devrait calculer correctement avec prix/jour et nb jours', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
         totalPrice: 200,
-        guestsCount: 3,
+        periodDaysCount: 3,
         extras: [],
       })
       expect(result).toBe(600)
@@ -122,7 +122,7 @@ describe('calculateBookingTotal', () => {
     it('devrait ajouter les extras au total', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
         totalPrice: 200,
-        guestsCount: 3,
+        periodDaysCount: 3,
         extras: [
           { name: 'Service supplémentaire', price: 100 },
           { name: 'Décoration', price: 50 },
@@ -131,15 +131,16 @@ describe('calculateBookingTotal', () => {
       expect(result).toBe(750) // (200 * 3) + 100 + 50 = 750
     })
 
-    it('devrait ignorer menuPrice et budget', () => {
+    it('devrait ignorer menuPrice, budget et guestsCount', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
         totalPrice: 120,
         menuPrice: 50, // devrait être ignoré
         guestsCount: 4,
+        periodDaysCount: 2,
         budget: 200, // devrait être ignoré
         extras: [],
       })
-      expect(result).toBe(480) // 120 * 4
+      expect(result).toBe(240) // 120 * 2
     })
 
     it('devrait gérer les valeurs nulles', () => {
@@ -245,6 +246,7 @@ describe('calculateBookingTotal', () => {
       const demeureResult = calculateBookingTotal('mise_en_demeure', {
         menuPrice: 50,
         guestsCount: 4,
+        periodDaysCount: 4,
         budget: 200,
         totalPrice: 50,
         extras: [{ name: 'Extra', price: 30 }],
@@ -256,7 +258,7 @@ describe('calculateBookingTotal', () => {
       // Cours: (50 * 4) + 30 = 230
       expect(coursResult).toBe(230)
       
-      // Demeure: (50 * 4) + 30 = 230
+      // Demeure: (50 * 4 jours) + 30 = 230
       expect(demeureResult).toBe(230)
       
       // Dans ce cas particulier, les résultats sont identiques, mais les calculs sont différents
@@ -277,7 +279,7 @@ describe('calculateBookingTotal', () => {
 
       const demeureResult = calculateBookingTotal('mise_en_demeure', {
         totalPrice: 80,
-        guestsCount: 5,
+        periodDaysCount: 5,
         extras: [{ name: 'Extra', price: 30 }],
       })
 

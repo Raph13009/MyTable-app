@@ -1023,12 +1023,14 @@ export default function ChatInterface({
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
   const menuTotal = menuPrice * currentGuestsCount
   const coursePricePerPerson = Number(bookingRequest?.budget || 0)
-  const homeChefPricePerPerson = Number(bookingRequest?.total_price || 0)
+  const homeChefPricePerDay = Number(bookingRequest?.total_price || 0)
+  const homeChefDaysCount = Array.isArray(bookingRequest?.selected_dates) ? bookingRequest.selected_dates.length : 0
   const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
     menuPrice,
     guestsCount: currentGuestsCount,
     budget: bookingRequest?.budget,
     totalPrice: bookingRequest?.total_price,
+    periodDaysCount: homeChefDaysCount,
     isPriceCustom: false,
     extras,
   })
@@ -2032,7 +2034,7 @@ export default function ChatInterface({
                           )}
                           {bookingRequest.total_price && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Prix par personne</p>
+                              <p className="text-xs text-gray-500 mb-0.5">Prix par jour</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.total_price === 'number' 
                                   ? `${bookingRequest.total_price.toFixed(0)} €`
@@ -2305,9 +2307,9 @@ export default function ChatInterface({
                     {coursePricePerPerson.toFixed(2)} €/pers x {currentGuestsCount} convives
                   </p>
                 )}
-                {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) && (
+                {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerDay) && homeChefPricePerDay > 0) && (
                   <p className="mt-1 text-xs text-gray-500">
-                    {homeChefPricePerPerson.toFixed(2)} €/pers x {currentGuestsCount} convives
+                    {homeChefPricePerDay.toFixed(2)} €/jour x {homeChefDaysCount} {homeChefDaysCount === 1 ? 'jour' : 'jours'}
                   </p>
                 )}
               </div>
@@ -2532,9 +2534,9 @@ export default function ChatInterface({
                       {coursePricePerPerson.toFixed(2)} €/pers x {bookingRequest.guests_count} convives
                     </p>
                   )}
-                  {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) && (
+                  {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerDay) && homeChefPricePerDay > 0) && (
                     <p className="text-xs text-gray-500">
-                      {homeChefPricePerPerson.toFixed(2)} €/pers x {bookingRequest.guests_count} convives
+                      {homeChefPricePerDay.toFixed(2)} €/jour x {homeChefDaysCount} {homeChefDaysCount === 1 ? 'jour' : 'jours'}
                     </p>
                   )}
                 </div>

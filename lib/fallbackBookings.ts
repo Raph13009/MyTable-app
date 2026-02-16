@@ -226,10 +226,11 @@ export async function createNextFallbackBooking(
   } else if (currentBooking.service_type === 'mise_en_demeure') {
     bookingDetails.selectedDates = Array.isArray(currentBooking.selected_dates) ? currentBooking.selected_dates : null
     bookingDetails.mealOptionsLabel = mealOptionsLabel
-    const pricePerPerson = currentBooking.total_price ? Number(currentBooking.total_price) : null
-    bookingDetails.pricePerPerson = pricePerPerson
-    bookingDetails.estimatedTotalPrice = pricePerPerson
-      ? pricePerPerson * Number(currentBooking.guests_count || 0)
+    const pricePerDay = currentBooking.total_price ? Number(currentBooking.total_price) : null
+    const daysCount = Array.isArray(currentBooking.selected_dates) ? currentBooking.selected_dates.length : 0
+    bookingDetails.pricePerDay = pricePerDay
+    bookingDetails.estimatedTotalPrice = pricePerDay
+      ? pricePerDay * daysCount
       : null
   }
 

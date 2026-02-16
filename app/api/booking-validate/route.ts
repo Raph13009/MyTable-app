@@ -115,6 +115,9 @@ export async function POST(request: NextRequest) {
       guestsCount,
       budget: (bookingRequest as any).budget,
       totalPrice: (bookingRequest as any).total_price,
+      periodDaysCount: Array.isArray((bookingRequest as any).selected_dates)
+        ? (bookingRequest as any).selected_dates.length
+        : 0,
       isPriceCustom: (bookingRequest as any).is_price_custom,
       extras,
     })

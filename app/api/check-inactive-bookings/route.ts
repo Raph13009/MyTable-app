@@ -286,10 +286,11 @@ export async function GET(request: NextRequest) {
               opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
             ).join(', ')
           }
-          const pricePerPerson = booking.total_price ? Number(booking.total_price) : null
-          bookingDetails.pricePerPerson = pricePerPerson
-          bookingDetails.estimatedTotalPrice = pricePerPerson
-            ? pricePerPerson * Number(booking.guests_count || 0)
+          const pricePerDay = booking.total_price ? Number(booking.total_price) : null
+          const daysCount = Array.isArray(booking.selected_dates) ? booking.selected_dates.length : 0
+          bookingDetails.pricePerDay = pricePerDay
+          bookingDetails.estimatedTotalPrice = pricePerDay
+            ? pricePerDay * daysCount
             : null
         }
 

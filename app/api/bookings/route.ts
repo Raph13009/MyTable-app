@@ -5,22 +5,20 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
-  lt_40: 40,
-  '40': 40,
   '50': 50,
   '60': 60,
   '70': 70,
-  gt_70: 70,
+  '80': 80,
+  '90': 90,
 }
 
 const HOME_CHEF_BUDGET_MAP: Record<string, number> = {
-  lt_200: 200,
-  '200': 200,
   '250': 250,
   '300': 300,
   '350': 350,
   '400': 400,
-  gt_400: 400,
+  '450': 450,
+  '500': 500,
 }
 
 function normalizeBudgetSelection(
@@ -186,7 +184,7 @@ export async function POST(request: NextRequest) {
       }
       if (!normalizedHomeChefPricePerPerson) {
         return NextResponse.json(
-          { error: 'Le prix par personne est requis pour un chef à demeure' },
+          { error: 'Le prix par jour est requis pour un chef à demeure' },
           { status: 400 }
         )
       }
@@ -695,9 +693,9 @@ export async function POST(request: NextRequest) {
           ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
           : null
       }
-      const safeGuestsCount = Number.parseInt(String(guestsCount), 10) || 0
-      bookingDetails.pricePerPerson = normalizedHomeChefPricePerPerson
-      bookingDetails.estimatedTotalPrice = (normalizedHomeChefPricePerPerson || 0) * safeGuestsCount
+      const daysCount = Array.isArray(selectedDates) ? selectedDates.length : 0
+      bookingDetails.pricePerDay = normalizedHomeChefPricePerPerson
+      bookingDetails.estimatedTotalPrice = (normalizedHomeChefPricePerPerson || 0) * daysCount
     }
 
     // Envoyer l'email de confirmation au client

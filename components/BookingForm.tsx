@@ -209,6 +209,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
   const [globalErrorMessage, setGlobalErrorMessage] = useState<string>('')
   const [isStepVisible, setIsStepVisible] = useState(true)
   const [isGuestsTotalAnimating, setIsGuestsTotalAnimating] = useState(false)
+  const [activePriceInfo, setActivePriceInfo] = useState<'cours' | 'demeure' | null>(null)
   const globalErrorRef = useRef<HTMLDivElement>(null)
   const chefPostalPrefix = (chef.postal_code || '').replace(/\D/g, '').slice(0, 2)
 
@@ -428,7 +429,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       const isValidBudget = cookingClassBudgetOptions.some((option) => option.value === formData.budget)
       if (!formData.budget || !isValidBudget) {
         newErrors.budget = 'Veuillez sélectionner un budget'
-        missingFields.push('Prix par personne')
+        missingFields.push('Prix par participant')
       }
       if (!formData.courseTopic.trim()) {
         newErrors.courseTopic = t('booking.errors.courseTopicRequired')
@@ -450,7 +451,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       const isValidBudget = homeChefBudgetOptions.some((option) => option.value === formData.budget)
       if (!formData.budget || !isValidBudget) {
         newErrors.budget = 'Veuillez sélectionner un budget'
-        missingFields.push('Prix par personne')
+        missingFields.push('Prix par jour')
       }
     }
 
@@ -746,21 +747,19 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     label: `${menu.name}${menu.price ? ` - ${menu.price}€` : ''}`,
   }))
   const cookingClassBudgetOptions = [
-    { value: 'lt_40', label: '-40€/participant' },
-    { value: '40', label: '40€/participant' },
     { value: '50', label: '50€/participant' },
     { value: '60', label: '60€/participant' },
     { value: '70', label: '70€/participant' },
-    { value: 'gt_70', label: '+70€/participant' },
+    { value: '80', label: '80€/participant' },
+    { value: '90', label: '90€/participant' },
   ]
   const homeChefBudgetOptions = [
-    { value: 'lt_200', label: '-200€/participant' },
-    { value: '200', label: '200€/participant' },
-    { value: '250', label: '250€/participant' },
-    { value: '300', label: '300€/participant' },
-    { value: '350', label: '350€/participant' },
-    { value: '400', label: '400€/participant' },
-    { value: 'gt_400', label: '+400€/participant' },
+    { value: '250', label: '250€/jour' },
+    { value: '300', label: '300€/jour' },
+    { value: '350', label: '350€/jour' },
+    { value: '400', label: '400€/jour' },
+    { value: '450', label: '450€/jour' },
+    { value: '500', label: '500€/jour' },
   ]
 
   // Calculer la période à partir des dates
@@ -1128,18 +1127,34 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
             <div className="w-full">
               <Select
-                label="Prix par personne (€) *"
+                label="Prix par participant (€) *"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
                 options={cookingClassBudgetOptions}
-                placeholder="Sélectionner un prix"
+                placeholder={t('booking.selectPricePlaceholder')}
                 dropdownDirection="up"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                {t('booking.budgetHint')}
-              </p>
+              <div className="mt-1 flex items-start gap-2">
+                <p className="text-xs text-gray-500">{t('booking.budgetHint')}</p>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePriceInfo(prev => (prev === 'cours' ? null : 'cours'))}
+                    aria-label={t('booking.priceInfoButtonAria')}
+                    className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border border-gray-300 bg-white text-[10px] font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    i
+                  </button>
+                  {activePriceInfo === 'cours' && (
+                    <div className="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                      <p className="text-xs font-semibold text-gray-900">{t('booking.priceInfoTitle')}</p>
+                      <p className="mt-1 text-xs text-gray-600">{t('booking.priceInfoDescription')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="w-full">
@@ -1289,18 +1304,34 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
             <div className="w-full">
               <Select
-                label="Prix par personne pour la période (€) *"
+                label="Prix par jour (€) *"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
                 options={homeChefBudgetOptions}
-                placeholder="Sélectionner un prix"
+                placeholder={t('booking.selectPricePlaceholder')}
                 dropdownDirection="up"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Le total estimé sera calculé automatiquement selon le nombre total de convives.
-              </p>
+              <div className="mt-1 flex items-start gap-2">
+                <p className="text-xs text-gray-500">{t('booking.budgetGlobalPeriodHint')}</p>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActivePriceInfo(prev => (prev === 'demeure' ? null : 'demeure'))}
+                    aria-label={t('booking.priceInfoButtonAria')}
+                    className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border border-gray-300 bg-white text-[10px] font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    i
+                  </button>
+                  {activePriceInfo === 'demeure' && (
+                    <div className="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                      <p className="text-xs font-semibold text-gray-900">{t('booking.priceInfoTitle')}</p>
+                      <p className="mt-1 text-xs text-gray-600">{t('booking.priceInfoDescription')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}

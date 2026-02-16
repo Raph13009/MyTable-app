@@ -117,7 +117,9 @@ export async function GET(request: NextRequest) {
       const chefEmail = chef.email || ''
       
       // Calculer le montant à payer au chef (total - 15% commission)
-      const totalPrice = booking.total_price || 0
+      const totalPrice = booking.service_type === 'mise_en_demeure'
+        ? (Number(booking.total_price || 0) * (Array.isArray(booking.selected_dates) ? booking.selected_dates.length : 0))
+        : Number(booking.total_price || 0)
       const commissionRate = 0.15
       const commissionAmount = totalPrice * commissionRate
       const amountToPay = totalPrice - commissionAmount

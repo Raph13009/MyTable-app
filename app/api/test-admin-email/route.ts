@@ -67,6 +67,9 @@ export async function GET(request: NextRequest) {
       guestsCount,
       budget: bookingRequest.budget,
       totalPrice: bookingRequest.total_price,
+      periodDaysCount: Array.isArray(bookingRequest.selected_dates)
+        ? bookingRequest.selected_dates.length
+        : 0,
       isPriceCustom: bookingRequest.is_price_custom,
       extras,
     })

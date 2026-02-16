@@ -5,7 +5,8 @@
  * @param menuPrice - Prix du menu (pour repas_domicile uniquement)
  * @param guestsCount - Nombre de convives (pour repas_domicile uniquement)
  * @param budget - Prix par personne (pour cours_cuisine uniquement)
- * @param totalPrice - Prix par personne (pour mise_en_demeure uniquement)
+ * @param totalPrice - Prix par jour (pour mise_en_demeure uniquement)
+ * @param periodDaysCount - Nombre de jours (pour mise_en_demeure uniquement)
  * @param isPriceCustom - Si true, totalPrice est traité comme le montant final (override)
  * @param extras - Tableau des extras avec { name: string; price: number }
  * @returns Le montant total calculé
@@ -17,6 +18,7 @@ export function calculateBookingTotal(
     guestsCount?: number | string | null
     budget?: number | string | null
     totalPrice?: number | string | null
+    periodDaysCount?: number | string | null
     isPriceCustom?: boolean | null
     extras?: Array<{ name: string; price: number | string }> | null
   }
@@ -35,6 +37,7 @@ export function calculateBookingTotal(
     guestsCount = 0,
     budget = 0,
     totalPrice = 0,
+    periodDaysCount = 0,
     isPriceCustom = false,
     extras = [],
   } = options
@@ -62,10 +65,10 @@ export function calculateBookingTotal(
       return (safeBudget * safeCourseGuestsCount) + extrasTotal
 
     case 'mise_en_demeure':
-      // Chef à demeure : prix/pers * nb convives + extras
+      // Chef à demeure : prix/jour * nb jours + extras
       const safeTotalPrice = normalizeNumber(totalPrice)
-      const safeHomeChefGuestsCount = normalizeNumber(guestsCount)
-      return (safeTotalPrice * safeHomeChefGuestsCount) + extrasTotal
+      const safePeriodDaysCount = normalizeNumber(periodDaysCount)
+      return (safeTotalPrice * safePeriodDaysCount) + extrasTotal
 
     default:
       // Par défaut, si le type n'est pas reconnu, retourner 0 + extras
