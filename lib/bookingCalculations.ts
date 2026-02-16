@@ -4,8 +4,8 @@
  * @param serviceType - Type de service: 'repas_domicile' | 'cours_cuisine' | 'mise_en_demeure'
  * @param menuPrice - Prix du menu (pour repas_domicile uniquement)
  * @param guestsCount - Nombre de convives (pour repas_domicile uniquement)
- * @param budget - Budget global (pour cours_cuisine uniquement)
- * @param totalPrice - Prix total (pour mise_en_demeure uniquement)
+ * @param budget - Prix par personne (pour cours_cuisine uniquement)
+ * @param totalPrice - Prix par personne (pour mise_en_demeure uniquement)
  * @param isPriceCustom - Si true, totalPrice est traité comme le montant final (override)
  * @param extras - Tableau des extras avec { name: string; price: number }
  * @returns Le montant total calculé
@@ -56,14 +56,16 @@ export function calculateBookingTotal(
       return (safeMenuPrice * safeGuestsCount) + extrasTotal
 
     case 'cours_cuisine':
-      // Cours de cuisine : budget global + extras
+      // Cours de cuisine : prix/pers * nb convives + extras
       const safeBudget = normalizeNumber(budget)
-      return safeBudget + extrasTotal
+      const safeCourseGuestsCount = normalizeNumber(guestsCount)
+      return (safeBudget * safeCourseGuestsCount) + extrasTotal
 
     case 'mise_en_demeure':
-      // Chef à demeure : budget global (total_price) + extras
+      // Chef à demeure : prix/pers * nb convives + extras
       const safeTotalPrice = normalizeNumber(totalPrice)
-      return safeTotalPrice + extrasTotal
+      const safeHomeChefGuestsCount = normalizeNumber(guestsCount)
+      return (safeTotalPrice * safeHomeChefGuestsCount) + extrasTotal
 
     default:
       // Par défaut, si le type n'est pas reconnu, retourner 0 + extras

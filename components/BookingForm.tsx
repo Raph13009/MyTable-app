@@ -428,7 +428,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       const isValidBudget = cookingClassBudgetOptions.some((option) => option.value === formData.budget)
       if (!formData.budget || !isValidBudget) {
         newErrors.budget = 'Veuillez sélectionner un budget'
-        missingFields.push('Budget global')
+        missingFields.push('Prix par personne')
       }
       if (!formData.courseTopic.trim()) {
         newErrors.courseTopic = t('booking.errors.courseTopicRequired')
@@ -450,7 +450,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       const isValidBudget = homeChefBudgetOptions.some((option) => option.value === formData.budget)
       if (!formData.budget || !isValidBudget) {
         newErrors.budget = 'Veuillez sélectionner un budget'
-        missingFields.push('Budget global')
+        missingFields.push('Prix par personne')
       }
     }
 
@@ -754,13 +754,13 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     { value: 'gt_70', label: '+70€/participant' },
   ]
   const homeChefBudgetOptions = [
-    { value: 'lt_200', label: '-200€/jour' },
-    { value: '200', label: '200€/jour' },
-    { value: '250', label: '250€/jour' },
-    { value: '300', label: '300€/jour' },
-    { value: '350', label: '350€/jour' },
-    { value: '400', label: '400€/jour' },
-    { value: 'gt_400', label: '+400€/jour' },
+    { value: 'lt_200', label: '-200€/participant' },
+    { value: '200', label: '200€/participant' },
+    { value: '250', label: '250€/participant' },
+    { value: '300', label: '300€/participant' },
+    { value: '350', label: '350€/participant' },
+    { value: '400', label: '400€/participant' },
+    { value: 'gt_400', label: '+400€/participant' },
   ]
 
   // Calculer la période à partir des dates
@@ -1128,13 +1128,13 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
             <div className="w-full">
               <Select
-                label={`${t('booking.budgetGlobal')} *`}
+                label="Prix par personne (€) *"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
                 options={cookingClassBudgetOptions}
-                placeholder="Sélectionner un budget"
+                placeholder="Sélectionner un prix"
                 dropdownDirection="up"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1289,17 +1289,17 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
             <div className="w-full">
               <Select
-                label="Budget global pour la période (€) *"
+                label="Prix par personne pour la période (€) *"
                 name="budget"
                 value={formData.budget}
                 onChange={handleChange}
                 error={errors.budget}
                 options={homeChefBudgetOptions}
-                placeholder="Sélectionner un budget"
+                placeholder="Sélectionner un prix"
                 dropdownDirection="up"
               />
               <p className="mt-1 text-xs text-gray-500">
-                {t('booking.budgetGlobalPeriodHint')}
+                Le total estimé sera calculé automatiquement selon le nombre total de convives.
               </p>
             </div>
           </>

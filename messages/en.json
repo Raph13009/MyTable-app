@@ -41,7 +41,8 @@
     "filterClosed": "Closed",
     "statusOngoing": "Ongoing",
     "statusPending": "Pending",
-    "statusClosed": "Closed"
+    "statusClosed": "Closed",
+    "statusRefused": "Refused"
   },
   "booking": {
     "title": "Book with Chef",
@@ -94,7 +95,7 @@
     "childrenHint": "Indicate the number of children among the guests. By default, all guests are considered adults.",
     "totalGuestsLabel": "Total",
     "totalGuestsCompactLabel": "Total guests",
-    "budgetHint": "Indicate your global budget for this cooking class.",
+    "budgetHint": "Select the price per person for this cooking class.",
     "hasAllergies": "Do you have any food allergies?",
     "allergiesDetails": "Specify your allergies",
     "notes": "Notes (optional)",
@@ -216,7 +217,8 @@
     "communicationSpace": "This is the space to communicate about the service on",
     "findDetails": "Find the details of your event in",
     "createMenu": "You can now create a menu adapted to the client's requests from the \"Menu\" tab.",
-    "finalizeReservation": "To definitively confirm your reservation, press"
+    "finalizeReservation": "To definitively confirm your reservation, press",
+    "bookingRefusedReadonly": "Mission refused: this conversation is read-only."
   },
   "helper": {
     "chef": {

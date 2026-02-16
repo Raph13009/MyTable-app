@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
       fallbackChefIds: fallbackChefIdsRaw,
       idempotencyToken,
     } = body
-    const normalizedCourseBudget = serviceType === 'cours_cuisine'
+    const normalizedCoursePricePerPerson = serviceType === 'cours_cuisine'
       ? normalizeBudgetSelection(budget, 'cours_cuisine')
       : null
-    const normalizedHomeChefTotalPrice = serviceType === 'mise_en_demeure'
+    const normalizedHomeChefPricePerPerson = serviceType === 'mise_en_demeure'
       ? normalizeBudgetSelection(totalPrice, 'mise_en_demeure')
       : null
 
@@ -132,9 +132,9 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      if (!normalizedCourseBudget) {
+      if (!normalizedCoursePricePerPerson) {
         return NextResponse.json(
-          { error: 'Le budget est requis pour un cours de cuisine' },
+          { error: 'Le prix par personne est requis pour un cours de cuisine' },
           { status: 400 }
         )
       }
@@ -184,9 +184,9 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      if (!normalizedHomeChefTotalPrice) {
+      if (!normalizedHomeChefPricePerPerson) {
         return NextResponse.json(
-          { error: 'Le budget global est requis pour un chef à demeure' },
+          { error: 'Le prix par personne est requis pour un chef à demeure' },
           { status: 400 }
         )
       }
@@ -385,11 +385,11 @@ export async function POST(request: NextRequest) {
         p_guests_count: parseInt(guestsCount),
         p_children_count: parseInt(childrenCount) || 0,
         p_period_days: periodDays || null,
-        p_budget: normalizedCourseBudget,
+        p_budget: normalizedCoursePricePerPerson,
         p_course_topic: courseTopic || null,
         p_selected_dates: selectedDatesJson,
         p_meal_options: mealOptionsJson,
-        p_total_price: normalizedHomeChefTotalPrice,
+        p_total_price: normalizedHomeChefPricePerPerson,
         p_has_allergies: hasAllergies || false,
         p_allergies_details: hasAllergies ? allergiesDetails : null,
         p_menu_id: menuId || null,
@@ -417,11 +417,11 @@ export async function POST(request: NextRequest) {
           guests_count: parseInt(guestsCount),
           children_count: parseInt(childrenCount) || 0,
           period_days: periodDays || null,
-          budget: normalizedCourseBudget,
+          budget: normalizedCoursePricePerPerson,
           course_topic: courseTopic || null,
           selected_dates: selectedDates && Array.isArray(selectedDates) ? selectedDates : null,
           meal_options: mealOptionsForDb,
-          total_price: normalizedHomeChefTotalPrice,
+          total_price: normalizedHomeChefPricePerPerson,
           has_allergies: hasAllergies || false,
           allergies_details: hasAllergies ? allergiesDetails : null,
           menu_id: menuId || null,
@@ -673,7 +673,9 @@ export async function POST(request: NextRequest) {
       bookingDetails.menuName = menuName || null
     } else if (serviceType === 'cours_cuisine') {
       bookingDetails.bookingDate = bookingDate ? formatDateForDisplay(bookingDate, 'fr-FR') : null
-      bookingDetails.budget = normalizedCourseBudget
+      const safeGuestsCount = Number.parseInt(String(guestsCount), 10) || 0
+      bookingDetails.budgetPerPerson = normalizedCoursePricePerPerson
+      bookingDetails.estimatedTotalPrice = (normalizedCoursePricePerPerson || 0) * safeGuestsCount
       bookingDetails.courseTopic = courseTopic || null
     } else if (serviceType === 'mise_en_demeure') {
       bookingDetails.selectedDates = selectedDates && Array.isArray(selectedDates) ? selectedDates : null
@@ -693,7 +695,9 @@ export async function POST(request: NextRequest) {
           ? mealOptions.map(opt => opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner').join(', ')
           : null
       }
-      bookingDetails.totalPrice = normalizedHomeChefTotalPrice
+      const safeGuestsCount = Number.parseInt(String(guestsCount), 10) || 0
+      bookingDetails.pricePerPerson = normalizedHomeChefPricePerPerson
+      bookingDetails.estimatedTotalPrice = (normalizedHomeChefPricePerPerson || 0) * safeGuestsCount
     }
 
     // Envoyer l'email de confirmation au client

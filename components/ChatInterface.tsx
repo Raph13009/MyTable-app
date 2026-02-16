@@ -394,6 +394,9 @@ export default function ChatInterface({
     if (!newMessage.trim() || !currentUser) {
       return
     }
+    if (bookingStatus === 'refused') {
+      return
+    }
 
     const rawContent = newMessage.trim()
     const sanitizedContent = sanitizeMessage(rawContent)
@@ -557,6 +560,7 @@ export default function ChatInterface({
 
   const isChef = currentUserRole === 'chef'
   const isClient = currentUserRole === 'client'
+  const isReplacementBooking = Boolean((bookingRequest as any)?.fallback_previous_booking_id)
   
   console.log('[ChatInterface] Role check:', {
     currentUserRole,
@@ -606,7 +610,7 @@ export default function ChatInterface({
   // ARCHITECTURAL FIX: This handler ONLY updates guestsCount
   // NO automatic updates of childrenCount - constraints are enforced at user action point only
   const handleGuestsChange = useCallback((newCountOrUpdater: number | ((prev: number) => number)) => {
-    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
+    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled' && bookingRequest?.status !== 'refused'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
@@ -686,7 +690,7 @@ export default function ChatInterface({
   // ARCHITECTURAL FIX: This handler ONLY updates childrenCount
   // NO automatic updates of guestsCount - constraints are enforced at user action point only
   const handleChildrenChange = useCallback((newCount: number) => {
-    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled'
+    const canModify = bookingRequest?.status !== 'validated_by_client' && bookingRequest?.status !== 'cancelled' && bookingRequest?.status !== 'refused'
     if (!bookingRequest?.id || !isClient || !canModify) {
       return
     }
@@ -1018,6 +1022,8 @@ export default function ChatInterface({
   const menuPrice = menuDetails?.price || 0
   const currentGuestsCount = guestsCount || bookingRequest?.guests_count || 0
   const menuTotal = menuPrice * currentGuestsCount
+  const coursePricePerPerson = Number(bookingRequest?.budget || 0)
+  const homeChefPricePerPerson = Number(bookingRequest?.total_price || 0)
   const totalPrice = calculateBookingTotal(bookingRequest?.service_type, {
     menuPrice,
     guestsCount: currentGuestsCount,
@@ -1043,9 +1049,10 @@ export default function ChatInterface({
   }
 
   // Vérifier si la réservation peut être modifiée
-  const canModifyBooking = bookingStatus !== 'validated_by_client' && bookingStatus !== 'cancelled'
+  const canModifyBooking = bookingStatus !== 'validated_by_client' && bookingStatus !== 'cancelled' && bookingStatus !== 'refused'
   const isBookingValidated = bookingStatus === 'validated_by_client'
   const isBookingCancelled = bookingStatus === 'cancelled'
+  const isBookingRefused = bookingStatus === 'refused'
 
   // Handler pour afficher la modale de finalisation
   const handleFinalizeBooking = () => {
@@ -1451,7 +1458,7 @@ export default function ChatInterface({
                   )}
                   
                   {/* Destructive: Annuler (text button, subtle) */}
-                  {!isBookingValidated && !isBookingCancelled && (
+                  {!isBookingValidated && !isBookingCancelled && !isBookingRefused && (
                     <button
                       onClick={handleCancelBooking}
                       disabled={processingAction}
@@ -1762,8 +1769,8 @@ export default function ChatInterface({
         </div>
       </div>
 
-      {/* Input - Style moderne premium (désactivé si réservation annulée ou si admin) */}
-      {!isBookingCancelled && !isAdmin && (
+      {/* Input - Style moderne premium (désactivé si réservation annulée/refusée ou si admin) */}
+      {!isBookingCancelled && !isBookingRefused && !isAdmin && (
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
         <form onSubmit={(e) => {
           e.preventDefault()
@@ -1902,6 +1909,11 @@ export default function ChatInterface({
           <p className="text-xs text-gray-500 text-center">Mode lecture seule - Vous ne pouvez pas envoyer de messages</p>
         </div>
       )}
+      {!isAdmin && isBookingRefused && (
+        <div className="flex-shrink-0 bg-red-50 border-t border-red-100 px-4 py-3">
+          <p className="text-xs text-red-700 text-center">{t('chat.bookingRefusedReadonly')}</p>
+        </div>
+      )}
 
       {/* Modal d'offre - Design premium, compact pour tenir sur une page */}
       {showOfferModal && (
@@ -1978,7 +1990,7 @@ export default function ChatInterface({
                           )}
                           {bookingRequest.budget && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.budgetGlobal')}</p>
+                              <p className="text-xs text-gray-500 mb-0.5">Prix par personne</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.budget === 'number' 
                                   ? `${bookingRequest.budget.toFixed(2)} €`
@@ -2020,7 +2032,7 @@ export default function ChatInterface({
                           )}
                           {bookingRequest.total_price && (
                             <div>
-                              <p className="text-xs text-gray-500 mb-0.5">{t('offer.budgetGlobal')}</p>
+                              <p className="text-xs text-gray-500 mb-0.5">Prix par personne</p>
                               <p className="text-sm font-medium text-black">
                                 {typeof bookingRequest.total_price === 'number' 
                                   ? `${bookingRequest.total_price.toFixed(0)} €`
@@ -2182,7 +2194,7 @@ export default function ChatInterface({
               )}
 
               {/* Menu sélectionné - uniquement pour repas à domicile */}
-              {bookingRequest?.service_type === 'repas_domicile' && menuDetails ? (
+              {bookingRequest?.service_type === 'repas_domicile' && !isReplacementBooking && menuDetails ? (
                 <div>
                   <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Menu</h3>
                   <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3.5">
@@ -2206,7 +2218,7 @@ export default function ChatInterface({
                     </div>
                   </div>
                 </div>
-              ) : bookingRequest?.service_type === 'repas_domicile' ? (
+              ) : bookingRequest?.service_type === 'repas_domicile' && !isReplacementBooking ? (
                 <div>
                   <h3 className="text-[11px] font-semibold text-gray-700 uppercase tracking-[0.08em] mb-2 letter-spacing-tight">Menu</h3>
                   <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3.5">
@@ -2288,6 +2300,16 @@ export default function ChatInterface({
                   <span className="text-base font-semibold text-black tracking-tight">{t('booking.total')}</span>
                   <span className="text-xl font-bold text-black tracking-tight">{totalPrice.toFixed(2)} €</span>
                 </div>
+                {(bookingRequest?.service_type === 'cours_cuisine' && Number.isFinite(coursePricePerPerson) && coursePricePerPerson > 0) && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {coursePricePerPerson.toFixed(2)} €/pers x {currentGuestsCount} convives
+                  </p>
+                )}
+                {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {homeChefPricePerPerson.toFixed(2)} €/pers x {currentGuestsCount} convives
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2505,6 +2527,16 @@ export default function ChatInterface({
                     <span className="text-base font-semibold text-black">Total</span>
                     <span className="text-lg font-bold text-black">{totalPrice.toFixed(2)} €</span>
                   </div>
+                  {(bookingRequest?.service_type === 'cours_cuisine' && Number.isFinite(coursePricePerPerson) && coursePricePerPerson > 0) && (
+                    <p className="text-xs text-gray-500">
+                      {coursePricePerPerson.toFixed(2)} €/pers x {bookingRequest.guests_count} convives
+                    </p>
+                  )}
+                  {(bookingRequest?.service_type === 'mise_en_demeure' && Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) && (
+                    <p className="text-xs text-gray-500">
+                      {homeChefPricePerPerson.toFixed(2)} €/pers x {bookingRequest.guests_count} convives
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -2636,7 +2668,7 @@ export default function ChatInterface({
                 )}
 
                 {/* Annuler la réservation */}
-                {!isBookingValidated && !isBookingCancelled && (
+                {!isBookingValidated && !isBookingCancelled && !isBookingRefused && (
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {

@@ -217,12 +217,20 @@ export async function createNextFallbackBooking(
     bookingDetails.bookingDate = currentBooking.booking_date
       ? formatDateForDisplay(currentBooking.booking_date, 'fr-FR')
       : null
-    bookingDetails.budget = currentBooking.budget ? Number(currentBooking.budget) : null
+    const pricePerPerson = currentBooking.budget ? Number(currentBooking.budget) : null
+    bookingDetails.budgetPerPerson = pricePerPerson
+    bookingDetails.estimatedTotalPrice = pricePerPerson
+      ? pricePerPerson * Number(currentBooking.guests_count || 0)
+      : null
     bookingDetails.courseTopic = currentBooking.course_topic || null
   } else if (currentBooking.service_type === 'mise_en_demeure') {
     bookingDetails.selectedDates = Array.isArray(currentBooking.selected_dates) ? currentBooking.selected_dates : null
     bookingDetails.mealOptionsLabel = mealOptionsLabel
-    bookingDetails.totalPrice = currentBooking.total_price ? Number(currentBooking.total_price) : null
+    const pricePerPerson = currentBooking.total_price ? Number(currentBooking.total_price) : null
+    bookingDetails.pricePerPerson = pricePerPerson
+    bookingDetails.estimatedTotalPrice = pricePerPerson
+      ? pricePerPerson * Number(currentBooking.guests_count || 0)
+      : null
   }
 
   await sendEmail({

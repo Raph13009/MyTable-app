@@ -41,7 +41,8 @@
     "filterClosed": "Terminées",
     "statusOngoing": "En cours",
     "statusPending": "En attente",
-    "statusClosed": "Terminées"
+    "statusClosed": "Terminées",
+    "statusRefused": "Refusée"
   },
   "booking": {
     "title": "Réserver avec Chef",
@@ -94,7 +95,7 @@
     "childrenHint": "Indiquez le nombre d'enfants parmi les convives. Par défaut, tous les convives sont considérés comme adultes.",
     "totalGuestsLabel": "Total",
     "totalGuestsCompactLabel": "Total convives",
-    "budgetHint": "Indiquez votre budget global pour ce cours de cuisine.",
+    "budgetHint": "Sélectionnez le prix par personne pour ce cours de cuisine.",
     "hasAllergies": "Avez-vous des allergies alimentaires ?",
     "allergiesDetails": "Précisez vos allergies",
     "notes": "Notes (optionnel)",
@@ -216,7 +217,8 @@
     "communicationSpace": "Voici l'espace pour communiquer à propos de la prestation du",
     "findDetails": "Retrouvez les détails de votre évènement dans",
     "createMenu": "Vous pouvez dès à présent créer un menu adapté aux demandes du client depuis l'onglet \"Menu\".",
-    "finalizeReservation": "Pour confirmer définitivement votre réservation, appuyez sur"
+    "finalizeReservation": "Pour confirmer définitivement votre réservation, appuyez sur",
+    "bookingRefusedReadonly": "Mission refusée : cette conversation est en lecture seule."
   },
   "helper": {
     "chef": {

@@ -39,6 +39,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
     }
 
+    // Bloquer l'envoi pour les missions refusées
+    const { data: conversation } = await supabaseAdmin
+      .from('conversations')
+      .select('booking_request_id')
+      .eq('id', conversationId)
+      .maybeSingle()
+
+    const bookingRequestId = (conversation as any)?.booking_request_id
+    if (bookingRequestId) {
+      const { data: bookingRequest } = await supabaseAdmin
+        .from('booking_requests')
+        .select('status')
+        .eq('id', bookingRequestId)
+        .maybeSingle()
+
+      if ((bookingRequest as any)?.status === 'refused') {
+        return NextResponse.json({ error: 'Mission refusée: envoi de message désactivé' }, { status: 403 })
+      }
+    }
+
     const sanitizedContent = sanitizeMessage(messageContent)
 
     // Insérer le message (admin pour fiabilité, déjà autorisé via vérification ci-dessus)

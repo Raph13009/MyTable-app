@@ -264,7 +264,11 @@ export async function GET(request: NextRequest) {
           bookingDetails.bookingDate = booking.booking_date
             ? formatDateForDisplay(booking.booking_date, 'fr-FR')
             : null
-          bookingDetails.budget = booking.budget ? Number(booking.budget) : null
+          const pricePerPerson = booking.budget ? Number(booking.budget) : null
+          bookingDetails.budgetPerPerson = pricePerPerson
+          bookingDetails.estimatedTotalPrice = pricePerPerson
+            ? pricePerPerson * Number(booking.guests_count || 0)
+            : null
           bookingDetails.courseTopic = booking.course_topic || null
         } else if (serviceType === 'mise_en_demeure') {
           bookingDetails.selectedDates = Array.isArray(booking.selected_dates)
@@ -282,9 +286,11 @@ export async function GET(request: NextRequest) {
               opt === 'pdj' ? 'Petit-déjeuner' : opt === 'dejeuner' ? 'Déjeuner' : 'Dîner'
             ).join(', ')
           }
-          if (booking.total_price) {
-            bookingDetails.totalPrice = Number(booking.total_price)
-          }
+          const pricePerPerson = booking.total_price ? Number(booking.total_price) : null
+          bookingDetails.pricePerPerson = pricePerPerson
+          bookingDetails.estimatedTotalPrice = pricePerPerson
+            ? pricePerPerson * Number(booking.guests_count || 0)
+            : null
         }
 
         emailJobs.push(

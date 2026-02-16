@@ -383,7 +383,7 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.mealTimeLabel) {
       detailsHtml += `<p><strong>Moment du repas :</strong> ${bookingDetails.mealTimeLabel}</p>`
     }
-    if (bookingDetails.menuName) {
+    if (bookingDetails.menuName && !bookingDetails.hideSelectedMenu) {
       detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
     }
     if (bookingDetails.menuPricePerPerson) {
@@ -399,8 +399,16 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.bookingDate) {
       detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
     }
-    if (bookingDetails.budget) {
+    const coursePricePerPerson = Number(bookingDetails.budgetPerPerson ?? bookingDetails.budget)
+    const hasCoursePricePerPerson = Number.isFinite(coursePricePerPerson) && coursePricePerPerson > 0
+    if (hasCoursePricePerPerson) {
+      detailsHtml += `<p><strong>Prix par personne :</strong> ${coursePricePerPerson.toFixed(2)} €</p>`
+    } else if (bookingDetails.budget) {
       detailsHtml += `<p><strong>Budget global :</strong> ${bookingDetails.budget.toFixed(2)} €</p>`
+    }
+    const estimatedCourseTotal = Number(bookingDetails.estimatedTotalPrice)
+    if (Number.isFinite(estimatedCourseTotal) && estimatedCourseTotal > 0) {
+      detailsHtml += `<p><strong>Prix total estimé :</strong> ${estimatedCourseTotal.toFixed(2)} €</p>`
     }
     if (bookingDetails.courseTopic) {
       detailsHtml += `<p><strong>Sujet du cours :</strong> ${bookingDetails.courseTopic}</p>`
@@ -415,10 +423,17 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.mealOptionsLabel) {
       detailsHtml += `<p><strong>Options de repas :</strong> ${bookingDetails.mealOptionsLabel}</p>`
     }
-    if (bookingDetails.totalPrice) {
-      // Utiliser i18n pour le libellé
+    const homeChefPricePerPerson = Number(bookingDetails.pricePerPerson ?? bookingDetails.totalPrice)
+    if (Number.isFinite(homeChefPricePerPerson) && homeChefPricePerPerson > 0) {
+      detailsHtml += `<p><strong>Prix par personne :</strong> ${homeChefPricePerPerson.toFixed(2)} €</p>`
+    } else if (bookingDetails.totalPrice) {
+      // Rétrocompatibilité avec les anciennes réservations
       const budgetLabel = getBudgetGlobalLabel('fr')
       detailsHtml += `<p><strong>${budgetLabel} :</strong> ${bookingDetails.totalPrice.toFixed(2)} €</p>`
+    }
+    const estimatedHomeChefTotal = Number(bookingDetails.estimatedTotalPrice)
+    if (Number.isFinite(estimatedHomeChefTotal) && estimatedHomeChefTotal > 0) {
+      detailsHtml += `<p><strong>Prix total estimé :</strong> ${estimatedHomeChefTotal.toFixed(2)} €</p>`
     }
   }
 
@@ -481,7 +496,10 @@ export const emailTemplates = {
     refuseUrl: string,
     baseUrl?: string
   ) => {
-    const detailsHtml = buildBookingDetailsHtml(bookingDetails)
+    const detailsHtml = buildBookingDetailsHtml({
+      ...bookingDetails,
+      hideSelectedMenu: true,
+    })
     const guestsText = `${bookingDetails.guestsCount}${bookingDetails.childrenCount > 0 ? ` (dont ${bookingDetails.childrenCount} ${bookingDetails.childrenCount === 1 ? 'enfant' : 'enfants'})` : ''}`
     const budgetPerPersonText = bookingDetails.menuPricePerPerson
       ? `${bookingDetails.menuPricePerPerson.toFixed(2)} €`

@@ -3,8 +3,8 @@
  * 
  * Ces tests vérifient que le calcul du montant total est correct pour chaque type de service :
  * - Repas à domicile : nb convives * prix menu + extras
- * - Chef à demeure : budget global (total_price) + extras
- * - Cours de cuisine : budget global (budget) + extras
+ * - Chef à demeure : prix/pers (total_price) * convives + extras
+ * - Cours de cuisine : prix/pers (budget) * convives + extras
  * 
  * Pour exécuter ces tests, vous devez installer un framework de test:
  * - Jest: npm install --save-dev jest @types/jest ts-jest
@@ -69,17 +69,19 @@ describe('calculateBookingTotal', () => {
   })
 
   describe('Cours de cuisine (cours_cuisine)', () => {
-    it('devrait calculer correctement avec budget global', () => {
+    it('devrait calculer correctement avec prix/pers et convives', () => {
       const result = calculateBookingTotal('cours_cuisine', {
-        budget: 150,
+        budget: 50,
+        guestsCount: 3,
         extras: [],
       })
       expect(result).toBe(150)
     })
 
-    it('devrait ajouter les extras au budget', () => {
+    it('devrait ajouter les extras au total', () => {
       const result = calculateBookingTotal('cours_cuisine', {
-        budget: 150,
+        budget: 50,
+        guestsCount: 3,
         extras: [
           { name: 'Matériel', price: 25 },
           { name: 'Ingrédients premium', price: 40 },
@@ -88,14 +90,14 @@ describe('calculateBookingTotal', () => {
       expect(result).toBe(215) // 150 + 25 + 40 = 215
     })
 
-    it('devrait ignorer menuPrice et guestsCount', () => {
+    it('devrait ignorer menuPrice et utiliser guestsCount', () => {
       const result = calculateBookingTotal('cours_cuisine', {
-        budget: 150,
+        budget: 50,
         menuPrice: 50, // devrait être ignoré
-        guestsCount: 4, // devrait être ignoré
+        guestsCount: 4,
         extras: [],
       })
-      expect(result).toBe(150) // Seulement le budget compte
+      expect(result).toBe(200) // (50 * 4)
     })
 
     it('devrait gérer les valeurs nulles', () => {
@@ -108,34 +110,36 @@ describe('calculateBookingTotal', () => {
   })
 
   describe('Chef à demeure (mise_en_demeure)', () => {
-    it('devrait calculer correctement avec total_price', () => {
+    it('devrait calculer correctement avec prix/pers et convives', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
-        totalPrice: 500,
+        totalPrice: 200,
+        guestsCount: 3,
         extras: [],
       })
-      expect(result).toBe(500)
+      expect(result).toBe(600)
     })
 
-    it('devrait ajouter les extras au total_price', () => {
+    it('devrait ajouter les extras au total', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
-        totalPrice: 500,
+        totalPrice: 200,
+        guestsCount: 3,
         extras: [
           { name: 'Service supplémentaire', price: 100 },
           { name: 'Décoration', price: 50 },
         ],
       })
-      expect(result).toBe(650) // 500 + 100 + 50 = 650
+      expect(result).toBe(750) // (200 * 3) + 100 + 50 = 750
     })
 
-    it('devrait ignorer menuPrice, guestsCount et budget', () => {
+    it('devrait ignorer menuPrice et budget', () => {
       const result = calculateBookingTotal('mise_en_demeure', {
-        totalPrice: 500,
+        totalPrice: 120,
         menuPrice: 50, // devrait être ignoré
-        guestsCount: 4, // devrait être ignoré
+        guestsCount: 4,
         budget: 200, // devrait être ignoré
         extras: [],
       })
-      expect(result).toBe(500) // Seulement total_price compte
+      expect(result).toBe(480) // 120 * 4
     })
 
     it('devrait gérer les valeurs nulles', () => {
@@ -233,7 +237,7 @@ describe('calculateBookingTotal', () => {
       const coursResult = calculateBookingTotal('cours_cuisine', {
         menuPrice: 50,
         guestsCount: 4,
-        budget: 200,
+        budget: 50,
         totalPrice: 200,
         extras: [{ name: 'Extra', price: 30 }],
       })
@@ -242,17 +246,17 @@ describe('calculateBookingTotal', () => {
         menuPrice: 50,
         guestsCount: 4,
         budget: 200,
-        totalPrice: 200,
+        totalPrice: 50,
         extras: [{ name: 'Extra', price: 30 }],
       })
 
       // Repas: (50 * 4) + 30 = 230
       expect(repasResult).toBe(230)
       
-      // Cours: 200 + 30 = 230
+      // Cours: (50 * 4) + 30 = 230
       expect(coursResult).toBe(230)
       
-      // Demeure: 200 + 30 = 230
+      // Demeure: (50 * 4) + 30 = 230
       expect(demeureResult).toBe(230)
       
       // Dans ce cas particulier, les résultats sont identiques, mais les calculs sont différents
@@ -266,18 +270,20 @@ describe('calculateBookingTotal', () => {
       })
 
       const coursResult = calculateBookingTotal('cours_cuisine', {
-        budget: 300,
+        budget: 100,
+        guestsCount: 3,
         extras: [{ name: 'Extra', price: 30 }],
       })
 
       const demeureResult = calculateBookingTotal('mise_en_demeure', {
-        totalPrice: 400,
+        totalPrice: 80,
+        guestsCount: 5,
         extras: [{ name: 'Extra', price: 30 }],
       })
 
       expect(repasResult).toBe(230) // (50 * 4) + 30
       expect(coursResult).toBe(330) // 300 + 30
-      expect(demeureResult).toBe(430) // 400 + 30
+      expect(demeureResult).toBe(430) // (80 * 5) + 30
     })
   })
 })

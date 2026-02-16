@@ -86,7 +86,10 @@ export default function ConversationsList({ conversations, currentUser, particip
   })))
   console.log('[ConversationsList] ========== END COMPONENT RENDER ==========')
 
-  const getStatusLabel = (status: ConversationStatus) => {
+  const getStatusLabel = (status: ConversationStatus, bookingRequestStatus?: string) => {
+    if (bookingRequestStatus === 'refused') {
+      return t('dashboard.statusRefused')
+    }
     switch (status) {
       case 'ongoing':
         return t('dashboard.statusOngoing')
@@ -363,13 +366,15 @@ export default function ConversationsList({ conversations, currentUser, particip
                               </h3>
                               {/* Badge statut - Desktop: plus compact */}
                               <span className={`flex-shrink-0 px-2 py-0.5 lg:px-1.5 lg:py-0.5 rounded-md text-[10px] lg:text-[11px] font-medium leading-tight ${
-                                conversation.status === 'ongoing'
+                                conversation.bookingRequest?.status === 'refused'
+                                  ? 'bg-red-100 text-red-700'
+                                  : conversation.status === 'ongoing'
                                   ? 'bg-[#FBCF03]/10 text-[#E6BA00]'
                                   : conversation.status === 'pending'
                                   ? 'bg-gray-100 text-gray-500'
                                   : 'bg-gray-50 text-gray-400'
                               }`}>
-                                {getStatusLabel(conversation.status)}
+                                {getStatusLabel(conversation.status, conversation.bookingRequest?.status)}
                               </span>
                             </div>
                             
@@ -423,15 +428,19 @@ export default function ConversationsList({ conversations, currentUser, particip
                             if (conversation.bookingRequest?.totalPrice !== undefined && conversation.bookingRequest.totalPrice !== null) {
                               displayPrice = conversation.bookingRequest.totalPrice
                             } else if (conversation.bookingRequest?.service_type === 'cours_cuisine' && conversation.bookingRequest?.budget !== undefined && conversation.bookingRequest.budget !== null) {
-                              // Pour cours de cuisine, utiliser le budget
-                              displayPrice = typeof conversation.bookingRequest.budget === 'number' 
-                                ? conversation.bookingRequest.budget 
+                              // Fallback: prix/pers * convives
+                              const pricePerPerson = typeof conversation.bookingRequest.budget === 'number'
+                                ? conversation.bookingRequest.budget
                                 : parseFloat(conversation.bookingRequest.budget) || 0
+                              const guests = conversation.bookingRequest.guests_count || 0
+                              displayPrice = pricePerPerson * guests
                             } else if (conversation.bookingRequest?.service_type === 'mise_en_demeure' && conversation.bookingRequest?.total_price !== undefined && conversation.bookingRequest.total_price !== null) {
-                              // Pour chef à demeure, utiliser total_price
-                              displayPrice = typeof conversation.bookingRequest.total_price === 'number'
+                              // Fallback: prix/pers * convives
+                              const pricePerPerson = typeof conversation.bookingRequest.total_price === 'number'
                                 ? conversation.bookingRequest.total_price
                                 : parseFloat(conversation.bookingRequest.total_price) || 0
+                              const guests = conversation.bookingRequest.guests_count || 0
+                              displayPrice = pricePerPerson * guests
                             }
                             
                             return displayPrice !== null && displayPrice >= 0 ? (
@@ -604,4 +613,3 @@ export default function ConversationsList({ conversations, currentUser, particip
     </div>
   )
 }
-
