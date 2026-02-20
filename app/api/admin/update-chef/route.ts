@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       profile_picture,
       cuisine_style,
       cuisine_style_en,
+      availability_radius_km,
       dish_photos,
       min_guests,
       max_guests,
@@ -95,6 +96,10 @@ export async function POST(request: NextRequest) {
     const normalizedMaxGuests = max_guests === null || max_guests === undefined || max_guests === ''
       ? null
       : Number.parseInt(String(max_guests), 10)
+    const parsedAvailabilityRadiusKm = availability_radius_km === null || availability_radius_km === undefined || availability_radius_km === ''
+      ? 10
+      : Number.parseInt(String(availability_radius_km), 10)
+    const normalizedAvailabilityRadiusKm = Number.isFinite(parsedAvailabilityRadiusKm) ? parsedAvailabilityRadiusKm : 10
 
     if (normalizedMinGuests !== null && (!Number.isFinite(normalizedMinGuests) || normalizedMinGuests < 1)) {
       return NextResponse.json({ error: 'Le minimum de convives est invalide' }, { status: 400 })
@@ -114,6 +119,9 @@ export async function POST(request: NextRequest) {
     if (normalizedLongitude !== null && (normalizedLongitude < -180 || normalizedLongitude > 180)) {
       return NextResponse.json({ error: 'Longitude invalide' }, { status: 400 })
     }
+    if (![10, 20, 30, 40, 50, 60].includes(normalizedAvailabilityRadiusKm)) {
+      return NextResponse.json({ error: 'Rayon de disponibilité invalide' }, { status: 400 })
+    }
 
     // Mettre à jour le chef
     const { error: chefError } = await supabaseAdmin
@@ -132,6 +140,7 @@ export async function POST(request: NextRequest) {
         profile_picture: profile_picture || null,
         cuisine_style: normalizedCuisineStyle || null,
         cuisine_style_en: normalizedCuisineStyleEn || null,
+        availability_radius_km: normalizedAvailabilityRadiusKm,
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,
         max_guests: normalizedMaxGuests,

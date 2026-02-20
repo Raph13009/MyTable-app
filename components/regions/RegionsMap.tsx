@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createPortal } from 'react-dom'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { slugifyRegionName } from '@/lib/regions'
@@ -22,6 +23,13 @@ export function RegionsMap() {
   const hoveredRegionIdRef = useRef<string | number | null>(null)
   const [hoveredRegionName, setHoveredRegionName] = useState<string | null>(null)
   const [isMapVisible, setIsMapVisible] = useState(false)
+  const [isRouting, setIsRouting] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -173,6 +181,7 @@ export function RegionsMap() {
         const regionName = properties.nom || ''
         if (!regionName) return
         const slug = slugifyRegionName(regionName)
+        setIsRouting(true)
         router.push(`/explore/${encodeURIComponent(slug)}`)
       })
 
@@ -200,12 +209,32 @@ export function RegionsMap() {
 
       {hoveredRegionName && (
         <div className="pointer-events-none absolute left-5 top-5">
-          <div className="rounded-[18px] border border-white/75 bg-white/88 px-[22px] py-[18px] shadow-[0_14px_32px_rgba(20,20,20,0.14)] backdrop-blur-md">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7C7C7C]">Région</p>
-            <h3 className="mt-1 text-[18px] font-semibold text-[#131313]">{hoveredRegionName}</h3>
+          <div className="max-w-[330px] rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur">
+            <div>
+              <p className="text-[12px] font-semibold leading-tight text-[#1F1F1F]">Région sélectionnée</p>
+              <p className="mt-1 text-[11px] leading-[1.35] text-[#4B4B4B]">{hoveredRegionName}</p>
+            </div>
           </div>
         </div>
       )}
+
+      {mounted && isRouting
+        ? createPortal(
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-white/96 backdrop-blur-[2px]">
+              <div className="relative h-24 w-24">
+                <div className="absolute inset-0 rounded-full border border-[#F8E7A0] animate-ping [animation-duration:1400ms]" />
+                <div className="absolute inset-[10px] rounded-full border-2 border-[#F1D56A]/60 border-t-[#D4A602] animate-spin [animation-duration:900ms]" />
+                <div className="absolute inset-[22px] rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.08)]" />
+                <img
+                  src="/logo-cercle.png"
+                  alt="MyTable"
+                  className="absolute inset-0 m-auto h-10 w-10 object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.12)]"
+                />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   )
 }

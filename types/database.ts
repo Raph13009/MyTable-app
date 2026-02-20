@@ -24,6 +24,7 @@ export interface Database {
           profile_picture: string | null
           cuisine_style: string | null
           cuisine_style_en: string | null
+          availability_radius_km: number
           dish_photos: string[] | null
           min_guests: number | null
           max_guests: number | null
@@ -44,6 +45,7 @@ export interface Database {
           profile_picture?: string | null
           cuisine_style?: string | null
           cuisine_style_en?: string | null
+          availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null
@@ -64,6 +66,7 @@ export interface Database {
           profile_picture?: string | null
           cuisine_style?: string | null
           cuisine_style_en?: string | null
+          availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null

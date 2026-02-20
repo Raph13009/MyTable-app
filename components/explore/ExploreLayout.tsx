@@ -101,13 +101,21 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
     const previousHtmlOverflow = document.documentElement.style.overflow
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason as { name?: string; message?: string } | undefined
+      if (reason?.name === 'AbortError' || reason?.message?.includes('signal is aborted')) {
+        event.preventDefault()
+      }
+    }
 
     document.body.style.overflow = 'hidden'
     document.documentElement.style.overflow = 'hidden'
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
 
     return () => {
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousHtmlOverflow
+      window.removeEventListener('unhandledrejection', onUnhandledRejection)
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
       if (searchAbortRef.current) searchAbortRef.current.abort()
     }

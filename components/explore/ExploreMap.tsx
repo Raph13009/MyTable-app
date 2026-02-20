@@ -16,6 +16,9 @@ const REGIONS_FILL_LAYER_ID = 'explore-regions-focus-fill'
 const REGIONS_BORDER_LAYER_ID = 'explore-regions-focus-border'
 const REGION_DIM_SOURCE_ID = 'explore-region-dim-mask'
 const REGION_DIM_LAYER_ID = 'explore-region-dim-layer'
+const CHEF_RADIUS_SOURCE_ID = 'explore-chef-radius-source'
+const CHEF_RADIUS_FILL_LAYER_ID = 'explore-chef-radius-fill'
+const CHEF_RADIUS_STROKE_LAYER_ID = 'explore-chef-radius-stroke'
 const POPUP_WIDTH = 272
 const POPUP_HEIGHT = 276
 const POPUP_MARGIN = 12
@@ -177,6 +180,89 @@ function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
   })
 }
 
+function isAbortLikeError(value: unknown): boolean {
+  if (!value) return false
+  if (typeof value === 'string') {
+    const lowered = value.toLowerCase()
+    return lowered.includes('aborterror') || lowered.includes('signal is aborted')
+  }
+
+  const maybeError = value as { name?: string; message?: string; cause?: unknown }
+  const name = String(maybeError.name || '').toLowerCase()
+  const message = String(maybeError.message || '').toLowerCase()
+  if (name.includes('abort')) return true
+  if (message.includes('signal is aborted') || message.includes('aborterror')) return true
+  if (maybeError.cause && maybeError.cause !== value) return isAbortLikeError(maybeError.cause)
+  return false
+}
+
+declare global {
+  interface Window {
+    __mytableAbortSuppressionInstalled?: boolean
+  }
+}
+
+function ensureGlobalAbortSuppression() {
+  if (typeof window === 'undefined') return
+  if (window.__mytableAbortSuppressionInstalled) return
+  window.__mytableAbortSuppressionInstalled = true
+
+  window.addEventListener('unhandledrejection', (event) => {
+    if (isAbortLikeError(event.reason)) {
+      event.preventDefault()
+    }
+  })
+
+  window.addEventListener('error', (event) => {
+    if (isAbortLikeError(event.error || event.message)) {
+      event.preventDefault()
+    }
+  })
+}
+
+function getChefAvailabilityRadiusKm(chef: ExploreChef | null | undefined): number {
+  const raw = typeof chef?.availabilityRadiusKm === 'number' ? chef.availabilityRadiusKm : 10
+  return [10, 20, 30, 40, 50, 60].includes(raw) ? raw : 10
+}
+
+function buildRadiusPolygon(
+  longitude: number,
+  latitude: number,
+  radiusKm: number,
+  points = 64
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const earthRadiusKm = 6371
+  const latRad = (latitude * Math.PI) / 180
+  const lngRad = (longitude * Math.PI) / 180
+  const angularDistance = radiusKm / earthRadiusKm
+  const coordinates: Array<[number, number]> = []
+
+  for (let i = 0; i <= points; i += 1) {
+    const bearing = (2 * Math.PI * i) / points
+    const lat2 = Math.asin(
+      Math.sin(latRad) * Math.cos(angularDistance) +
+        Math.cos(latRad) * Math.sin(angularDistance) * Math.cos(bearing)
+    )
+    const lng2 =
+      lngRad +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latRad),
+        Math.cos(angularDistance) - Math.sin(latRad) * Math.sin(lat2)
+      )
+
+    coordinates.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
+  }
+
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [coordinates],
+    },
+  }
+}
+
 export function ExploreMap({
   chefs,
   selectedChefId,
@@ -214,6 +300,12 @@ export function ExploreMap({
   const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
   const [popupPosition, setPopupPosition] = useState<{ left: number; top: number } | null>(null)
+  const radiusInfoTitle = locale === 'en' ? 'Chef travel area' : 'Zone de déplacement du chef'
+  const radiusInfoText =
+    locale === 'en'
+      ? 'Inside the yellow radius, the chef usually travels. You can still request outside this area.'
+      : 'Dans le rayon jaune, le chef se déplace généralement. Vous pouvez quand même faire une demande hors zone.'
+  const radiusTargetChefId = isMapMode ? activePopupChefId : selectedChefId
 
   const closePopup = useCallback(() => {
     if (popupCloseTimerRef.current) {
@@ -316,6 +408,7 @@ export function ExploreMap({
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !token) return
+    ensureGlobalAbortSuppression()
     isUnmountingRef.current = false
     const markerStore = markersRef.current
 
@@ -497,14 +590,6 @@ export function ExploreMap({
       onVisibleChefIdsChangeRef.current(visibleIds)
     }
 
-    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason as { name?: string; message?: string } | undefined
-      if (reason?.name === 'AbortError' || reason?.message?.includes('signal is aborted')) {
-        event.preventDefault()
-      }
-    }
-    window.addEventListener('unhandledrejection', onUnhandledRejection)
-
     const onMapError = (event: mapboxgl.ErrorEvent) => {
       const error = (event as any)?.error
       if (isUnmountingRef.current && error?.name === 'AbortError') return
@@ -637,6 +722,38 @@ export function ExploreMap({
       map.moveLayer(CLUSTER_LAYER_ID)
       map.moveLayer(CLUSTER_COUNT_LAYER_ID)
 
+      map.addSource(CHEF_RADIUS_SOURCE_ID, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      })
+
+      map.addLayer({
+        id: CHEF_RADIUS_FILL_LAYER_ID,
+        type: 'fill',
+        source: CHEF_RADIUS_SOURCE_ID,
+        paint: {
+          'fill-color': '#FBCF03',
+          'fill-opacity': 0.16,
+        },
+      })
+
+      map.addLayer({
+        id: CHEF_RADIUS_STROKE_LAYER_ID,
+        type: 'line',
+        source: CHEF_RADIUS_SOURCE_ID,
+        paint: {
+          'line-color': '#D9A901',
+          'line-opacity': 0.66,
+          'line-width': 2,
+        },
+      })
+
+      if (map.getLayer(CLUSTER_LAYER_ID)) map.moveLayer(CLUSTER_LAYER_ID)
+      if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) map.moveLayer(CLUSTER_COUNT_LAYER_ID)
+
       map.on('mouseenter', CLUSTER_LAYER_ID, () => {
         map.getCanvas().style.cursor = 'pointer'
       })
@@ -690,16 +807,14 @@ export function ExploreMap({
       map.off('sourcedata', onSourceData)
       map.stop()
       try {
-        map.remove()
+        if (!(map as any)._removed) {
+          map.remove()
+        }
       } catch (error: any) {
-        if (error?.name !== 'AbortError' && !String(error?.message || '').includes('signal is aborted')) {
+        if (!isAbortLikeError(error)) {
           console.error('[ExploreMap] map.remove cleanup error:', error)
         }
       }
-      // Keep the AbortError suppression active for the current microtask queue.
-      setTimeout(() => {
-        window.removeEventListener('unhandledrejection', onUnhandledRejection)
-      }, 1200)
       if (popupCloseTimerRef.current) {
         clearTimeout(popupCloseTimerRef.current)
         popupCloseTimerRef.current = null
@@ -744,6 +859,36 @@ export function ExploreMap({
     setActivePopupChefId(null)
     setPopupPosition(null)
   }, [activePopupChefId, chefById])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const source = map.getSource(CHEF_RADIUS_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+    if (!source) return
+
+    const activeChef = radiusTargetChefId ? chefById.get(radiusTargetChefId) || null : null
+    if (!activeChef || typeof activeChef.latitude !== 'number' || typeof activeChef.longitude !== 'number') {
+      source.setData({
+        type: 'FeatureCollection',
+        features: [],
+      })
+      return
+    }
+
+    source.setData({
+      type: 'FeatureCollection',
+      features: [
+        buildRadiusPolygon(
+          activeChef.longitude,
+          activeChef.latitude,
+          getChefAvailabilityRadiusKm(activeChef)
+        ),
+      ],
+    })
+
+    if (map.getLayer(CLUSTER_LAYER_ID)) map.moveLayer(CLUSTER_LAYER_ID)
+    if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) map.moveLayer(CLUSTER_COUNT_LAYER_ID)
+  }, [chefById, radiusTargetChefId])
 
   useEffect(() => {
     markersRef.current.forEach(({ el }, chefId) => {
@@ -808,7 +953,19 @@ export function ExploreMap({
   const popupChef = activePopupChefId ? chefById.get(activePopupChefId) || null : null
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
+    <div ref={containerRef} className="explore-map-shell relative h-full w-full">
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:bottom-4 md:top-auto md:w-auto md:translate-x-0">
+          <div className="flex items-start gap-3">
+            <div className="relative mt-0.5 h-7 w-7 shrink-0">
+              <div className="absolute inset-0 rounded-full border-2 border-[#D9A901] bg-[#FBCF03]/25" />
+              <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#D9A901]" />
+            </div>
+            <div>
+              <p className="text-[12px] font-semibold leading-tight text-[#1F1F1F]">{radiusInfoTitle}</p>
+              <p className="mt-1 text-[11px] leading-[1.35] text-[#4B4B4B]">{radiusInfoText}</p>
+            </div>
+          </div>
+      </div>
       {isMapMode && popupChef && popupPosition && (
         <ChefMapPopup
           chef={popupChef}
@@ -827,6 +984,14 @@ export function ExploreMap({
           }}
         />
       )}
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .explore-map-shell .mapboxgl-ctrl-top-right {
+            top: 118px;
+            right: 10px;
+          }
+        }
+      `}</style>
     </div>
   )
 }
