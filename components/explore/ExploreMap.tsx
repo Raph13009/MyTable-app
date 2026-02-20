@@ -456,6 +456,7 @@ export function ExploreMap({
     const emitVisibleChefsInBounds = () => {
       if (!onVisibleChefIdsChangeRef.current) return
       const bounds = map.getBounds()
+      if (!bounds) return
       const visibleIds = validChefsRef.current
         .filter((chef) => bounds.contains([chef.longitude as number, chef.latitude as number]))
         .map((chef) => chef.id)
@@ -684,6 +685,7 @@ export function ExploreMap({
     const map = mapRef.current
     if (!map || !onVisibleChefIdsChangeRef.current) return
     const bounds = map.getBounds()
+    if (!bounds) return
     const visibleIds = validChefs
       .filter((chef) => bounds.contains([chef.longitude as number, chef.latitude as number]))
       .map((chef) => chef.id)

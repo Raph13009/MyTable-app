@@ -332,8 +332,8 @@ export default function ChefFormPage() {
                 ? item.codesPostaux.map((postal: unknown) => String(postal)).filter(Boolean)
                 : []
               return allPostalCodes
-                .filter((postalCode) => postalCode.startsWith(query))
-                .map((postalCode) => ({
+                .filter((postalCode: string) => postalCode.startsWith(query))
+                .map((postalCode: string) => ({
                   cityCode,
                   cityName,
                   postalCode,

@@ -10,15 +10,16 @@ interface PageProps {
 export default async function ChefByIdPage({ params }: PageProps) {
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('chefs')
+  const { data, error } = await (supabase.from('chefs') as any)
     .select('slug')
     .eq('id', params.id)
     .single()
 
-  if (error || !data?.slug) {
+  const slug = typeof data?.slug === 'string' ? data.slug : null
+
+  if (error || !slug) {
     notFound()
   }
 
-  redirect(`/book/${data.slug}`)
+  redirect(`/book/${slug}`)
 }
