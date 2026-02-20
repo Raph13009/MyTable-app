@@ -101,6 +101,7 @@ export default function ChefFormPage() {
     city: '',
     postal_code: '',
     cuisine_style: '',
+    cuisine_style_en: '',
     min_guests: '',
     max_guests: '',
     profile_picture: null as File | null,
@@ -384,6 +385,7 @@ export default function ChefFormPage() {
         city: chefData.city || '',
         postal_code: chefData.postal_code || '',
         cuisine_style: chefData.cuisine_style || '',
+        cuisine_style_en: chefData.cuisine_style_en || '',
         min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
         profile_picture: null,
@@ -753,6 +755,7 @@ export default function ChefFormPage() {
         city: resolvedCity,
         postal_code: resolvedPostalCode,
         cuisine_style: formData.cuisine_style || null,
+        cuisine_style_en: formData.cuisine_style_en || null,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
         dish_photos: dishPhotos,
@@ -916,7 +919,7 @@ export default function ChefFormPage() {
               <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Informations</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Nom du chef</label>
                     <input
                       type="text"
@@ -924,6 +927,16 @@ export default function ChefFormPage() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="Ex: Jean Dupont"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+33 6 12 34 56 78"
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
                   </div>
@@ -950,22 +963,22 @@ export default function ChefFormPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Téléphone</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+33 6 12 34 56 78"
-                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
-                    />
-                  </div>
-                  <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Style de cuisine</label>
                     <input
                       type="text"
                       value={formData.cuisine_style}
                       onChange={(e) => setFormData({ ...formData, cuisine_style: e.target.value })}
                       placeholder="Cuisine française moderne"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Style de cuisine (EN)</label>
+                    <input
+                      type="text"
+                      value={formData.cuisine_style_en}
+                      onChange={(e) => setFormData({ ...formData, cuisine_style_en: e.target.value })}
+                      placeholder="Modern French cuisine"
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
                   </div>

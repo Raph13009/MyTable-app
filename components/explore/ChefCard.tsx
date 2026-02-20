@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ChefCardProps {
   chef: ExploreChef
@@ -18,6 +19,10 @@ function formatPrice(price: number | null): string {
 
 export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: ChefCardProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
+  const { t, locale } = useTranslation()
+  const displayedCuisine =
+    (locale === 'en' ? chef.cuisineTypeEn || chef.cuisineType : chef.cuisineType || chef.cuisineTypeEn) ||
+    t('explore.signatureCuisine')
 
   useEffect(() => {
     let cancelled = false
@@ -87,7 +92,7 @@ export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: C
           <img src={chef.image} alt={chef.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
-            Photo indisponible
+            {t('explore.photoUnavailable')}
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
@@ -123,19 +128,19 @@ export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: C
               isDarkBackground ? '[text-shadow:0_1px_2px_rgba(255,255,255,0.22)]' : '[text-shadow:0_1px_0_rgba(255,255,255,0.28)]'
             }`}
           >
-            {chef.cuisineType || 'Cuisine signature'}
+            {displayedCuisine}
           </p>
 
           <div className="mt-2 flex items-end justify-between gap-2">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">A partir de</p>
+              <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">{t('explore.from')}</p>
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
             </div>
             <Link
               href={`/book/${chef.slug}`}
               className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
             >
-              Reserver
+              {t('explore.reserve')}
             </Link>
           </div>
         </div>

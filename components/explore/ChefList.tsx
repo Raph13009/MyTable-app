@@ -2,6 +2,7 @@
 
 import { ChefCard } from './ChefCard'
 import { ExploreChef } from './types'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ChefListProps {
   chefs: ExploreChef[]
@@ -11,12 +12,14 @@ interface ChefListProps {
 }
 
 export function ChefList({ chefs, onChefHover, highlightedChefId = null, onChefMountRef }: ChefListProps) {
+  const { t } = useTranslation()
+
   return (
     <section className="min-h-full">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {chefs.length === 0 ? (
           <div className="col-span-full rounded-2xl border border-[#EAEAEA] bg-[#FAFAFA] px-5 py-8 text-center text-sm text-[#666666]">
-            Aucun chef dans cette zone
+            {t('explore.noChefInArea')}
           </div>
         ) : (
           chefs.map((chef) => (

@@ -4,6 +4,7 @@ export interface ExploreChef {
   name: string
   image: string | null
   cuisineType: string | null
+  cuisineTypeEn: string | null
   minPrice: number | null
   latitude: number | null
   longitude: number | null

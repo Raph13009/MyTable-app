@@ -23,6 +23,7 @@ export interface Database {
           postal_code: string | null
           profile_picture: string | null
           cuisine_style: string | null
+          cuisine_style_en: string | null
           dish_photos: string[] | null
           min_guests: number | null
           max_guests: number | null
@@ -42,6 +43,7 @@ export interface Database {
           postal_code?: string | null
           profile_picture?: string | null
           cuisine_style?: string | null
+          cuisine_style_en?: string | null
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null
@@ -61,6 +63,7 @@ export interface Database {
           postal_code?: string | null
           profile_picture?: string | null
           cuisine_style?: string | null
+          cuisine_style_en?: string | null
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null

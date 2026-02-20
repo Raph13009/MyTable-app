@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       postal_code,
       profile_picture,
       cuisine_style,
+      cuisine_style_en,
       dish_photos,
       min_guests,
       max_guests,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
     })()
 
     const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
+    const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
     const normalizedAddress = typeof address === 'string' ? address.trim() : ''
     const parsedLatitude = latitude === null || latitude === undefined || latitude === ''
       ? null
@@ -129,6 +131,7 @@ export async function POST(request: NextRequest) {
         postal_code: normalizedPostalCode || null,
         profile_picture: profile_picture || null,
         cuisine_style: normalizedCuisineStyle || null,
+        cuisine_style_en: normalizedCuisineStyleEn || null,
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,
         max_guests: normalizedMaxGuests,

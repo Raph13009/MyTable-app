@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getRegionBySlug } from '@/lib/regions'
+import type { Locale } from '@/lib/i18n'
 
 const SOURCE_ID = 'chefs'
 const CLUSTER_LAYER_ID = 'chefs-clusters'
@@ -50,6 +51,7 @@ function getRegionsBorderOpacityExpression(regionCode: string | null): any {
 }
 
 function hideMapNoiseLayers(map: mapboxgl.Map) {
+  if (!map.isStyleLoaded()) return
   const style = map.getStyle()
   const layers = style?.layers || []
   const hiddenKeywords = [
@@ -136,6 +138,7 @@ interface PopupAnchor {
 interface ExploreMapProps {
   chefs: ExploreChef[]
   selectedChefId: string | null
+  locale?: Locale
   isMapMode?: boolean
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
@@ -145,13 +148,39 @@ interface ExploreMapProps {
   onVisibleChefIdsChange?: (chefIds: string[]) => void
 }
 
-function getChefFirstName(name: string): string {
-  return (name || '').trim().split(/\s+/)[0] || 'Chef'
+function getChefFirstName(name: string, fallback = 'Chef'): string {
+  return (name || '').trim().split(/\s+/)[0] || fallback
+}
+
+function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
+  if (!map.isStyleLoaded()) return
+  const style = map.getStyle()
+  const layers = style?.layers || []
+
+  layers.forEach((layer) => {
+    if (layer.type !== 'symbol') return
+    if (layer.source === SOURCE_ID || layer.id === CLUSTER_COUNT_LAYER_ID) return
+
+    try {
+      const currentTextField = map.getLayoutProperty(layer.id, 'text-field')
+      if (!currentTextField) return
+
+      map.setLayoutProperty(layer.id, 'text-field', [
+        'coalesce',
+        ['get', `name_${locale}`],
+        ['get', 'name'],
+        currentTextField as any,
+      ])
+    } catch {
+      // Ignore unsupported symbol layers.
+    }
+  })
 }
 
 export function ExploreMap({
   chefs,
   selectedChefId,
+  locale = 'fr',
   isMapMode = true,
   initialRegionBBox = null,
   focusedRegionSlug = null,
@@ -182,6 +211,7 @@ export function ExploreMap({
     features: [],
   })
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
   const [popupPosition, setPopupPosition] = useState<{ left: number; top: number } | null>(null)
 
@@ -281,6 +311,10 @@ export function ExploreMap({
   }, [isMapMode])
 
   useEffect(() => {
+    localeRef.current = locale
+  }, [locale])
+
+  useEffect(() => {
     if (!containerRef.current || mapRef.current || !token) return
     isUnmountingRef.current = false
     const markerStore = markersRef.current
@@ -368,7 +402,7 @@ export function ExploreMap({
         if (!id || seen.has(id)) continue
         seen.add(id)
 
-        const name = String(feature.properties?.name || 'Chef')
+        const name = String(feature.properties?.name || (locale === 'en' ? 'Chef' : 'Chef'))
         const point = feature.geometry as GeoJSON.Point | undefined
         if (!point || !Array.isArray(point.coordinates) || point.coordinates.length < 2) continue
         const [lng, lat] = point.coordinates
@@ -386,13 +420,13 @@ export function ExploreMap({
 
       nextFeatures.forEach((item) => {
         const existing = markerStore.get(item.id)
-        const firstName = getChefFirstName(item.name)
+        const firstName = getChefFirstName(item.name, locale === 'en' ? 'Chef' : 'Chef')
 
         if (!existing) {
           const el = document.createElement('div')
           el.className = 'chef-marker'
           el.textContent = firstName
-          el.setAttribute('aria-label', `Voir ${item.name}`)
+          el.setAttribute('aria-label', locale === 'en' ? `View ${item.name}` : `Voir ${item.name}`)
 
           el.addEventListener('mouseenter', () => {
             onChefHoverRef.current?.(item.id)
@@ -481,6 +515,7 @@ export function ExploreMap({
 
     map.on('load', () => {
       hideMapNoiseLayers(map)
+      applyMapLanguage(map, localeRef.current)
 
       if (initialRegionBBoxRef.current) {
         const [minLng, minLat, maxLng, maxLat] = initialRegionBBoxRef.current
@@ -672,6 +707,16 @@ export function ExploreMap({
       mapRef.current = null
     }
   }, [closePopup, schedulePopupClose, token])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    try {
+      applyMapLanguage(map, locale)
+    } catch {
+      // Style may still be initializing; language will be applied on load.
+    }
+  }, [locale])
 
   useEffect(() => {
     const map = mapRef.current

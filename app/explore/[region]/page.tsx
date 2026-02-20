@@ -23,7 +23,7 @@ export default async function ExploreRegionPage({ params }: ExploreRegionPagePro
   const regionBBox: RegionBBox | null = getRegionBBoxBySlug(params.region)
 
   const { data, error } = await (supabase.from('chefs') as any)
-    .select('id, slug, name, profile_picture, cuisine_style, latitude, longitude, menus(price)')
+    .select('id, slug, name, profile_picture, cuisine_style, cuisine_style_en, latitude, longitude, menus(price)')
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
     .order('created_at', { ascending: false })
@@ -46,6 +46,7 @@ export default async function ExploreRegionPage({ params }: ExploreRegionPagePro
       name: row.name || 'Chef',
       image: row.profile_picture || null,
       cuisineType: row.cuisine_style || null,
+      cuisineTypeEn: row.cuisine_style_en || null,
       minPrice,
       latitude: toNumber(row.latitude),
       longitude: toNumber(row.longitude),

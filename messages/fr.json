@@ -20,6 +20,24 @@
     "no": "Non",
     "add": "Ajouter"
   },
+  "explore": {
+    "searchPlaceholder": "Rechercher une ville",
+    "searchLoading": "Recherche...",
+    "resetRegion": "Réinitialiser la région",
+    "map": "Carte",
+    "list": "Liste",
+    "photoUnavailable": "Photo indisponible",
+    "signatureCuisine": "Cuisine signature",
+    "from": "A partir de",
+    "reserve": "Reserver",
+    "collapseList": "Replier la liste",
+    "viewChef": "Voir {{name}}",
+    "fallbackChefName": "Chef",
+    "noChefInArea": "Aucun chef dans cette zone",
+    "overCount": "Plus de {{count}} {{label}}",
+    "chefSingular": "chef",
+    "chefPlural": "chefs"
+  },
   "auth": {
     "login": "Se connecter",
     "logout": "Se déconnecter",

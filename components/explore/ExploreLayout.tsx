@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, User } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox } from '@/lib/regions'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ExploreLayoutProps {
   chefs: ExploreChef[]
@@ -43,6 +45,7 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
 
 export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSlug: initialFocusedRegionSlug = null }: ExploreLayoutProps) {
   const router = useRouter()
+  const { t, locale } = useTranslation()
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
   const [isMobile, setIsMobile] = useState(false)
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null)
@@ -74,8 +77,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const [mobileSheetDragTranslate, setMobileSheetDragTranslate] = useState<number | null>(null)
 
   const sortedChefs = useMemo(() => {
-    return [...chefs].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-  }, [chefs])
+    return [...chefs].sort((a, b) => a.name.localeCompare(b.name, locale))
+  }, [chefs, locale])
 
   const mapDataChefs = useMemo(() => {
     if (!activeSearch) return sortedChefs
@@ -169,7 +172,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       setIsSearchLoading(true)
 
       try {
-        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=6&language=fr&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
+        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=6&language=${locale}&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
         const response = await fetch(endpoint, { signal: controller.signal })
         if (!response.ok) throw new Error('Erreur recherche')
         const payload = await response.json()
@@ -201,7 +204,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
     }
-  }, [isSearchOpen, mapboxToken, searchQuery])
+  }, [isSearchOpen, locale, mapboxToken, searchQuery])
 
   const handleChefMountRef = (chefId: string, element: HTMLElement | null) => {
     cardRefs.current[chefId] = element
@@ -254,7 +257,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     }
 
     try {
-      const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=false&limit=1&language=fr&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
+      const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=false&limit=1&language=${locale}&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
       const response = await fetch(endpoint)
       if (!response.ok) return
       const payload = await response.json()
@@ -326,7 +329,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }
 
   const mobileOverCount = Math.max(visibleChefs.length - 1, 0)
-  const mobileCountLabel = `Plus de ${mobileOverCount} ${mobileOverCount > 1 ? 'chefs' : 'chef'}`
+  const mobileCountLabel = t('explore.overCount', {
+    count: mobileOverCount,
+    label: mobileOverCount > 1 ? t('explore.chefPlural') : t('explore.chefSingular'),
+  })
 
   return (
     <main className={`h-screen w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
@@ -342,7 +348,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 className={`inline-flex h-10 items-center justify-center px-1 text-[#2A2A2A] transition ${
                   mobileSheetSnap === 'full' ? 'opacity-100' : 'opacity-50'
                 }`}
-                aria-label="Replier la liste"
+                aria-label={t('explore.collapseList')}
               >
                 <ArrowLeft className="h-5 w-5" strokeWidth={2} />
               </button>
@@ -352,9 +358,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               </a>
 
               <div className="ml-auto flex items-center gap-2">
-                <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#EAEAEA] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
-                  <User className="h-4 w-4 text-[#3A3A3A]" />
-                </button>
+                <LanguageSwitcher />
               </div>
             </>
           ) : (
@@ -376,7 +380,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       setIsSearchOpen(true)
                     }}
                     onFocus={() => setIsSearchOpen(true)}
-                    placeholder="Rechercher une ville"
+                    placeholder={t('explore.searchPlaceholder')}
                     className="w-full bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A]"
                   />
                 </form>
@@ -384,7 +388,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 {isSearchOpen && (isSearchLoading || searchSuggestions.length > 0) && (
                   <div className="absolute left-0 right-0 top-[50px] overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
                     {isSearchLoading ? (
-                      <p className="px-4 py-3 text-sm text-[#6B7280]">Recherche...</p>
+                      <p className="px-4 py-3 text-sm text-[#6B7280]">{t('explore.searchLoading')}</p>
                     ) : (
                       searchSuggestions.map((suggestion) => (
                         <button
@@ -408,7 +412,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     onClick={handleResetRegionFocus}
                     className="inline-flex h-10 items-center rounded-full border border-[#E3E3E3] bg-white px-4 text-sm font-medium text-[#333333] shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition hover:bg-[#F9F9F9]"
                   >
-                    Réinitialiser la région
+                    {t('explore.resetRegion')}
                   </button>
                 )}
                 <div className="inline-flex rounded-full border border-[#EAEAEA] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
@@ -419,7 +423,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       viewMode === 'map' ? 'bg-[#111111] text-white' : 'text-[#555555] hover:bg-[#F5F5F5]'
                     }`}
                   >
-                    Carte
+                    {t('explore.map')}
                   </button>
                   <button
                     type="button"
@@ -428,12 +432,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       viewMode === 'list' ? 'bg-[#111111] text-white' : 'text-[#555555] hover:bg-[#F5F5F5]'
                     }`}
                   >
-                    Liste
+                    {t('explore.list')}
                   </button>
                 </div>
-                <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#EAEAEA] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
-                  <User className="h-4 w-4 text-[#3A3A3A]" />
-                </button>
+                <LanguageSwitcher />
               </div>
             </>
           )}
@@ -453,6 +455,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               initialRegionBBox={initialRegionBBox}
               focusedRegionSlug={focusedRegionSlug}
               searchViewport={searchViewport}
+              locale={locale}
             />
 
             <aside
@@ -503,6 +506,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   initialRegionBBox={initialRegionBBox}
                   focusedRegionSlug={focusedRegionSlug}
                   searchViewport={searchViewport}
+                  locale={locale}
                 />
               </div>
             </div>
@@ -533,6 +537,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     initialRegionBBox={initialRegionBBox}
                     focusedRegionSlug={focusedRegionSlug}
                     searchViewport={searchViewport}
+                    locale={locale}
                   />
                 </div>
               </div>
