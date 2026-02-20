@@ -12,16 +12,15 @@ function toNumber(value: unknown): number | null {
   return null
 }
 
-interface ExplorePageProps {
-  searchParams?: {
-    region?: string
+interface ExploreRegionPageProps {
+  params: {
+    region: string
   }
 }
 
-export default async function ExplorePage({ searchParams }: ExplorePageProps) {
+export default async function ExploreRegionPage({ params }: ExploreRegionPageProps) {
   const supabase = createAdminClient()
-  const regionParam = typeof searchParams?.region === 'string' ? searchParams.region : null
-  const regionBBox: RegionBBox | null = getRegionBBoxBySlug(regionParam)
+  const regionBBox: RegionBBox | null = getRegionBBoxBySlug(params.region)
 
   const { data, error } = await (supabase.from('chefs') as any)
     .select('id, slug, name, profile_picture, cuisine_style, latitude, longitude, menus(price)')
@@ -30,7 +29,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('[explore] Failed to load chefs:', error.message)
+    console.error('[explore-region] Failed to load chefs:', error.message)
   }
 
   const chefs: ExploreChef[] = (data || []).map((row: any) => {
@@ -53,5 +52,5 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     }
   })
 
-  return <ExploreLayout chefs={chefs} initialRegionBBox={regionBBox} focusedRegionSlug={regionParam} />
+  return <ExploreLayout chefs={chefs} initialRegionBBox={regionBBox} focusedRegionSlug={params.region} />
 }

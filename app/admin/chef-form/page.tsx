@@ -12,7 +12,72 @@ interface Menu {
   price: number | null
 }
 
-type AdminSection = 'informations' | 'menus' | 'photos'
+interface MapboxFeature {
+  id: string
+  place_name?: string
+  text?: string
+  center?: [number, number]
+  context?: Array<{ id?: string; text?: string }>
+  properties?: { postcode?: string }
+}
+
+interface LocationSuggestion {
+  id: string
+  label: string
+  address: string
+  city: string
+  postalCode: string
+  latitude: number
+  longitude: number
+}
+
+interface FrenchCitySuggestion {
+  code: string
+  name: string
+  postalCodes: string[]
+}
+
+interface PostalSuggestion {
+  cityCode: string
+  cityName: string
+  postalCode: string
+  cityPostalCodes: string[]
+}
+
+const extractContextValue = (feature: MapboxFeature, prefixes: string[]): string => {
+  const match = feature.context?.find((item) => {
+    const id = item.id || ''
+    return prefixes.some((prefix) => id.startsWith(prefix))
+  })
+  return match?.text || ''
+}
+
+const toLocationSuggestion = (feature: MapboxFeature): LocationSuggestion | null => {
+  if (!feature.center || feature.center.length !== 2) return null
+  const [longitude, latitude] = feature.center
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+
+  const city =
+    extractContextValue(feature, ['place', 'locality', 'district']) ||
+    feature.text ||
+    ''
+  const postalCode =
+    feature.properties?.postcode ||
+    extractContextValue(feature, ['postcode']) ||
+    ''
+
+  return {
+    id: feature.id,
+    label: feature.place_name || feature.text || '',
+    address: feature.place_name || '',
+    city,
+    postalCode,
+    latitude,
+    longitude,
+  }
+}
+
+type AdminSection = 'informations' | 'localisation' | 'menus' | 'photos'
 
 export default function ChefFormPage() {
   const router = useRouter()
@@ -30,6 +95,9 @@ export default function ChefFormPage() {
     email: '',
     emailConfirm: '',
     phone: '',
+    address: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
     city: '',
     postal_code: '',
     cuisine_style: '',
@@ -50,11 +118,30 @@ export default function ChefFormPage() {
     message: '',
     type: 'success',
   })
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([])
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
+  const [isLoadingLocationSuggestions, setIsLoadingLocationSuggestions] = useState(false)
+  const [manualLocationMode, setManualLocationMode] = useState(false)
+  const [citySuggestions, setCitySuggestions] = useState<FrenchCitySuggestion[]>([])
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false)
+  const [isLoadingCitySuggestions, setIsLoadingCitySuggestions] = useState(false)
+  const [selectedCitySuggestion, setSelectedCitySuggestion] = useState<FrenchCitySuggestion | null>(null)
+  const [postalSuggestions, setPostalSuggestions] = useState<PostalSuggestion[]>([])
+  const [isPostalDropdownOpen, setIsPostalDropdownOpen] = useState(false)
+  const [isLoadingPostalSuggestions, setIsLoadingPostalSuggestions] = useState(false)
 
   const profileFileInputRef = useRef<HTMLInputElement | null>(null)
   const dishFileInputRef = useRef<HTMLInputElement | null>(null)
   const isSubmittingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const locationAbortRef = useRef<AbortController | null>(null)
+  const locationContainerRef = useRef<HTMLDivElement | null>(null)
+  const cityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cityContainerRef = useRef<HTMLDivElement | null>(null)
+  const postalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const postalContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
 
   const fileToDataUrl = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -86,8 +173,192 @@ export default function ChefFormPage() {
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current)
       }
+      if (locationDebounceRef.current) {
+        clearTimeout(locationDebounceRef.current)
+      }
+      if (locationAbortRef.current) {
+        locationAbortRef.current.abort()
+      }
+      if (cityDebounceRef.current) {
+        clearTimeout(cityDebounceRef.current)
+      }
+      if (postalDebounceRef.current) {
+        clearTimeout(postalDebounceRef.current)
+      }
     }
   }, [])
+
+  useEffect(() => {
+    const onClickOutside = (event: MouseEvent) => {
+      if (!locationContainerRef.current) return
+      const target = event.target as Node
+      if (
+        locationContainerRef.current.contains(target) ||
+        cityContainerRef.current?.contains(target) ||
+        postalContainerRef.current?.contains(target)
+      ) return
+      setIsLocationDropdownOpen(false)
+      setIsCityDropdownOpen(false)
+      setIsPostalDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+    }
+  }, [])
+
+  useEffect(() => {
+    const query = formData.address.trim()
+    if (!isLocationDropdownOpen || query.length < 3 || !mapboxToken) {
+      setLocationSuggestions([])
+      setIsLoadingLocationSuggestions(false)
+      return
+    }
+
+    if (locationDebounceRef.current) {
+      clearTimeout(locationDebounceRef.current)
+    }
+
+    locationDebounceRef.current = setTimeout(async () => {
+      if (locationAbortRef.current) {
+        locationAbortRef.current.abort()
+      }
+
+      const controller = new AbortController()
+      locationAbortRef.current = controller
+      setIsLoadingLocationSuggestions(true)
+
+      try {
+        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=5&language=fr&country=fr&types=address,place,postcode,locality&access_token=${mapboxToken}`
+        const response = await fetch(endpoint, { signal: controller.signal })
+        if (!response.ok) {
+          throw new Error('Erreur Mapbox')
+        }
+        const payload = await response.json()
+        const features = Array.isArray(payload?.features) ? payload.features : []
+        const suggestions = features
+          .map((feature: MapboxFeature) => toLocationSuggestion(feature))
+          .filter((suggestion: LocationSuggestion | null): suggestion is LocationSuggestion => !!suggestion)
+        setLocationSuggestions(suggestions)
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error('Mapbox autocomplete error:', error)
+        }
+      } finally {
+        setIsLoadingLocationSuggestions(false)
+      }
+    }, 250)
+
+    return () => {
+      if (locationDebounceRef.current) {
+        clearTimeout(locationDebounceRef.current)
+      }
+    }
+  }, [formData.address, isLocationDropdownOpen, mapboxToken])
+
+  useEffect(() => {
+    const query = formData.city.trim()
+    if (!manualLocationMode || !isCityDropdownOpen || query.length < 2) {
+      setCitySuggestions([])
+      setIsLoadingCitySuggestions(false)
+      return
+    }
+
+    if (cityDebounceRef.current) {
+      clearTimeout(cityDebounceRef.current)
+    }
+
+    cityDebounceRef.current = setTimeout(async () => {
+      setIsLoadingCitySuggestions(true)
+
+      try {
+        const endpoint = `/api/location/fr-communes?nom=${encodeURIComponent(query)}&limit=8`
+        const response = await fetch(endpoint)
+        if (!response.ok) {
+          throw new Error('Erreur autocomplete communes')
+        }
+        const payload = await response.json()
+        const suggestions = Array.isArray(payload)
+          ? payload.map((item: any) => ({
+              code: String(item?.code || ''),
+              name: String(item?.nom || ''),
+              postalCodes: Array.isArray(item?.codesPostaux)
+                ? item.codesPostaux.map((postal: unknown) => String(postal)).filter(Boolean)
+                : [],
+            })).filter((item: FrenchCitySuggestion) => item.code && item.name)
+          : []
+        setCitySuggestions(suggestions)
+      } catch (error: any) {
+        console.error('City autocomplete error:', error)
+      } finally {
+        setIsLoadingCitySuggestions(false)
+      }
+    }, 220)
+
+    return () => {
+      if (cityDebounceRef.current) {
+        clearTimeout(cityDebounceRef.current)
+      }
+    }
+  }, [formData.city, manualLocationMode, isCityDropdownOpen])
+
+  useEffect(() => {
+    const query = formData.postal_code.trim()
+    if (!manualLocationMode || !isPostalDropdownOpen || query.length < 2) {
+      setPostalSuggestions([])
+      setIsLoadingPostalSuggestions(false)
+      return
+    }
+
+    if (postalDebounceRef.current) {
+      clearTimeout(postalDebounceRef.current)
+    }
+
+    postalDebounceRef.current = setTimeout(async () => {
+      setIsLoadingPostalSuggestions(true)
+
+      try {
+        const endpoint = `/api/location/fr-communes?codePostal=${encodeURIComponent(query)}&limit=20`
+        const response = await fetch(endpoint)
+        if (!response.ok) {
+          throw new Error('Erreur autocomplete code postal')
+        }
+        const payload = await response.json()
+        const flattenedSuggestions: PostalSuggestion[] = Array.isArray(payload)
+          ? payload.flatMap((item: any) => {
+              const cityName = String(item?.nom || '')
+              const cityCode = String(item?.code || '')
+              const allPostalCodes = Array.isArray(item?.codesPostaux)
+                ? item.codesPostaux.map((postal: unknown) => String(postal)).filter(Boolean)
+                : []
+              return allPostalCodes
+                .filter((postalCode) => postalCode.startsWith(query))
+                .map((postalCode) => ({
+                  cityCode,
+                  cityName,
+                  postalCode,
+                  cityPostalCodes: allPostalCodes,
+                }))
+            })
+          : []
+        const deduped = flattenedSuggestions.filter(
+          (item, index, arr) =>
+            arr.findIndex((other) => other.postalCode === item.postalCode && other.cityCode === item.cityCode) === index
+        )
+        setPostalSuggestions(deduped.slice(0, 12))
+      } catch (error) {
+        console.error('Postal autocomplete error:', error)
+      } finally {
+        setIsLoadingPostalSuggestions(false)
+      }
+    }, 220)
+
+    return () => {
+      if (postalDebounceRef.current) {
+        clearTimeout(postalDebounceRef.current)
+      }
+    }
+  }, [formData.postal_code, manualLocationMode, isPostalDropdownOpen])
 
   const fetchChefData = async () => {
     if (!chefId) return
@@ -107,6 +378,9 @@ export default function ChefFormPage() {
         email: chefData.email || '',
         emailConfirm: chefData.email || '',
         phone: chefData.phone || '',
+        address: chefData.address || '',
+        latitude: typeof chefData.latitude === 'number' ? chefData.latitude : null,
+        longitude: typeof chefData.longitude === 'number' ? chefData.longitude : null,
         city: chefData.city || '',
         postal_code: chefData.postal_code || '',
         cuisine_style: chefData.cuisine_style || '',
@@ -114,6 +388,7 @@ export default function ChefFormPage() {
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
         profile_picture: null,
       })
+      setManualLocationMode(!chefData.address && !!chefData.city)
       setCurrentProfilePicture(chefData.profile_picture)
       setCurrentDishPhotos(Array.isArray(chefData.dish_photos) ? chefData.dish_photos : [])
       setPrimaryDishIndex(0)
@@ -243,6 +518,126 @@ export default function ChefFormPage() {
     }
   }
 
+  const handleAddressInputChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      address: value,
+      latitude: null,
+      longitude: null,
+      city: '',
+      postal_code: '',
+    }))
+    setIsLocationDropdownOpen(true)
+  }
+
+  const handleManualLocationToggle = (checked: boolean) => {
+    setManualLocationMode(checked)
+    setIsLocationDropdownOpen(false)
+    setIsCityDropdownOpen(false)
+    setIsPostalDropdownOpen(false)
+    setLocationSuggestions([])
+    setCitySuggestions([])
+    setPostalSuggestions([])
+    setSelectedCitySuggestion(null)
+
+    if (checked) {
+      setFormData((prev) => ({
+        ...prev,
+        address: '',
+        latitude: null,
+        longitude: null,
+      }))
+      return
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      city: '',
+      postal_code: '',
+      latitude: null,
+      longitude: null,
+    }))
+  }
+
+  const handleManualCityInputChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, city: value, postal_code: '' }))
+    setSelectedCitySuggestion(null)
+    setIsCityDropdownOpen(true)
+    setIsPostalDropdownOpen(false)
+  }
+
+  const handleSelectManualCity = (suggestion: FrenchCitySuggestion) => {
+    const defaultPostal = suggestion.postalCodes[0] || ''
+    setSelectedCitySuggestion(suggestion)
+    setFormData((prev) => ({
+      ...prev,
+      city: suggestion.name,
+      postal_code: defaultPostal,
+      latitude: null,
+      longitude: null,
+    }))
+    setIsCityDropdownOpen(false)
+    setCitySuggestions([])
+  }
+
+  const handleManualPostalCodeChange = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 5)
+    setFormData((prev) => ({ ...prev, postal_code: digitsOnly, latitude: null, longitude: null }))
+    setSelectedCitySuggestion(null)
+    setIsPostalDropdownOpen(true)
+    setIsCityDropdownOpen(false)
+  }
+
+  const handleSelectManualPostalSuggestion = (suggestion: PostalSuggestion) => {
+    const citySuggestion: FrenchCitySuggestion = {
+      code: suggestion.cityCode,
+      name: suggestion.cityName,
+      postalCodes: suggestion.cityPostalCodes,
+    }
+    setSelectedCitySuggestion(citySuggestion)
+    setFormData((prev) => ({
+      ...prev,
+      city: suggestion.cityName,
+      postal_code: suggestion.postalCode,
+      latitude: null,
+      longitude: null,
+    }))
+    setIsPostalDropdownOpen(false)
+    setPostalSuggestions([])
+  }
+
+  const geocodeManualLocation = async (city: string, postalCode: string) => {
+    if (!mapboxToken) {
+      throw new Error('Mapbox non configuré')
+    }
+    const query = `${city} ${postalCode} France`
+    const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?limit=1&language=fr&country=fr&types=address,place,postcode,locality&access_token=${mapboxToken}`
+    const response = await fetch(endpoint)
+    if (!response.ok) {
+      throw new Error('Erreur géocodage Mapbox')
+    }
+    const payload = await response.json()
+    const firstFeature = Array.isArray(payload?.features) ? payload.features[0] : null
+    const suggestion = firstFeature ? toLocationSuggestion(firstFeature as MapboxFeature) : null
+    if (!suggestion) {
+      throw new Error('Impossible de générer les coordonnées pour cette ville et ce code postal')
+    }
+    return suggestion
+  }
+
+  const handleSelectLocation = (suggestion: LocationSuggestion) => {
+    setFormData((prev) => ({
+      ...prev,
+      address: suggestion.address,
+      city: suggestion.city,
+      postal_code: suggestion.postalCode,
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+    }))
+    setLocationSuggestions([])
+    setIsLocationDropdownOpen(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isSubmittingRef.current) return
@@ -268,6 +663,11 @@ export default function ChefFormPage() {
     }
     if (minGuestsValue !== null && maxGuestsValue !== null && minGuestsValue > maxGuestsValue) {
       showToast('Le minimum de convives doit être inférieur ou égal au maximum', 'error')
+      isSubmittingRef.current = false
+      return
+    }
+    if (!manualLocationMode && formData.address.trim() && (formData.latitude === null || formData.longitude === null)) {
+      showToast('Sélectionnez une adresse dans les suggestions pour enregistrer les coordonnées', 'error')
       isSubmittingRef.current = false
       return
     }
@@ -299,13 +699,59 @@ export default function ChefFormPage() {
         dishPhotos.unshift(primaryPhoto)
       }
 
+      let resolvedAddress = formData.address.trim() || null
+      let resolvedCity = formData.city.trim() || null
+      let resolvedPostalCode = formData.postal_code.trim() || null
+      let resolvedLatitude = formData.address.trim() ? formData.latitude : null
+      let resolvedLongitude = formData.address.trim() ? formData.longitude : null
+
+      if (manualLocationMode) {
+        if (!resolvedCity) {
+          showToast('Sélectionnez une ville dans les suggestions', 'error')
+          isSubmittingRef.current = false
+          setIsSaving(false)
+          return
+        }
+        if (!resolvedPostalCode || !/^\d{5}$/.test(resolvedPostalCode)) {
+          showToast('Le code postal doit contenir exactement 5 chiffres', 'error')
+          isSubmittingRef.current = false
+          setIsSaving(false)
+          return
+        }
+        if (selectedCitySuggestion && !selectedCitySuggestion.postalCodes.includes(resolvedPostalCode)) {
+          showToast('Code postal invalide pour la ville sélectionnée', 'error')
+          isSubmittingRef.current = false
+          setIsSaving(false)
+          return
+        }
+
+        const cityValidationRes = await fetch(
+          `/api/location/fr-communes?nom=${encodeURIComponent(resolvedCity)}&codePostal=${encodeURIComponent(resolvedPostalCode)}&limit=1`
+        )
+        const cityValidationData = cityValidationRes.ok ? await cityValidationRes.json() : []
+        if (!Array.isArray(cityValidationData) || cityValidationData.length === 0) {
+          showToast('Ville/code postal non reconnus', 'error')
+          isSubmittingRef.current = false
+          setIsSaving(false)
+          return
+        }
+
+        const geocoded = await geocodeManualLocation(resolvedCity, resolvedPostalCode)
+        resolvedAddress = geocoded.address || `${resolvedCity} ${resolvedPostalCode}, France`
+        resolvedLatitude = geocoded.latitude
+        resolvedLongitude = geocoded.longitude
+      }
+
       const payload = {
         slug,
         name: formData.name,
         email: formData.email.toLowerCase().trim(),
         phone: formData.phone || null,
-        city: formData.city || null,
-        postal_code: formData.postal_code || null,
+        address: resolvedAddress,
+        latitude: resolvedLatitude,
+        longitude: resolvedLongitude,
+        city: resolvedCity,
+        postal_code: resolvedPostalCode,
         cuisine_style: formData.cuisine_style || null,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
@@ -446,6 +892,7 @@ export default function ChefFormPage() {
           <nav className="mt-8 space-y-1">
             {[
               { key: 'informations', label: 'Informations' },
+              { key: 'localisation', label: 'Localisation' },
               { key: 'menus', label: 'Menus' },
               { key: 'photos', label: 'Photos' },
             ].map((item) => (
@@ -513,26 +960,6 @@ export default function ChefFormPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Ville</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      placeholder="Paris"
-                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Code postal</label>
-                    <input
-                      type="text"
-                      value={formData.postal_code}
-                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                      placeholder="75001"
-                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
-                    />
-                  </div>
-                  <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Style de cuisine</label>
                     <input
                       type="text"
@@ -562,6 +989,204 @@ export default function ChefFormPage() {
                       onChange={(e) => setFormData({ ...formData, max_guests: e.target.value })}
                       placeholder="12"
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={() => router.push('/admin?section=chefs')} className="inline-flex h-11 items-center justify-center rounded-[10px] border border-[#EAEAEA] bg-white px-5 text-sm font-medium text-[#111111] hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || uploading}
+                    className={`inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                      isSaving || uploading
+                        ? 'bg-black text-white opacity-80'
+                        : 'bg-gradient-to-r from-[#FBCF03] to-[#E8BC00] text-black shadow-sm hover:from-[#f4c800] hover:to-[#d9ad00]'
+                    }`}
+                  >
+                    {(isSaving || uploading) && (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                      </svg>
+                    )}
+                    {isSaving || uploading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeSection === 'localisation' && (
+              <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Localisation</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Adresse complète</label>
+                    <div ref={locationContainerRef} className="relative">
+                      <input
+                        type="text"
+                        name="chef_address_input"
+                        autoComplete="new-password"
+                        value={formData.address}
+                        onChange={(e) => handleAddressInputChange(e.target.value)}
+                        onFocus={() => setIsLocationDropdownOpen(true)}
+                        placeholder="Adresse complète"
+                        disabled={manualLocationMode}
+                        className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                      />
+                      {isLocationDropdownOpen && !manualLocationMode && (isLoadingLocationSuggestions || locationSuggestions.length > 0) && (
+                        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[#EAEAEA] bg-white shadow-sm">
+                          {isLoadingLocationSuggestions ? (
+                            <p className="px-3 py-2 text-sm text-[#6B7280]">Recherche...</p>
+                          ) : (
+                            locationSuggestions.map((suggestion) => (
+                              <button
+                                key={suggestion.id}
+                                type="button"
+                                onClick={() => handleSelectLocation(suggestion)}
+                                className="block w-full border-b border-[#F5F5F5] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-gray-50"
+                              >
+                                {suggestion.label}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <label className="mt-3 inline-flex items-center gap-2 text-sm text-[#374151]">
+                      <input
+                        type="checkbox"
+                        checked={manualLocationMode}
+                        onChange={(e) => handleManualLocationToggle(e.target.checked)}
+                        className="h-4 w-4 rounded border-[#D1D5DB] text-black focus:ring-0"
+                      />
+                      Je ne trouve pas l&apos;adresse
+                    </label>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
+                      {manualLocationMode ? 'Ville' : 'Ville (auto)'}
+                    </label>
+                    {manualLocationMode ? (
+                      <div ref={cityContainerRef} className="relative">
+                        <input
+                          type="text"
+                          name="chef_city_input"
+                          autoComplete="new-password"
+                          value={formData.city}
+                          onChange={(e) => handleManualCityInputChange(e.target.value)}
+                          onFocus={() => setIsCityDropdownOpen(true)}
+                          placeholder="Sélectionner une commune"
+                          className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                        />
+                        {isCityDropdownOpen && (isLoadingCitySuggestions || citySuggestions.length > 0) && (
+                          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[#EAEAEA] bg-white shadow-sm">
+                            {isLoadingCitySuggestions ? (
+                              <p className="px-3 py-2 text-sm text-[#6B7280]">Recherche...</p>
+                            ) : (
+                              citySuggestions.map((suggestion) => (
+                                <button
+                                  key={suggestion.code}
+                                  type="button"
+                                  onClick={() => handleSelectManualCity(suggestion)}
+                                  className="block w-full border-b border-[#F5F5F5] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-gray-50"
+                                >
+                                  {suggestion.name}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        name="chef_city_input"
+                        autoComplete="new-password"
+                        readOnly
+                        value={formData.city}
+                        placeholder="Extrait de l'adresse"
+                        className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-[#FAFAFA] px-3 text-sm text-[#374151] outline-none"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
+                      {manualLocationMode ? 'Code postal' : 'Code postal (auto)'}
+                    </label>
+                    {manualLocationMode ? (
+                      <div ref={postalContainerRef} className="relative">
+                        <input
+                          type="text"
+                          name="chef_postal_code_input"
+                          autoComplete="new-password"
+                          inputMode="numeric"
+                          pattern="[0-9]{5}"
+                          maxLength={5}
+                          value={formData.postal_code}
+                          onFocus={() => setIsPostalDropdownOpen(true)}
+                          onChange={(e) => handleManualPostalCodeChange(e.target.value)}
+                          placeholder="Ex: 13009"
+                          className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                        />
+                        {isPostalDropdownOpen && (isLoadingPostalSuggestions || postalSuggestions.length > 0) && (
+                          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[#EAEAEA] bg-white shadow-sm">
+                            {isLoadingPostalSuggestions ? (
+                              <p className="px-3 py-2 text-sm text-[#6B7280]">Recherche...</p>
+                            ) : (
+                              postalSuggestions.map((suggestion) => (
+                                <button
+                                  key={`${suggestion.cityCode}-${suggestion.postalCode}`}
+                                  type="button"
+                                  onClick={() => handleSelectManualPostalSuggestion(suggestion)}
+                                  className="block w-full border-b border-[#F5F5F5] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-gray-50"
+                                >
+                                  {suggestion.postalCode} - {suggestion.cityName}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        name="chef_postal_code_input"
+                        autoComplete="new-password"
+                        readOnly
+                        inputMode="numeric"
+                        pattern="[0-9]{5}"
+                        maxLength={5}
+                        value={formData.postal_code}
+                        placeholder="Extrait de l'adresse"
+                        className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-[#FAFAFA] px-3 text-sm text-[#374151] outline-none"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Latitude</label>
+                    <input
+                      type="text"
+                      name="chef_latitude_input"
+                      autoComplete="new-password"
+                      readOnly
+                      value={formData.latitude ?? ''}
+                      placeholder="Auto"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-[#FAFAFA] px-3 text-sm text-[#374151] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Longitude</label>
+                    <input
+                      type="text"
+                      name="chef_longitude_input"
+                      autoComplete="new-password"
+                      readOnly
+                      value={formData.longitude ?? ''}
+                      placeholder="Auto"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-[#FAFAFA] px-3 text-sm text-[#374151] outline-none"
                     />
                   </div>
                 </div>

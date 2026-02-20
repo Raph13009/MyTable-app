@@ -130,6 +130,55 @@ body.chat-open {
   background-clip: content-box;
 }
 
+.explore-scroll--hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.explore-scroll--hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.chef-marker {
+  background: #ffffff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #222222;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  transform-origin: center center;
+}
+
+.chef-marker:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+}
+
+.chef-marker.active {
+  background: #222222;
+  color: #ffffff;
+}
+
+@keyframes mapPopupEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-map-popup-enter {
+  animation: mapPopupEnter 180ms ease-out;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

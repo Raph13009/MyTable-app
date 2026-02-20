@@ -16,6 +16,9 @@ export interface Database {
           name: string
           email: string
           phone: string | null
+          address: string | null
+          latitude: number | null
+          longitude: number | null
           city: string | null
           postal_code: string | null
           profile_picture: string | null
@@ -32,6 +35,9 @@ export interface Database {
           name: string
           email: string
           phone?: string | null
+          address?: string | null
+          latitude?: number | null
+          longitude?: number | null
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null
@@ -48,6 +54,9 @@ export interface Database {
           name?: string
           email?: string
           phone?: string | null
+          address?: string | null
+          latitude?: number | null
+          longitude?: number | null
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null

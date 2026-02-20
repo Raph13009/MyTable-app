@@ -1,14 +1,15 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ExploreChef } from './types'
 
-interface ChefCardProps {
+interface ChefMapPopupProps {
   chef: ExploreChef
-  onHover?: (chefId: string | null) => void
-  isHighlighted?: boolean
-  onMountRef?: (chefId: string, element: HTMLElement | null) => void
+  left: number
+  top: number
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 function formatPrice(price: number | null): string {
@@ -16,7 +17,7 @@ function formatPrice(price: number | null): string {
   return `${Math.round(price)}€`
 }
 
-export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: ChefCardProps) {
+export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
 
   useEffect(() => {
@@ -38,26 +39,34 @@ export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: C
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d', { willReadFrequently: true })
         if (!ctx) return
+
         const width = 96
         const height = 96
         canvas.width = width
         canvas.height = height
         ctx.drawImage(image, 0, 0, width, height)
+
+        // Analyze the lower zone where the glass bubble sits.
         const sampleHeight = Math.floor(height * 0.42)
         const sampleY = height - sampleHeight
         const pixels = ctx.getImageData(0, sampleY, width, sampleHeight).data
+
         let luminanceSum = 0
         let count = 0
         for (let i = 0; i < pixels.length; i += 4) {
           const r = pixels[i] / 255
           const g = pixels[i + 1] / 255
           const b = pixels[i + 2] / 255
-          luminanceSum += 0.2126 * r + 0.7152 * g + 0.0722 * b
+          // Relative luminance, perceptual weighting.
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+          luminanceSum += lum
           count += 1
         }
+
         const avgLuminance = count > 0 ? luminanceSum / count : 1
         setIsDarkBackground(avgLuminance < 0.36)
       } catch {
+        // Cross-origin protected images can fail canvas reads; keep default mode.
         setIsDarkBackground(false)
       }
     }
@@ -73,22 +82,16 @@ export function ChefCard({ chef, onHover, isHighlighted = false, onMountRef }: C
 
   return (
     <article
-      ref={(element) => onMountRef?.(chef.id, element)}
-      className={`group relative aspect-square overflow-hidden rounded-[24px] border bg-[#EDEDED] transition ${
-        isHighlighted
-          ? 'z-10 -translate-y-0.5 border-[#D4D4D4] shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
-          : 'border-[#ECECEC] shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)]'
-      }`}
-      onMouseEnter={() => onHover?.(chef.id)}
-      onMouseLeave={() => onHover?.(null)}
+      className="pointer-events-auto absolute z-30 h-[276px] w-[272px] overflow-hidden rounded-[24px] border border-white/65 bg-[#EDEDED] shadow-[0_18px_40px_rgba(0,0,0,0.20)] animate-map-popup-enter"
+      style={{ left, top }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="relative h-full w-full overflow-hidden">
         {chef.image ? (
-          <img src={chef.image} alt={chef.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+          <img src={chef.image} alt={chef.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
-            Photo indisponible
-          </div>
+          <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">Photo indisponible</div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
         <div

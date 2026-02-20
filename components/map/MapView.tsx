@@ -78,8 +78,14 @@ export function MapView({ chefs = [], selectedChefId = null, className = 'w-full
       markersRef.current.forEach((marker) => marker.remove())
       markersRef.current = []
       map.off('error', onMapError)
+      try {
+        map.remove()
+      } catch (error: any) {
+        if (error?.name !== 'AbortError' && !String(error?.message || '').includes('signal is aborted')) {
+          console.error('[MapView] map.remove cleanup error:', error)
+        }
+      }
       window.removeEventListener('unhandledrejection', onUnhandledRejection)
-      map.remove()
       mapRef.current = null
       didFitBoundsRef.current = false
       hasInitializedRef.current = false
