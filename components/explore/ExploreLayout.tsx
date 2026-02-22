@@ -500,30 +500,21 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               </div>
             </aside>
           </div>
-        ) : viewMode === 'map' ? (
-          <div className="h-[calc(100vh-84px)] w-full overflow-hidden px-4 pb-4 pt-4 sm:px-6 lg:px-8">
-            <div className="relative h-full w-full overflow-hidden rounded-[24px] bg-[#F7F7F7] shadow-[0_12px_34px_rgba(0,0,0,0.10)]">
-              <div className="absolute inset-0">
-                <ExploreMap
-                  chefs={mapDataChefs}
-                  selectedChefId={selectedChefId}
-                  isMapMode
-                  onChefHover={setSelectedChefId}
-                  onChefClick={handleChefBubbleClick}
-                  onVisibleChefIdsChange={setMapVisibleChefIds}
-                  initialRegionBBox={initialRegionBBox}
-                  focusedRegionSlug={focusedRegionSlug}
-                  searchViewport={searchViewport}
-                  locale={locale}
-                />
-              </div>
-            </div>
-          </div>
         ) : (
           <div className="h-[calc(100vh-84px)] w-full overflow-hidden">
             <div className="relative h-full w-full">
-              <div className="absolute inset-y-0 left-0 w-full lg:w-1/2">
-                <div className="explore-scroll explore-scroll--hidden h-full overflow-y-auto px-4 pb-10 pt-5 sm:px-6 lg:px-8">
+              <div
+                className={`absolute inset-y-0 left-0 transition-all duration-300 ${
+                  viewMode === 'map'
+                    ? 'w-0 pointer-events-none opacity-0'
+                    : 'w-full lg:w-1/2 opacity-100'
+                }`}
+              >
+                <div
+                  className={`explore-scroll explore-scroll--hidden h-full overflow-y-auto px-4 pb-10 pt-5 sm:px-6 lg:px-8 ${
+                    viewMode === 'map' ? 'invisible' : 'visible'
+                  }`}
+                >
                   <ChefList
                     chefs={visibleChefs}
                     onChefHover={setSelectedChefId}
@@ -533,12 +524,22 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 </div>
               </div>
 
-              <div className="absolute inset-y-0 right-0 hidden w-1/2 p-4 lg:block">
-                <div className="h-full w-full overflow-hidden rounded-[24px] border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.08)]">
+              <div
+                className={`absolute inset-y-0 right-0 transition-all duration-300 ${
+                  viewMode === 'map' ? 'w-full p-4' : 'hidden w-1/2 p-4 lg:block'
+                }`}
+              >
+                <div
+                  className={`h-full w-full overflow-hidden rounded-[24px] ${
+                    viewMode === 'map'
+                      ? 'bg-[#F7F7F7] shadow-[0_12px_34px_rgba(0,0,0,0.10)]'
+                      : 'border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.08)]'
+                  }`}
+                >
                   <ExploreMap
                     chefs={mapDataChefs}
                     selectedChefId={selectedChefId}
-                    isMapMode={false}
+                    isMapMode={viewMode === 'map'}
                     onChefHover={setSelectedChefId}
                     onChefClick={handleChefBubbleClick}
                     onVisibleChefIdsChange={setMapVisibleChefIds}

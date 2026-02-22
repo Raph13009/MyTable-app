@@ -184,14 +184,20 @@ function isAbortLikeError(value: unknown): boolean {
   if (!value) return false
   if (typeof value === 'string') {
     const lowered = value.toLowerCase()
-    return lowered.includes('aborterror') || lowered.includes('signal is aborted')
+    return (
+      lowered.includes('aborterror') ||
+      lowered.includes('signal is aborted') ||
+      lowered.includes('aborted without reason')
+    )
   }
 
   const maybeError = value as { name?: string; message?: string; cause?: unknown }
   const name = String(maybeError.name || '').toLowerCase()
   const message = String(maybeError.message || '').toLowerCase()
   if (name.includes('abort')) return true
-  if (message.includes('signal is aborted') || message.includes('aborterror')) return true
+  if (message.includes('signal is aborted') || message.includes('aborterror') || message.includes('aborted without reason')) {
+    return true
+  }
   if (maybeError.cause && maybeError.cause !== value) return isAbortLikeError(maybeError.cause)
   return false
 }
@@ -207,17 +213,20 @@ function ensureGlobalAbortSuppression() {
   if (window.__mytableAbortSuppressionInstalled) return
   window.__mytableAbortSuppressionInstalled = true
 
-  window.addEventListener('unhandledrejection', (event) => {
-    if (isAbortLikeError(event.reason)) {
-      event.preventDefault()
-    }
-  })
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    if (!isAbortLikeError(event.reason)) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
 
-  window.addEventListener('error', (event) => {
-    if (isAbortLikeError(event.error || event.message)) {
-      event.preventDefault()
-    }
-  })
+  const onWindowError = (event: ErrorEvent) => {
+    if (!isAbortLikeError(event.error || event.message)) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  window.addEventListener('unhandledrejection', onUnhandledRejection, { capture: true })
+  window.addEventListener('error', onWindowError, { capture: true })
 }
 
 function getChefAvailabilityRadiusKm(chef: ExploreChef | null | undefined): number {
@@ -304,7 +313,7 @@ export function ExploreMap({
   const radiusInfoText =
     locale === 'en'
       ? 'Inside the yellow radius, the chef usually travels. You can still request outside this area.'
-      : 'Dans le rayon jaune, le chef se déplace généralement. Vous pouvez quand même faire une demande hors zone.'
+      : 'Le chef se déplace généralement dans cette zone. Vous pouvez toutefois faire une demande hors zone et voir via la messagerie si cela convient au chef.'
   const radiusTargetChefId = isMapMode ? activePopupChefId : selectedChefId
 
   const closePopup = useCallback(() => {
@@ -411,6 +420,8 @@ export function ExploreMap({
     ensureGlobalAbortSuppression()
     isUnmountingRef.current = false
     const markerStore = markersRef.current
+    const regionsFetchController = new AbortController()
+    let isDisposed = false
 
     mapboxgl.accessToken = token
     const map = new mapboxgl.Map({
@@ -592,13 +603,13 @@ export function ExploreMap({
 
     const onMapError = (event: mapboxgl.ErrorEvent) => {
       const error = (event as any)?.error
-      if (isUnmountingRef.current && error?.name === 'AbortError') return
-      if (error?.name === 'AbortError') return
+      if (isUnmountingRef.current && isAbortLikeError(error || event)) return
+      if (isAbortLikeError(error || event)) return
       console.error('[ExploreMap] Mapbox error:', error || event)
     }
     map.on('error', onMapError)
 
-    map.on('load', () => {
+    const onMapLoad = () => {
       hideMapNoiseLayers(map)
       applyMapLanguage(map, localeRef.current)
 
@@ -615,9 +626,10 @@ export function ExploreMap({
 
       ;(async () => {
         try {
-          const regionsResponse = await fetch('/data/regions-fr.geojson')
+          const regionsResponse = await fetch('/data/regions-fr.geojson', { signal: regionsFetchController.signal })
           if (!regionsResponse.ok) throw new Error('Unable to load regions geojson')
           const regionsGeojson = await regionsResponse.json()
+          if (isDisposed || mapRef.current !== map) return
 
           if (map.getSource(REGIONS_SOURCE_ID)) return
 
@@ -676,6 +688,7 @@ export function ExploreMap({
           if (map.getLayer(CLUSTER_LAYER_ID)) map.moveLayer(CLUSTER_LAYER_ID)
           if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) map.moveLayer(CLUSTER_COUNT_LAYER_ID)
         } catch (error) {
+          if (isAbortLikeError(error) || isDisposed) return
           console.error('[ExploreMap] Unable to initialize region focus layer:', error)
         }
       })()
@@ -773,7 +786,8 @@ export function ExploreMap({
 
       refreshUnclusteredMarkers()
       emitVisibleChefsInBounds()
-    })
+    }
+    map.on('load', onMapLoad)
 
     map.on('moveend', refreshUnclusteredMarkers)
     map.on('moveend', emitVisibleChefsInBounds)
@@ -793,9 +807,11 @@ export function ExploreMap({
     map.on('sourcedata', onSourceData)
 
     return () => {
+      isDisposed = true
       isUnmountingRef.current = true
+      regionsFetchController.abort()
       clearAllMarkers()
-      map.off('error', onMapError)
+      map.off('load', onMapLoad)
       map.off('moveend', refreshUnclusteredMarkers)
       map.off('moveend', emitVisibleChefsInBounds)
       map.off('move', updatePopupPosition)
@@ -815,6 +831,7 @@ export function ExploreMap({
           console.error('[ExploreMap] map.remove cleanup error:', error)
         }
       }
+      map.off('error', onMapError)
       if (popupCloseTimerRef.current) {
         clearTimeout(popupCloseTimerRef.current)
         popupCloseTimerRef.current = null
