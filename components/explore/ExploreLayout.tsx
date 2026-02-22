@@ -358,7 +358,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
 
   return (
-    <main className={`h-screen w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
+    <main className={`h-[100dvh] w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[#EAEAEA] bg-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <div className="mx-auto flex h-[64px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:h-[84px] lg:px-8">
           {isMobile ? (
@@ -476,7 +476,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
       <section className="pt-[64px] lg:pt-[84px]">
         {isMobile ? (
-          <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden">
+          <div className="relative h-[calc(100dvh-64px)] w-full overflow-hidden">
             <ExploreMap
               chefs={mapDataChefs}
               selectedChefId={selectedChefId}
@@ -493,6 +493,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             <aside
               className="absolute inset-x-0 bottom-0 z-20 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
               style={{
+                bottom: 'env(safe-area-inset-bottom)',
                 transform: `translateY(${mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)}%)`,
               }}
             >
@@ -525,7 +526,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             </aside>
           </div>
         ) : (
-          <div className="h-[calc(100vh-64px)] w-full overflow-hidden lg:h-[calc(100vh-84px)]">
+          <div className="h-[calc(100dvh-64px)] w-full overflow-hidden lg:h-[calc(100dvh-84px)]">
             <div className="relative h-full w-full">
               <div
                 className={`absolute inset-y-0 left-0 transition-all duration-300 ${
