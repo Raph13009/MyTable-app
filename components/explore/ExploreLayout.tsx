@@ -73,7 +73,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const mobileSheetScrollRef = useRef<HTMLDivElement | null>(null)
   const sheetDragRef = useRef<{ startY: number; startTranslate: number } | null>(null)
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const [mobileSheetSnap, setMobileSheetSnap] = useState<'mid' | 'full'>('mid')
+  const [mobileSheetSnap, setMobileSheetSnap] = useState<'bottom' | 'mid' | 'full'>('bottom')
   const [mobileSheetDragTranslate, setMobileSheetDragTranslate] = useState<number | null>(null)
 
   const sortedChefs = useMemo(() => {
@@ -302,9 +302,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     router.replace('/explore')
   }
 
-  const mobileSnapTranslate = (snap: 'mid' | 'full') => {
+  const mobileSnapTranslate = (snap: 'bottom' | 'mid' | 'full') => {
     if (snap === 'full') return 0
-    return 48
+    if (snap === 'mid') return 48
+    return 92
   }
 
   const handleSheetPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -324,7 +325,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     event.stopPropagation()
     const delta = event.clientY - sheetDragRef.current.startY
     const next = sheetDragRef.current.startTranslate + (delta / window.innerHeight) * 100
-    setMobileSheetDragTranslate(Math.max(0, Math.min(70, next)))
+    setMobileSheetDragTranslate(Math.max(0, Math.min(92, next)))
   }
 
   const handleSheetPointerUp = (event?: React.PointerEvent<HTMLDivElement>) => {
@@ -335,9 +336,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     if (!sheetDragRef.current) return
     const value = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
     sheetDragRef.current = null
-    const snaps: Array<{ id: 'mid' | 'full'; value: number }> = [
+    const snaps: Array<{ id: 'bottom' | 'mid' | 'full'; value: number }> = [
       { id: 'full', value: 0 },
       { id: 'mid', value: 48 },
+      { id: 'bottom', value: 92 },
     ]
     const closest = snaps.reduce((prev, curr) =>
       Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
@@ -352,7 +354,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     label: mobileOverCount > 1 ? t('explore.chefPlural') : t('explore.chefSingular'),
   })
   const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
-  const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('mid') - 1
+  const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('bottom') - 1
   const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
 
   return (
@@ -369,8 +371,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       handleResetRegionFocus()
                       return
                     }
-                    if (mobileSheetSnap !== 'mid' || mobileSheetDragTranslate !== null) {
-                      setMobileSheetSnap('mid')
+                    if (mobileSheetSnap !== 'bottom' || mobileSheetDragTranslate !== null) {
+                      setMobileSheetSnap('bottom')
                       setMobileSheetDragTranslate(null)
                     }
                   }}
@@ -507,9 +509,11 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
               <div
                 ref={mobileSheetScrollRef}
-                className="explore-scroll explore-scroll--hidden h-[calc(100%-56px)] overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)]"
+                className={`explore-scroll explore-scroll--hidden h-[calc(100%-56px)] overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] ${
+                  mobileSheetSnap === 'bottom' ? 'overflow-hidden' : 'overflow-y-auto'
+                }`}
               >
-                <div className="opacity-100 transition-opacity">
+                <div className={mobileSheetSnap === 'bottom' ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity'}>
                   <ChefList
                     chefs={visibleChefs}
                     onChefHover={setSelectedChefId}
