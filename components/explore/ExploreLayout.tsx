@@ -103,7 +103,11 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     const previousHtmlOverflow = document.documentElement.style.overflow
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason as { name?: string; message?: string } | undefined
-      if (reason?.name === 'AbortError' || reason?.message?.includes('signal is aborted')) {
+      if (
+        reason?.name === 'AbortError' ||
+        reason?.message?.includes('signal is aborted') ||
+        reason?.message?.toLowerCase().includes('aborted without reason')
+      ) {
         event.preventDefault()
       }
     }
@@ -306,6 +310,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const handleSheetPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isMobile) return
+    event.preventDefault()
+    event.stopPropagation()
     sheetDragRef.current = {
       startY: event.clientY,
       startTranslate: mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap),
@@ -315,12 +321,18 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const handleSheetPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!sheetDragRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
     const delta = event.clientY - sheetDragRef.current.startY
     const next = sheetDragRef.current.startTranslate + (delta / window.innerHeight) * 100
     setMobileSheetDragTranslate(Math.max(0, Math.min(82, next)))
   }
 
-  const handleSheetPointerUp = () => {
+  const handleSheetPointerUp = (event?: React.PointerEvent<HTMLDivElement>) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     if (!sheetDragRef.current) return
     const value = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
     sheetDragRef.current = null
@@ -341,28 +353,40 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     count: mobileOverCount,
     label: mobileOverCount > 1 ? t('explore.chefPlural') : t('explore.chefSingular'),
   })
+  const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
+  const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('mini') - 1
+  const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
 
   return (
     <main className={`h-screen w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[#EAEAEA] bg-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.06)] backdrop-blur">
-        <div className="mx-auto flex h-[84px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-[64px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:h-[84px] lg:px-8">
           {isMobile ? (
             <>
-              <button
-                type="button"
-                onClick={() => {
-                  if (mobileSheetSnap === 'full') setMobileSheetSnap('mini')
-                }}
-                className={`inline-flex h-10 items-center justify-center px-1 text-[#2A2A2A] transition ${
-                  mobileSheetSnap === 'full' ? 'opacity-100' : 'opacity-50'
-                }`}
-                aria-label={t('explore.collapseList')}
-              >
-                <ArrowLeft className="h-5 w-5" strokeWidth={2} />
-              </button>
+              {showMobileBackButton ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (focusedRegionSlug) {
+                      handleResetRegionFocus()
+                      return
+                    }
+                    if (mobileSheetSnap !== 'mini' || mobileSheetDragTranslate !== null) {
+                      setMobileSheetSnap('mini')
+                      setMobileSheetDragTranslate(null)
+                    }
+                  }}
+                  className="inline-flex h-10 items-center justify-center px-1 text-[#2A2A2A] transition"
+                  aria-label={focusedRegionSlug ? t('explore.resetRegion') : t('explore.collapseList')}
+                >
+                  <ArrowLeft className="h-5 w-5" strokeWidth={2} />
+                </button>
+              ) : (
+                <div className="h-10 w-7" aria-hidden />
+              )}
 
               <a href="/" className="absolute left-1/2 -translate-x-1/2">
-                <img src="/logo-cercle.png" alt="MyTable" className="h-10 w-10 object-contain" />
+                <img src="/logo-cercle.png" alt="MyTable" className="h-8 w-8 object-contain lg:h-10 lg:w-10" />
               </a>
 
               <div className="ml-auto flex items-center gap-2">
@@ -450,9 +474,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
         </div>
       </header>
 
-      <section className="pt-[84px]">
+      <section className="pt-[64px] lg:pt-[84px]">
         {isMobile ? (
-          <div className="relative h-[calc(100vh-84px)] w-full overflow-hidden">
+          <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden">
             <ExploreMap
               chefs={mapDataChefs}
               selectedChefId={selectedChefId}
@@ -501,7 +525,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             </aside>
           </div>
         ) : (
-          <div className="h-[calc(100vh-84px)] w-full overflow-hidden">
+          <div className="h-[calc(100vh-64px)] w-full overflow-hidden lg:h-[calc(100vh-84px)]">
             <div className="relative h-full w-full">
               <div
                 className={`absolute inset-y-0 left-0 transition-all duration-300 ${
