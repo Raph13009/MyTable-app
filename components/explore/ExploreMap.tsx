@@ -422,6 +422,7 @@ export function ExploreMap({
     const markerStore = markersRef.current
     const regionsFetchController = new AbortController()
     let isDisposed = false
+    const isMobileViewport = window.matchMedia('(max-width: 1023px)').matches
 
     mapboxgl.accessToken = token
     const map = new mapboxgl.Map({
@@ -432,6 +433,13 @@ export function ExploreMap({
       maxBounds: EUROPE_MAX_BOUNDS,
     })
     mapRef.current = map
+    if (isMobileViewport) {
+      map.touchZoomRotate.disable()
+      map.doubleClickZoom.disable()
+      map.boxZoom.disable()
+      map.scrollZoom.disable()
+      map.keyboard.disable()
+    }
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
 
     const clearAllMarkers = () => {
@@ -823,7 +831,9 @@ export function ExploreMap({
       map.off('sourcedata', onSourceData)
       map.stop()
       try {
-        if (!(map as any)._removed) {
+        if (process.env.NODE_ENV !== 'production') {
+          ;(map as any)._removed = true
+        } else if (!(map as any)._removed) {
           map.remove()
         }
       } catch (error: any) {
@@ -971,7 +981,7 @@ export function ExploreMap({
 
   return (
     <div ref={containerRef} className="explore-map-shell relative h-full w-full">
-      <div className="pointer-events-none absolute left-1/2 top-3 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:bottom-4 md:top-auto md:w-auto md:translate-x-0">
+      <div className="pointer-events-none absolute left-1/2 top-4 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:bottom-4 md:top-auto md:w-auto md:translate-x-0">
           <div className="flex items-start gap-3">
             <div className="relative mt-0.5 h-7 w-7 shrink-0">
               <div className="absolute inset-0 rounded-full border-2 border-[#D9A901] bg-[#FBCF03]/25" />
@@ -1004,7 +1014,12 @@ export function ExploreMap({
       <style jsx global>{`
         @media (max-width: 767px) {
           .explore-map-shell .mapboxgl-ctrl-top-right {
-            top: 118px;
+            display: none;
+          }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .explore-map-shell .mapboxgl-ctrl-top-right {
+            top: 92px;
             right: 10px;
           }
         }
