@@ -24,10 +24,15 @@ export async function POST(request: NextRequest) {
       name,
       email,
       phone,
+      address,
+      latitude,
+      longitude,
       city,
       postal_code,
       profile_picture,
       cuisine_style,
+      cuisine_style_en,
+      availability_radius_km,
       dish_photos,
       min_guests,
       max_guests,
@@ -67,6 +72,18 @@ export async function POST(request: NextRequest) {
     })()
 
     const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
+    const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
+    const normalizedAddress = typeof address === 'string' ? address.trim() : ''
+    const parsedLatitude = latitude === null || latitude === undefined || latitude === ''
+      ? null
+      : Number.parseFloat(String(latitude))
+    const parsedLongitude = longitude === null || longitude === undefined || longitude === ''
+      ? null
+      : Number.parseFloat(String(longitude))
+    const normalizedLatitude = Number.isFinite(parsedLatitude) ? parsedLatitude : null
+    const normalizedLongitude = Number.isFinite(parsedLongitude) ? parsedLongitude : null
+    const normalizedCity = typeof city === 'string' ? city.trim() : ''
+    const normalizedPostalCode = typeof postal_code === 'string' ? postal_code.trim() : ''
     const normalizedDishPhotos = Array.isArray(dish_photos)
       ? dish_photos
           .map((url: unknown) => (typeof url === 'string' ? url.trim() : ''))
@@ -79,6 +96,10 @@ export async function POST(request: NextRequest) {
     const normalizedMaxGuests = max_guests === null || max_guests === undefined || max_guests === ''
       ? null
       : Number.parseInt(String(max_guests), 10)
+    const parsedAvailabilityRadiusKm = availability_radius_km === null || availability_radius_km === undefined || availability_radius_km === ''
+      ? 10
+      : Number.parseInt(String(availability_radius_km), 10)
+    const normalizedAvailabilityRadiusKm = Number.isFinite(parsedAvailabilityRadiusKm) ? parsedAvailabilityRadiusKm : 10
 
     if (normalizedMinGuests !== null && (!Number.isFinite(normalizedMinGuests) || normalizedMinGuests < 1)) {
       return NextResponse.json({ error: 'Le minimum de convives est invalide' }, { status: 400 })
@@ -88,6 +109,18 @@ export async function POST(request: NextRequest) {
     }
     if (normalizedMinGuests !== null && normalizedMaxGuests !== null && normalizedMinGuests > normalizedMaxGuests) {
       return NextResponse.json({ error: 'Le minimum de convives doit être inférieur ou égal au maximum' }, { status: 400 })
+    }
+    if (normalizedAddress && (normalizedLatitude === null || normalizedLongitude === null)) {
+      return NextResponse.json({ error: 'Latitude et longitude sont requises quand une adresse est définie' }, { status: 400 })
+    }
+    if (normalizedLatitude !== null && (normalizedLatitude < -90 || normalizedLatitude > 90)) {
+      return NextResponse.json({ error: 'Latitude invalide' }, { status: 400 })
+    }
+    if (normalizedLongitude !== null && (normalizedLongitude < -180 || normalizedLongitude > 180)) {
+      return NextResponse.json({ error: 'Longitude invalide' }, { status: 400 })
+    }
+    if (![10, 20, 30, 40, 50, 60].includes(normalizedAvailabilityRadiusKm)) {
+      return NextResponse.json({ error: 'Rayon de disponibilité invalide' }, { status: 400 })
     }
 
     // Mettre à jour le chef
@@ -99,10 +132,15 @@ export async function POST(request: NextRequest) {
         name,
         email: email.toLowerCase().trim(),
         phone: phone || null,
-        city: city || null,
-        postal_code: postal_code || null,
+        address: normalizedAddress || null,
+        latitude: normalizedLatitude,
+        longitude: normalizedLongitude,
+        city: normalizedCity || null,
+        postal_code: normalizedPostalCode || null,
         profile_picture: profile_picture || null,
         cuisine_style: normalizedCuisineStyle || null,
+        cuisine_style_en: normalizedCuisineStyleEn || null,
+        availability_radius_km: normalizedAvailabilityRadiusKm,
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,
         max_guests: normalizedMaxGuests,

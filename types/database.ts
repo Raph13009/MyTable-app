@@ -16,10 +16,15 @@ export interface Database {
           name: string
           email: string
           phone: string | null
+          address: string | null
+          latitude: number | null
+          longitude: number | null
           city: string | null
           postal_code: string | null
           profile_picture: string | null
           cuisine_style: string | null
+          cuisine_style_en: string | null
+          availability_radius_km: number
           dish_photos: string[] | null
           min_guests: number | null
           max_guests: number | null
@@ -32,10 +37,15 @@ export interface Database {
           name: string
           email: string
           phone?: string | null
+          address?: string | null
+          latitude?: number | null
+          longitude?: number | null
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null
           cuisine_style?: string | null
+          cuisine_style_en?: string | null
+          availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null
@@ -48,10 +58,15 @@ export interface Database {
           name?: string
           email?: string
           phone?: string | null
+          address?: string | null
+          latitude?: number | null
+          longitude?: number | null
           city?: string | null
           postal_code?: string | null
           profile_picture?: string | null
           cuisine_style?: string | null
+          cuisine_style_en?: string | null
+          availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null

@@ -20,6 +20,24 @@
     "no": "No",
     "add": "Add"
   },
+  "explore": {
+    "searchPlaceholder": "Search for a city",
+    "searchLoading": "Searching...",
+    "resetRegion": "Reset region",
+    "map": "Map",
+    "list": "List",
+    "photoUnavailable": "Photo unavailable",
+    "signatureCuisine": "Signature cuisine",
+    "from": "From",
+    "reserve": "Book this chef",
+    "collapseList": "Collapse list",
+    "viewChef": "View {{name}}",
+    "fallbackChefName": "Chef",
+    "noChefInArea": "No chef in this area",
+    "overCount": "Over {{count}} {{label}}",
+    "chefSingular": "chef",
+    "chefPlural": "chefs"
+  },
   "auth": {
     "login": "Log in",
     "logout": "Log out",
