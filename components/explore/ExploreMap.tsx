@@ -422,7 +422,6 @@ export function ExploreMap({
     const markerStore = markersRef.current
     const regionsFetchController = new AbortController()
     let isDisposed = false
-    const isMobileViewport = window.matchMedia('(max-width: 1023px)').matches
 
     mapboxgl.accessToken = token
     const map = new mapboxgl.Map({
@@ -433,13 +432,6 @@ export function ExploreMap({
       maxBounds: EUROPE_MAX_BOUNDS,
     })
     mapRef.current = map
-    if (isMobileViewport) {
-      map.touchZoomRotate.disable()
-      map.doubleClickZoom.disable()
-      map.boxZoom.disable()
-      map.scrollZoom.disable()
-      map.keyboard.disable()
-    }
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
 
     const clearAllMarkers = () => {
