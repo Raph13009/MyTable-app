@@ -305,7 +305,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const mobileSnapTranslate = (snap: 'bottom' | 'mid' | 'full') => {
     if (snap === 'full') return 0
     if (snap === 'mid') return 48
-    return 92
+    return 90
   }
 
   const handleSheetPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -325,7 +325,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     event.stopPropagation()
     const delta = event.clientY - sheetDragRef.current.startY
     const next = sheetDragRef.current.startTranslate + (delta / window.innerHeight) * 100
-    setMobileSheetDragTranslate(Math.max(0, Math.min(92, next)))
+    setMobileSheetDragTranslate(Math.max(0, Math.min(90, next)))
   }
 
   const handleSheetPointerUp = (event?: React.PointerEvent<HTMLDivElement>) => {
@@ -339,7 +339,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     const snaps: Array<{ id: 'bottom' | 'mid' | 'full'; value: number }> = [
       { id: 'full', value: 0 },
       { id: 'mid', value: 48 },
-      { id: 'bottom', value: 92 },
+      { id: 'bottom', value: 90 },
     ]
     const closest = snaps.reduce((prev, curr) =>
       Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
@@ -491,7 +491,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             />
 
             <aside
-              className="absolute inset-x-0 bottom-0 z-20 h-[calc(100vh-32px)] rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              className="absolute inset-x-0 bottom-0 z-20 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
               style={{
                 transform: `translateY(${mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)}%)`,
               }}
