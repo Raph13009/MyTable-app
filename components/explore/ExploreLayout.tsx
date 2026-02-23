@@ -7,7 +7,7 @@ import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox } from '@/lib/regions'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
+import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
 
 interface ExploreLayoutProps {
@@ -390,7 +390,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               </a>
 
               <div className="ml-auto flex items-center gap-2">
-                <LanguageSwitcher />
+                <BookingLanguageSwitcher />
               </div>
             </>
           ) : (
@@ -467,7 +467,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     {t('explore.list')}
                   </button>
                 </div>
-                <LanguageSwitcher />
+                <BookingLanguageSwitcher />
               </div>
             </>
           )}
