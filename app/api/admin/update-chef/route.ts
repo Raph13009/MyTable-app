@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       profile_picture,
       cuisine_style,
       cuisine_style_en,
+      info_link_xx,
       availability_radius_km,
       dish_photos,
       min_guests,
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
 
     const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
     const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
+    const normalizedInfoLinkXx = typeof info_link_xx === 'string' ? info_link_xx.trim() : ''
     const normalizedAddress = typeof address === 'string' ? address.trim() : ''
     const parsedLatitude = latitude === null || latitude === undefined || latitude === ''
       ? null
@@ -140,6 +142,7 @@ export async function POST(request: NextRequest) {
         profile_picture: profile_picture || null,
         cuisine_style: normalizedCuisineStyle || null,
         cuisine_style_en: normalizedCuisineStyleEn || null,
+        info_link_xx: normalizedInfoLinkXx || null,
         availability_radius_km: normalizedAvailabilityRadiusKm,
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,

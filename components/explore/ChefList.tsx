@@ -8,10 +8,17 @@ interface ChefListProps {
   chefs: ExploreChef[]
   onChefHover?: (chefId: string | null) => void
   highlightedChefId?: string | null
+  outOfRangeChefIds?: Set<string>
   onChefMountRef?: (chefId: string, element: HTMLElement | null) => void
 }
 
-export function ChefList({ chefs, onChefHover, highlightedChefId = null, onChefMountRef }: ChefListProps) {
+export function ChefList({
+  chefs,
+  onChefHover,
+  highlightedChefId = null,
+  outOfRangeChefIds = new Set<string>(),
+  onChefMountRef,
+}: ChefListProps) {
   const { t } = useTranslation()
 
   return (
@@ -28,6 +35,7 @@ export function ChefList({ chefs, onChefHover, highlightedChefId = null, onChefM
               chef={chef}
               onHover={onChefHover}
               isHighlighted={highlightedChefId === chef.id}
+              isOutOfRange={outOfRangeChefIds.has(chef.id)}
               onMountRef={onChefMountRef}
             />
           ))

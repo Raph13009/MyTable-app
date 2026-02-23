@@ -21,9 +21,10 @@
     "add": "Add"
   },
   "explore": {
-    "searchPlaceholder": "Search for a city",
+    "searchPlaceholder": "Enter your address here",
     "searchLoading": "Searching...",
     "resetRegion": "Reset region",
+    "resetPin": "Reset",
     "map": "Map",
     "list": "List",
     "photoUnavailable": "Photo unavailable",
@@ -33,6 +34,7 @@
     "collapseList": "Collapse list",
     "viewChef": "View {{name}}",
     "fallbackChefName": "Chef",
+    "outOfRange": "Out of range",
     "noChefInArea": "No chef in this area",
     "overCount": "Over {{count}} {{label}}",
     "chefSingular": "chef",

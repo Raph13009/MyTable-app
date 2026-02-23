@@ -164,6 +164,19 @@ body.chat-open {
   color: #ffffff;
 }
 
+.chef-marker.unavailable {
+  background: #f2f2f2;
+  color: #747474;
+  border: 1px dashed #c9c9c9;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.chef-marker.unavailable.active {
+  background: #4a4a4a;
+  color: #f4f4f4;
+  border: 1px solid #4a4a4a;
+}
+
 @keyframes mapPopupEnter {
   from {
     opacity: 0;

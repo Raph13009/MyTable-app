@@ -23,6 +23,11 @@ interface SearchSuggestion {
   bbox?: RegionBBox | null
 }
 
+interface SearchPin {
+  key: string
+  center: [number, number]
+}
+
 function inBBox(longitude: number, latitude: number, bbox: RegionBBox) {
   return longitude >= bbox[0] && longitude <= bbox[2] && latitude >= bbox[1] && latitude <= bbox[3]
 }
@@ -65,6 +70,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     bbox?: RegionBBox | null
   } | null>(null)
   const [mapVisibleChefIds, setMapVisibleChefIds] = useState<string[] | null>(null)
+  const [searchPin, setSearchPin] = useState<SearchPin | null>(null)
 
   const cardRefs = useRef<Record<string, HTMLElement | null>>({})
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
@@ -81,6 +87,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [chefs, locale])
 
   const mapDataChefs = useMemo(() => {
+    if (searchPin) return sortedChefs
     if (!activeSearch) return sortedChefs
 
     return sortedChefs.filter((chef) => {
@@ -90,13 +97,32 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       }
       return distanceKm(chef.latitude, chef.longitude, activeSearch.center[1], activeSearch.center[0]) <= 70
     })
-  }, [activeSearch, sortedChefs])
+  }, [activeSearch, searchPin, sortedChefs])
+
+  const outOfRangeChefIds = useMemo(() => {
+    if (!searchPin) return new Set<string>()
+    const [targetLng, targetLat] = searchPin.center
+    const ids = new Set<string>()
+
+    sortedChefs.forEach((chef) => {
+      if (typeof chef.latitude !== 'number' || typeof chef.longitude !== 'number') return
+      const radiusKm =
+        typeof chef.availabilityRadiusKm === 'number' && Number.isFinite(chef.availabilityRadiusKm) && chef.availabilityRadiusKm > 0
+          ? chef.availabilityRadiusKm
+          : 10
+      const distance = distanceKm(chef.latitude, chef.longitude, targetLat, targetLng)
+      if (distance > radiusKm) ids.add(chef.id)
+    })
+
+    return ids
+  }, [searchPin, sortedChefs])
 
   const visibleChefs = useMemo(() => {
+    if (searchPin) return mapDataChefs
     if (!mapVisibleChefIds) return mapDataChefs
     const visibleSet = new Set(mapVisibleChefIds)
     return mapDataChefs.filter((chef) => visibleSet.has(chef.id))
-  }, [mapDataChefs, mapVisibleChefIds])
+  }, [mapDataChefs, mapVisibleChefIds, searchPin])
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
@@ -184,7 +210,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       setIsSearchLoading(true)
 
       try {
-        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=6&language=${locale}&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
+        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=8&language=${locale}&country=fr&types=address,place,locality,postcode,neighborhood&access_token=${mapboxToken}`
         const response = await fetch(endpoint, { signal: controller.signal })
         if (!response.ok) throw new Error('Erreur recherche')
         const payload = await response.json()
@@ -247,6 +273,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setSearchQuery(suggestion.label)
     setIsSearchOpen(false)
     setSearchSuggestions([])
+    setSearchPin({
+      key: `${suggestion.id}-${Date.now()}`,
+      center: suggestion.center,
+    })
     setActiveSearch({ center: suggestion.center, bbox: suggestion.bbox || null })
     setSearchViewport({
       key: `${suggestion.id}-${Date.now()}`,
@@ -269,7 +299,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     }
 
     try {
-      const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=false&limit=1&language=${locale}&country=fr&types=place,locality,postcode&access_token=${mapboxToken}`
+      const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=false&limit=1&language=${locale}&country=fr&types=address,place,locality,postcode,neighborhood&access_token=${mapboxToken}`
       const response = await fetch(endpoint)
       if (!response.ok) return
       const payload = await response.json()
@@ -288,6 +318,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const handleResetRegionFocus = () => {
     setFocusedRegionSlug(null)
+    setSearchPin(null)
     setActiveSearch(null)
     setSearchQuery('')
     setSearchSuggestions([])
@@ -300,6 +331,21 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     })
     setMapVisibleChefIds(null)
     router.replace('/explore')
+  }
+
+  const handleResetSearchPin = () => {
+    setSearchPin(null)
+    setActiveSearch(null)
+    setSearchQuery('')
+    setSearchSuggestions([])
+    setIsSearchOpen(false)
+    setSearchViewport({
+      key: `france-${Date.now()}`,
+      center: FRANCE_CENTER,
+      zoom: FRANCE_ZOOM,
+      bbox: null,
+    })
+    setMapVisibleChefIds(null)
   }
 
   const mobileSnapTranslate = (snap: 'bottom' | 'mid' | 'full') => {
@@ -399,7 +445,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 <img src="/logo-cercle.png" alt="MyTable" className="h-10 w-10 object-contain" />
               </a>
 
-              <div ref={searchContainerRef} className="relative hidden flex-1 md:block">
+              <div
+                ref={searchContainerRef}
+                className="relative hidden flex-1 min-w-0 transition-all duration-200 md:block"
+              >
                 <form
                   onSubmit={handleSearchSubmit}
                   className="flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
@@ -436,6 +485,15 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   </div>
                 )}
               </div>
+              {searchPin && (
+                <button
+                  type="button"
+                  onClick={handleResetSearchPin}
+                  className="hidden h-10 items-center rounded-full border border-[#E3E3E3] bg-white px-4 text-sm font-medium text-[#333333] shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition hover:bg-[#F9F9F9] md:inline-flex"
+                >
+                  {t('explore.resetPin')}
+                </button>
+              )}
 
               <div className="ml-auto flex items-center gap-3">
                 {focusedRegionSlug && (
@@ -487,6 +545,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               initialRegionBBox={initialRegionBBox}
               focusedRegionSlug={focusedRegionSlug}
               searchViewport={searchViewport}
+              searchPin={searchPin}
+              outOfRangeChefIds={[...outOfRangeChefIds]}
               locale={locale}
             />
 
@@ -519,6 +579,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     chefs={visibleChefs}
                     onChefHover={setSelectedChefId}
                     highlightedChefId={selectedChefId}
+                    outOfRangeChefIds={outOfRangeChefIds}
                     onChefMountRef={handleChefMountRef}
                   />
                 </div>
@@ -544,6 +605,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     chefs={visibleChefs}
                     onChefHover={setSelectedChefId}
                     highlightedChefId={selectedChefId}
+                    outOfRangeChefIds={outOfRangeChefIds}
                     onChefMountRef={handleChefMountRef}
                   />
                 </div>
@@ -571,6 +633,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     initialRegionBBox={initialRegionBBox}
                     focusedRegionSlug={focusedRegionSlug}
                     searchViewport={searchViewport}
+                    searchPin={searchPin}
+                    outOfRangeChefIds={[...outOfRangeChefIds]}
                     locale={locale}
                   />
                 </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
 import { ReserveChefButton } from './ReserveChefButton'
+import { ChefInfoButton } from './ChefInfoButton'
 
 interface ChefMapPopupProps {
   chef: ExploreChef
@@ -24,6 +25,7 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
   const displayedCuisine =
     (locale === 'en' ? chef.cuisineTypeEn || chef.cuisineType : chef.cuisineType || chef.cuisineTypeEn) ||
     t('explore.signatureCuisine')
+  const infoHref = chef.infoLinkXx
 
   useEffect(() => {
     let cancelled = false
@@ -107,6 +109,9 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
         {isDarkBackground && (
           <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 h-[33%] rounded-[18px] bg-[radial-gradient(circle_at_50%_60%,rgba(255,255,255,0.15)_0%,rgba(255,255,255,0)_72%)]" />
         )}
+        <div className="absolute right-2.5 top-2.5 z-20">
+          <ChefInfoButton chefName={chef.name} href={infoHref} />
+        </div>
         <div
           className={`absolute inset-x-2.5 bottom-2.5 rounded-[18px] border px-3.5 pb-2.5 pt-2.5 backdrop-blur-[22px] ${
             isDarkBackground

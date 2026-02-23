@@ -132,6 +132,11 @@ interface SearchViewport {
   key: string
 }
 
+interface SearchPin {
+  key: string
+  center: [number, number]
+}
+
 interface PopupAnchor {
   chefId: string
   lng: number
@@ -146,6 +151,8 @@ interface ExploreMapProps {
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
   searchViewport?: SearchViewport | null
+  searchPin?: SearchPin | null
+  outOfRangeChefIds?: string[]
   onChefHover?: (chefId: string | null) => void
   onChefClick?: (chefId: string) => void
   onVisibleChefIdsChange?: (chefIds: string[]) => void
@@ -305,12 +312,15 @@ export function ExploreMap({
   initialRegionBBox = null,
   focusedRegionSlug = null,
   searchViewport = null,
+  searchPin = null,
+  outOfRangeChefIds = [],
   onChefHover,
   onChefClick,
   onVisibleChefIdsChange,
 }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+  const searchPinMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; el: HTMLDivElement }>>(new Map())
   const isUnmountingRef = useRef(false)
   const onChefHoverRef = useRef<ExploreMapProps['onChefHover']>(onChefHover)
@@ -375,23 +385,27 @@ export function ExploreMap({
     [chefs]
   )
 
-  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, { id: string; name: string }>>(
-    () => ({
-      type: 'FeatureCollection',
-      features: validChefs.map((chef) => ({
-        type: 'Feature',
-        id: chef.id,
-        geometry: {
-          type: 'Point',
-          coordinates: [chef.longitude as number, chef.latitude as number],
-        },
-        properties: {
+  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, { id: string; name: string; unavailableForSearch: number }>>(
+    () => {
+      const outOfRangeSet = new Set(outOfRangeChefIds)
+      return {
+        type: 'FeatureCollection',
+        features: validChefs.map((chef) => ({
+          type: 'Feature',
           id: chef.id,
-          name: chef.name,
-        },
-      })),
-    }),
-    [validChefs]
+          geometry: {
+            type: 'Point',
+            coordinates: [chef.longitude as number, chef.latitude as number],
+          },
+          properties: {
+            id: chef.id,
+            name: chef.name,
+            unavailableForSearch: outOfRangeSet.has(chef.id) ? 1 : 0,
+          },
+        })),
+      }
+    },
+    [outOfRangeChefIds, validChefs]
   )
 
   const chefById = useMemo(() => {
@@ -523,6 +537,7 @@ export function ExploreMap({
         name: string
         lng: number
         lat: number
+        unavailableForSearch: boolean
       }> = []
 
       for (const feature of features) {
@@ -536,8 +551,9 @@ export function ExploreMap({
         if (!point || !Array.isArray(point.coordinates) || point.coordinates.length < 2) continue
         const [lng, lat] = point.coordinates
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+        const unavailableForSearch = Number(feature.properties?.unavailableForSearch || 0) === 1
 
-        nextFeatures.push({ id, name, lng, lat })
+        nextFeatures.push({ id, name, lng, lat, unavailableForSearch })
       }
 
       markerStore.forEach(({ marker }, chefId) => {
@@ -553,7 +569,7 @@ export function ExploreMap({
 
         if (!existing) {
           const el = document.createElement('div')
-          el.className = 'chef-marker'
+          el.className = item.unavailableForSearch ? 'chef-marker unavailable' : 'chef-marker'
           el.textContent = firstName
           el.setAttribute('aria-label', locale === 'en' ? `View ${item.name}` : `Voir ${item.name}`)
 
@@ -606,6 +622,11 @@ export function ExploreMap({
 
           markerStore.set(item.id, { marker, el })
         } else {
+          if (item.unavailableForSearch) {
+            existing.el.classList.add('unavailable')
+          } else {
+            existing.el.classList.remove('unavailable')
+          }
           if (existing.el.textContent !== firstName) {
             existing.el.textContent = firstName
           }
@@ -836,6 +857,10 @@ export function ExploreMap({
       isUnmountingRef.current = true
       regionsFetchController.abort()
       clearAllMarkers()
+      if (searchPinMarkerRef.current) {
+        searchPinMarkerRef.current.remove()
+        searchPinMarkerRef.current = null
+      }
       map.off('load', onMapLoad)
       map.off('moveend', refreshUnclusteredMarkers)
       map.off('moveend', emitVisibleChefsInBounds)
@@ -967,6 +992,27 @@ export function ExploreMap({
       essential: true,
     })
   }, [searchViewport])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    if (!searchPin) {
+      if (searchPinMarkerRef.current) {
+        searchPinMarkerRef.current.remove()
+        searchPinMarkerRef.current = null
+      }
+      return
+    }
+
+    if (!searchPinMarkerRef.current) {
+      searchPinMarkerRef.current = new mapboxgl.Marker({ color: '#2563EB' })
+    }
+
+    searchPinMarkerRef.current
+      .setLngLat(searchPin.center)
+      .addTo(map)
+  }, [searchPin])
 
   useEffect(() => {
     if (isMapMode) return

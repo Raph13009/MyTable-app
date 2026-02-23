@@ -24,7 +24,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const regionBBox: RegionBBox | null = getRegionBBoxBySlug(regionParam)
 
   const { data, error } = await (supabase.from('chefs') as any)
-    .select('id, slug, name, profile_picture, cuisine_style, cuisine_style_en, availability_radius_km, latitude, longitude, menus(price)')
+    .select('id, slug, name, info_link_xx, profile_picture, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(price)')
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
     .order('created_at', { ascending: false })
@@ -45,6 +45,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
       id: String(row.id),
       slug: String(row.slug || row.id),
       name: row.name || 'Chef',
+      infoLinkXx: typeof row.info_link_xx === 'string' && row.info_link_xx.trim() ? row.info_link_xx.trim() : null,
       image: row.profile_picture || null,
       cuisineType: row.cuisine_style || null,
       cuisineTypeEn: row.cuisine_style_en || null,
@@ -53,6 +54,8 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
           ? row.availability_radius_km
           : null,
       minPrice,
+      minGuests: typeof row.min_guests === 'number' && Number.isFinite(row.min_guests) ? row.min_guests : null,
+      maxGuests: typeof row.max_guests === 'number' && Number.isFinite(row.max_guests) ? row.max_guests : null,
       latitude: toNumber(row.latitude),
       longitude: toNumber(row.longitude),
     }

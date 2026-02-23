@@ -102,6 +102,7 @@ export default function ChefFormPage() {
     postal_code: '',
     cuisine_style: '',
     cuisine_style_en: '',
+    info_link_xx: '',
     availability_radius_km: '10',
     min_guests: '',
     max_guests: '',
@@ -387,6 +388,7 @@ export default function ChefFormPage() {
         postal_code: chefData.postal_code || '',
         cuisine_style: chefData.cuisine_style || '',
         cuisine_style_en: chefData.cuisine_style_en || '',
+        info_link_xx: chefData.info_link_xx || '',
         availability_radius_km: chefData.availability_radius_km ? String(chefData.availability_radius_km) : '10',
         min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
@@ -758,6 +760,7 @@ export default function ChefFormPage() {
         postal_code: resolvedPostalCode,
         cuisine_style: formData.cuisine_style || null,
         cuisine_style_en: formData.cuisine_style_en || null,
+        info_link_xx: formData.info_link_xx.trim() || null,
         availability_radius_km: Number.parseInt(formData.availability_radius_km, 10) || 10,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
@@ -982,6 +985,16 @@ export default function ChefFormPage() {
                       value={formData.cuisine_style_en}
                       onChange={(e) => setFormData({ ...formData, cuisine_style_en: e.target.value })}
                       placeholder="Modern French cuisine"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Lien info (champ XX)</label>
+                    <input
+                      type="url"
+                      value={formData.info_link_xx}
+                      onChange={(e) => setFormData({ ...formData, info_link_xx: e.target.value })}
+                      placeholder="https://..."
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
                   </div>

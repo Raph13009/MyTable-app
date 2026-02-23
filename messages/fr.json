@@ -21,9 +21,10 @@
     "add": "Ajouter"
   },
   "explore": {
-    "searchPlaceholder": "Rechercher une ville",
+    "searchPlaceholder": "Rentrez votre adresse ici",
     "searchLoading": "Recherche...",
     "resetRegion": "Réinitialiser la région",
+    "resetPin": "Réinitialiser",
     "map": "Carte",
     "list": "Liste",
     "photoUnavailable": "Photo indisponible",
@@ -33,6 +34,7 @@
     "collapseList": "Replier la liste",
     "viewChef": "Voir {{name}}",
     "fallbackChefName": "Chef",
+    "outOfRange": "Hors zone",
     "noChefInArea": "Aucun chef dans cette zone",
     "overCount": "Plus de {{count}} {{label}}",
     "chefSingular": "chef",
