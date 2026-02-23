@@ -82,7 +82,7 @@ export default function BookingLanguageSwitcher() {
           />
           <div
             ref={langDropdownRef}
-            className="absolute right-0 mt-2 bg-white/98 backdrop-blur-xl border border-black/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[120px] py-1.5"
+            className="absolute right-0 mt-2 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[120px] py-1.5"
             role="menu"
           >
             {languages.map((lang) => {
