@@ -158,8 +158,9 @@ interface ExploreMapProps {
   onVisibleChefIdsChange?: (chefIds: string[]) => void
 }
 
-function getChefFirstName(name: string, fallback = 'Chef'): string {
-  return (name || '').trim().split(/\s+/)[0] || fallback
+function formatChefNameWithPrefix(name: string, fallback = 'Chef'): string {
+  const firstName = (name || '').trim().split(/\s+/)[0] || ''
+  return firstName ? `Chef ${firstName}` : fallback
 }
 
 function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
@@ -570,12 +571,12 @@ export function ExploreMap({
 
       nextFeatures.forEach((item) => {
         const existing = markerStore.get(item.id)
-        const firstName = getChefFirstName(item.name, locale === 'en' ? 'Chef' : 'Chef')
+        const displayChefName = formatChefNameWithPrefix(item.name)
 
         if (!existing) {
           const el = document.createElement('div')
           el.className = item.unavailableForSearch ? 'chef-marker unavailable' : 'chef-marker'
-          el.textContent = firstName
+          el.textContent = displayChefName
           el.setAttribute('aria-label', locale === 'en' ? `View ${item.name}` : `Voir ${item.name}`)
 
           el.addEventListener('mouseenter', () => {
@@ -638,8 +639,8 @@ export function ExploreMap({
           } else {
             existing.el.classList.remove('unavailable')
           }
-          if (existing.el.textContent !== firstName) {
-            existing.el.textContent = firstName
+          if (existing.el.textContent !== displayChefName) {
+            existing.el.textContent = displayChefName
           }
           existing.marker.setLngLat([item.lng, item.lat])
         }
