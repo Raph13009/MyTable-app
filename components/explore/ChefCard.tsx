@@ -44,6 +44,8 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
       : formatPrice(chef.minPrice)
   const guestsLabel = formatGuestsRange(chef.minGuests, chef.maxGuests, locale)
   const infoHref = chef.infoLinkXx
+  const mobileHeroImage = chef.heroImage || chef.image
+  const mobileAvatarImage = chef.avatarImage || chef.image || chef.heroImage
 
   useEffect(() => {
     let cancelled = false
@@ -100,33 +102,44 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
   return (
     <article
       ref={(element) => onMountRef?.(chef.id, element)}
-      className={`group relative overflow-hidden border bg-white ${
+      className={`group relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ${
         isOutOfRange ? 'opacity-[0.72] saturate-[0.65]' : ''
       } ${
         isHighlighted
-          ? 'border-[#D4D4D4] shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
-          : 'border-[#ECECEC] shadow-[0_1px_6px_rgba(0,0,0,0.06)]'
-      } rounded-[18px] md:aspect-square md:rounded-[24px] md:bg-[#EDEDED] md:transition md:hover:-translate-y-0.5 md:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)]`}
+          ? 'ring-1 ring-[#DADADA] md:border-[#D4D4D4] md:shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
+          : 'md:border-[#ECECEC] md:shadow-[0_1px_6px_rgba(0,0,0,0.06)]'
+      } md:aspect-square md:rounded-[24px] md:bg-[#EDEDED] md:transition md:hover:-translate-y-0.5 md:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)]`}
       onMouseEnter={() => onHover?.(chef.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="flex items-start gap-3 p-3 md:hidden">
-        <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-[14px] bg-[#EFEFEF]">
-          {chef.image ? (
-            <img src={chef.image} alt={chef.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
-              {t('explore.photoUnavailable')}
-            </div>
-          )}
+      <div className="md:hidden">
+        <div className="relative w-full">
+          <div className="h-[130px] w-full overflow-hidden rounded-t-xl bg-[#EFEFEF]">
+            {mobileHeroImage ? (
+              <img src={mobileHeroImage} alt={chef.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
+                {t('explore.photoUnavailable')}
+              </div>
+            )}
+          </div>
+          <div className="absolute bottom-[-16px] left-3 z-10 h-11 w-11 overflow-hidden rounded-full border border-white/90 bg-[#F3F3F3] shadow-[0_3px_8px_rgba(0,0,0,0.12)]">
+            {mobileAvatarImage ? (
+              <img src={mobileAvatarImage} alt={chef.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[#727272]">
+                {chef.name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="rounded-b-xl bg-white px-3.5 pb-3 pt-6">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate pr-2 text-[15px] font-semibold leading-tight text-[#111111]">{chef.name}</h3>
+            <h3 className="truncate pr-2 text-base font-semibold leading-tight text-[#111111]">{chef.name}</h3>
             <ChefInfoButton chefName={chef.name} href={infoHref} />
           </div>
-          <div className="mt-1">
-            <span className="inline-flex max-w-full truncate rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[10px] font-medium text-[#4E4E4E]">
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#4E4E4E]">
               {displayedCuisine}
             </span>
             {isOutOfRange && (
@@ -135,12 +148,12 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-[12px] font-semibold text-[#1F1F1F]">{priceLabel}</p>
-          <div className="mt-1 flex items-end justify-between gap-2">
-            <p className="text-[11px] text-[#7A7A7A]">{guestsLabel}</p>
+          <p className="mt-1.5 truncate text-sm font-semibold text-[#1F1F1F]">{priceLabel}</p>
+          <div className="mt-1.5 flex items-end justify-between gap-2">
+            <p className="text-sm text-gray-500">{guestsLabel}</p>
             <ReserveChefButton
               href={`/book/${chef.slug}`}
-              className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-[11px] font-semibold text-[#1C1C1C]"
+              className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
             />
           </div>
         </div>

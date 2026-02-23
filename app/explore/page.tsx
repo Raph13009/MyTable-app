@@ -24,7 +24,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const regionBBox: RegionBBox | null = getRegionBBoxBySlug(regionParam)
 
   const { data, error } = await (supabase.from('chefs') as any)
-    .select('id, slug, name, info_link_xx, profile_picture, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(price)')
+    .select('id, slug, name, info_link_xx, profile_picture, dish_photos, primary_dish_photo, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(name,price)')
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
     .order('created_at', { ascending: false })
@@ -34,12 +34,25 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   }
 
   const chefs: ExploreChef[] = (data || []).map((row: any) => {
-    const menuPrices = Array.isArray(row.menus)
-      ? row.menus
-          .map((menu: any) => (typeof menu?.price === 'number' ? menu.price : Number(menu?.price)))
-          .filter((price: number) => Number.isFinite(price))
+    const menus = Array.isArray(row.menus) ? row.menus : []
+    const pricedMenus = menus
+      .map((menu: any) => {
+        const price = typeof menu?.price === 'number' ? menu.price : Number(menu?.price)
+        if (!Number.isFinite(price)) return null
+        return {
+          name: typeof menu?.name === 'string' ? menu.name.trim() : '',
+          price,
+        }
+      })
+      .filter((menu: { name: string; price: number } | null): menu is { name: string; price: number } => !!menu)
+    const minPricedMenu = pricedMenus.reduce<{ name: string; price: number } | null>((best, menu) => {
+      if (!best) return menu
+      return menu.price < best.price ? menu : best
+    }, null)
+    const dishPhotos = Array.isArray(row.dish_photos)
+      ? row.dish_photos.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
       : []
-    const minPrice = menuPrices.length > 0 ? Math.min(...menuPrices) : null
+    const primaryDishPhoto = typeof row.primary_dish_photo === 'string' && row.primary_dish_photo.trim() ? row.primary_dish_photo.trim() : null
 
     return {
       id: String(row.id),
@@ -47,13 +60,16 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
       name: row.name || 'Chef',
       infoLinkXx: typeof row.info_link_xx === 'string' && row.info_link_xx.trim() ? row.info_link_xx.trim() : null,
       image: row.profile_picture || null,
+      heroImage: (primaryDishPhoto && dishPhotos.includes(primaryDishPhoto) ? primaryDishPhoto : null) || dishPhotos[0] || row.profile_picture || null,
+      avatarImage: row.profile_picture || null,
       cuisineType: row.cuisine_style || null,
       cuisineTypeEn: row.cuisine_style_en || null,
       availabilityRadiusKm:
         typeof row.availability_radius_km === 'number' && Number.isFinite(row.availability_radius_km)
           ? row.availability_radius_km
           : null,
-      minPrice,
+      minPrice: minPricedMenu?.price ?? null,
+      minMenuName: minPricedMenu?.name || null,
       minGuests: typeof row.min_guests === 'number' && Number.isFinite(row.min_guests) ? row.min_guests : null,
       maxGuests: typeof row.max_guests === 'number' && Number.isFinite(row.max_guests) ? row.max_guests : null,
       latitude: toNumber(row.latitude),

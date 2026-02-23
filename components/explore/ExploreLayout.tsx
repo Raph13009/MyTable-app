@@ -582,6 +582,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     outOfRangeChefIds={outOfRangeChefIds}
                     onChefMountRef={handleChefMountRef}
                   />
+                  <div className="h-[42vh]" aria-hidden />
                 </div>
               </div>
             </aside>

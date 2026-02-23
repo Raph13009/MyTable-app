@@ -396,8 +396,11 @@ export default function ChefFormPage() {
       })
       setManualLocationMode(!chefData.address && !!chefData.city)
       setCurrentProfilePicture(chefData.profile_picture)
-      setCurrentDishPhotos(Array.isArray(chefData.dish_photos) ? chefData.dish_photos : [])
-      setPrimaryDishIndex(0)
+      const loadedDishPhotos = Array.isArray(chefData.dish_photos) ? chefData.dish_photos : []
+      setCurrentDishPhotos(loadedDishPhotos)
+      const loadedPrimaryDishPhoto = typeof chefData.primary_dish_photo === 'string' ? chefData.primary_dish_photo : ''
+      const loadedPrimaryIndex = loadedPrimaryDishPhoto ? loadedDishPhotos.findIndex((url: string) => url === loadedPrimaryDishPhoto) : -1
+      setPrimaryDishIndex(loadedPrimaryIndex >= 0 ? loadedPrimaryIndex : 0)
 
       const { data: menusData } = await supabase
         .from('menus')
@@ -698,12 +701,11 @@ export default function ChefFormPage() {
       }
 
       const uploadedDishPhotos = await uploadDishPhotos(dishPhotoFiles, tempId)
-      const mergedDishPhotos = [...currentDishPhotos, ...uploadedDishPhotos].slice(0, 3)
-      const dishPhotos = [...mergedDishPhotos]
-      if (dishPhotos.length > 1 && primaryDishIndex >= 0 && primaryDishIndex < dishPhotos.length) {
-        const [primaryPhoto] = dishPhotos.splice(primaryDishIndex, 1)
-        dishPhotos.unshift(primaryPhoto)
-      }
+      const dishPhotos = [...currentDishPhotos, ...uploadedDishPhotos].slice(0, 3)
+      const selectedPrimaryDishPhoto =
+        dishPhotos.length > 0 && primaryDishIndex >= 0 && primaryDishIndex < dishPhotos.length
+          ? dishPhotos[primaryDishIndex]
+          : dishPhotos[0] || null
 
       let resolvedAddress = formData.address.trim() || null
       let resolvedCity = formData.city.trim() || null
@@ -765,6 +767,7 @@ export default function ChefFormPage() {
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
         dish_photos: dishPhotos,
+        primary_dish_photo: selectedPrimaryDishPhoto,
         profile_picture: profilePictureUrl,
         menus,
       }

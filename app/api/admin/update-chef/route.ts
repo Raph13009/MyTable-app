@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       cuisine_style,
       cuisine_style_en,
       info_link_xx,
+      primary_dish_photo,
       availability_radius_km,
       dish_photos,
       min_guests,
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
     const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
     const normalizedInfoLinkXx = typeof info_link_xx === 'string' ? info_link_xx.trim() : ''
+    const normalizedPrimaryDishPhoto = typeof primary_dish_photo === 'string' ? primary_dish_photo.trim() : ''
     const normalizedAddress = typeof address === 'string' ? address.trim() : ''
     const parsedLatitude = latitude === null || latitude === undefined || latitude === ''
       ? null
@@ -92,6 +94,10 @@ export async function POST(request: NextRequest) {
           .filter((url: string) => url.length > 0)
           .slice(0, 3)
       : []
+    const safePrimaryDishPhoto =
+      normalizedPrimaryDishPhoto && normalizedDishPhotos.includes(normalizedPrimaryDishPhoto)
+        ? normalizedPrimaryDishPhoto
+        : normalizedDishPhotos[0] || null
     const normalizedMinGuests = min_guests === null || min_guests === undefined || min_guests === ''
       ? null
       : Number.parseInt(String(min_guests), 10)
@@ -143,6 +149,7 @@ export async function POST(request: NextRequest) {
         cuisine_style: normalizedCuisineStyle || null,
         cuisine_style_en: normalizedCuisineStyleEn || null,
         info_link_xx: normalizedInfoLinkXx || null,
+        primary_dish_photo: safePrimaryDishPhoto,
         availability_radius_km: normalizedAvailabilityRadiusKm,
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,

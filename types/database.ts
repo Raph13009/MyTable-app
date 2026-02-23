@@ -25,6 +25,7 @@ export interface Database {
           cuisine_style: string | null
           cuisine_style_en: string | null
           info_link_xx: string | null
+          primary_dish_photo: string | null
           availability_radius_km: number
           dish_photos: string[] | null
           min_guests: number | null
@@ -47,6 +48,7 @@ export interface Database {
           cuisine_style?: string | null
           cuisine_style_en?: string | null
           info_link_xx?: string | null
+          primary_dish_photo?: string | null
           availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
@@ -69,6 +71,7 @@ export interface Database {
           cuisine_style?: string | null
           cuisine_style_en?: string | null
           info_link_xx?: string | null
+          primary_dish_photo?: string | null
           availability_radius_km?: number
           dish_photos?: string[] | null
           min_guests?: number | null
