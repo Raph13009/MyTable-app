@@ -44,10 +44,10 @@ export default async function ExploreRegionPage({ params }: ExploreRegionPagePro
         }
       })
       .filter((menu: { name: string; price: number } | null): menu is { name: string; price: number } => !!menu)
-    const minPricedMenu = pricedMenus.reduce<{ name: string; price: number } | null>((best, menu) => {
+    const minPricedMenu = pricedMenus.reduce((best: { name: string; price: number } | null, menu: { name: string; price: number }) => {
       if (!best) return menu
       return menu.price < best.price ? menu : best
-    }, null)
+    }, null as { name: string; price: number } | null)
     const dishPhotos = Array.isArray(row.dish_photos)
       ? row.dish_photos.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
       : []
