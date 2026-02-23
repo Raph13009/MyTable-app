@@ -19,8 +19,8 @@ const REGION_DIM_LAYER_ID = 'explore-region-dim-layer'
 const CHEF_RADIUS_SOURCE_ID = 'explore-chef-radius-source'
 const CHEF_RADIUS_FILL_LAYER_ID = 'explore-chef-radius-fill'
 const CHEF_RADIUS_STROKE_LAYER_ID = 'explore-chef-radius-stroke'
-const POPUP_WIDTH = 272
-const POPUP_HEIGHT = 276
+const POPUP_WIDTH = 234
+const POPUP_HEIGHT = 236
 const POPUP_MARGIN = 12
 const EUROPE_MAX_BOUNDS: [[number, number], [number, number]] = [
   [-12, 34],
@@ -373,6 +373,11 @@ export function ExploreMap({
     }, 90)
   }, [closePopup])
 
+  const closePinnedPopup = useCallback(() => {
+    popupPinnedRef.current = false
+    closePopup()
+  }, [closePopup])
+
   const validChefs = useMemo(
     () =>
       chefs.filter(
@@ -592,6 +597,12 @@ export function ExploreMap({
             event.stopPropagation()
 
             if (isMapModeRef.current) {
+              const isSamePinnedMarker =
+                popupPinnedRef.current && popupAnchorRef.current?.chefId === item.id
+              if (isSamePinnedMarker) {
+                closePinnedPopup()
+                return
+              }
               if (popupCloseTimerRef.current) {
                 clearTimeout(popupCloseTimerRef.current)
                 popupCloseTimerRef.current = null
@@ -841,8 +852,12 @@ export function ExploreMap({
     map.on('zoomend', refreshUnclusteredMarkers)
     map.on('zoomend', emitVisibleChefsInBounds)
     map.on('zoom', updatePopupPosition)
-    map.on('click', closePopup)
-    map.on('dragstart', closePopup)
+    const onMapInteraction = () => {
+      if (popupPinnedRef.current) return
+      closePopup()
+    }
+    map.on('click', onMapInteraction)
+    map.on('dragstart', onMapInteraction)
     const onSourceData = (event: mapboxgl.MapSourceDataEvent) => {
       if (event.sourceId === SOURCE_ID) {
         refreshUnclusteredMarkers()
@@ -868,8 +883,8 @@ export function ExploreMap({
       map.off('zoomend', refreshUnclusteredMarkers)
       map.off('zoomend', emitVisibleChefsInBounds)
       map.off('zoom', updatePopupPosition)
-      map.off('click', closePopup)
-      map.off('dragstart', closePopup)
+      map.off('click', onMapInteraction)
+      map.off('dragstart', onMapInteraction)
       map.off('sourcedata', onSourceData)
       map.stop()
       try {
@@ -890,7 +905,7 @@ export function ExploreMap({
       }
       mapRef.current = null
     }
-  }, [closePopup, schedulePopupClose, token])
+  }, [closePinnedPopup, closePopup, schedulePopupClose, token])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1061,6 +1076,18 @@ export function ExploreMap({
           chef={popupChef}
           left={popupPosition.left}
           top={popupPosition.top}
+          onRequestClose={closePinnedPopup}
+          onCardClick={() => {
+            if (popupPinnedRef.current) {
+              closePinnedPopup()
+              return
+            }
+            popupPinnedRef.current = true
+            if (popupCloseTimerRef.current) {
+              clearTimeout(popupCloseTimerRef.current)
+              popupCloseTimerRef.current = null
+            }
+          }}
           onMouseEnter={() => {
             popupHoveredRef.current = true
             if (popupCloseTimerRef.current) {

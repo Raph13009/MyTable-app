@@ -10,6 +10,8 @@ interface ChefMapPopupProps {
   chef: ExploreChef
   left: number
   top: number
+  onRequestClose?: () => void
+  onCardClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
 }
@@ -24,7 +26,7 @@ function formatChefNameWithPrefix(name: string): string {
   return firstName ? `Chef ${firstName}` : 'Chef'
 }
 
-export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
+export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -32,11 +34,13 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
     t('explore.signatureCuisine')
   const infoHref = chef.infoLinkXx
   const displayChefName = formatChefNameWithPrefix(chef.name)
+  const backgroundImage = chef.heroImage || chef.image
+  const avatarImage = chef.avatarImage || chef.image || chef.heroImage
 
   useEffect(() => {
     let cancelled = false
 
-    if (!chef.image) {
+    if (!backgroundImage) {
       setIsDarkBackground(false)
       return
     }
@@ -44,7 +48,7 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
     const image = new Image()
     image.crossOrigin = 'anonymous'
     image.referrerPolicy = 'no-referrer'
-    image.src = chef.image
+    image.src = backgroundImage
 
     image.onload = () => {
       if (cancelled) return
@@ -91,18 +95,22 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
     return () => {
       cancelled = true
     }
-  }, [chef.image])
+  }, [backgroundImage])
 
   return (
     <article
-      className="pointer-events-auto absolute z-30 h-[276px] w-[272px] overflow-hidden rounded-[24px] border border-white/65 bg-[#EDEDED] shadow-[0_18px_40px_rgba(0,0,0,0.20)] animate-map-popup-enter"
+      className="pointer-events-auto absolute z-30 h-[236px] w-[234px] overflow-hidden rounded-[20px] border border-white/65 bg-[#EDEDED] shadow-[0_16px_34px_rgba(0,0,0,0.20)] animate-map-popup-enter"
       style={{ left, top }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onClick={(event) => {
+        event.stopPropagation()
+        onCardClick?.()
+      }}
     >
       <div className="relative h-full w-full overflow-hidden">
-        {chef.image ? (
-          <img src={chef.image} alt={displayChefName} className="h-full w-full object-cover" />
+        {backgroundImage ? (
+          <img src={backgroundImage} alt={displayChefName} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">{t('explore.photoUnavailable')}</div>
         )}
@@ -115,24 +123,46 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
         {isDarkBackground && (
           <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 h-[33%] rounded-[18px] bg-[radial-gradient(circle_at_50%_60%,rgba(255,255,255,0.15)_0%,rgba(255,255,255,0)_72%)]" />
         )}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onRequestClose?.()
+          }}
+          className="absolute left-2.5 top-2.5 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/85 bg-white/80 text-[#121212] ring-1 ring-black/20 shadow-[0_2px_10px_rgba(0,0,0,0.28)] backdrop-blur-md"
+          aria-label={locale === 'en' ? 'Close card' : 'Fermer la fiche'}
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+          </svg>
+        </button>
         <div className="absolute right-2.5 top-2.5 z-20">
-          <ChefInfoButton chefName={chef.name} href={infoHref} />
+          <ChefInfoButton
+            chefName={chef.name}
+            href={infoHref}
+            className="border-white/85 bg-white/80 text-[#121212] ring-1 ring-black/20 shadow-[0_2px_10px_rgba(0,0,0,0.28)] backdrop-blur-md hover:bg-white/92"
+          />
         </div>
         <div
-          className={`absolute inset-x-2.5 bottom-2.5 rounded-[18px] border px-3.5 pb-2.5 pt-2.5 backdrop-blur-[22px] ${
+          className={`absolute inset-x-2.5 bottom-2.5 rounded-[16px] border px-3 pb-2 pt-2 backdrop-blur-[22px] ${
             isDarkBackground
               ? 'border-white/78 bg-white/55 [filter:brightness(1.1)_contrast(1.05)_saturate(1.02)]'
               : 'border-white/70 bg-white/35'
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <h3
-              className={`truncate text-[15px] leading-tight text-[#0F0F0F] ${
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="h-6 w-6 overflow-hidden rounded-full border border-white/80 bg-white/70">
+                {avatarImage ? <img src={avatarImage} alt={displayChefName} className="h-full w-full object-cover" /> : null}
+              </div>
+              <h3
+                className={`truncate text-[13px] leading-tight text-[#0F0F0F] ${
                 isDarkBackground ? 'font-bold [text-shadow:0_1px_2px_rgba(255,255,255,0.25)]' : 'font-semibold [text-shadow:0_1px_0_rgba(255,255,255,0.35)]'
-              }`}
-            >
-              {displayChefName}
-            </h3>
+                }`}
+              >
+                {displayChefName}
+              </h3>
+            </div>
             <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#34C759] text-[10px] font-bold text-white">
               ✓
             </span>

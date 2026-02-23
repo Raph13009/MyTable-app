@@ -188,7 +188,11 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
           </div>
         )}
         <div className="absolute right-2.5 top-2.5 z-20">
-          <ChefInfoButton chefName={chef.name} href={infoHref} />
+          <ChefInfoButton
+            chefName={chef.name}
+            href={infoHref}
+            className="border-white/85 bg-white/80 text-[#121212] ring-1 ring-black/20 shadow-[0_2px_10px_rgba(0,0,0,0.28)] backdrop-blur-md hover:bg-white/92"
+          />
         </div>
         <div
           className={`absolute inset-x-2.5 bottom-2.5 rounded-[18px] border px-3.5 pb-2.5 pt-2.5 backdrop-blur-[22px] ${

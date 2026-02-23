@@ -18,10 +18,7 @@ const messages: Record<Locale, Messages> = {
  * t('common.loading') => "Chargement..." (fr) or "Loading..." (en)
  */
 export function useTranslation() {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === 'undefined') return 'fr'
-    return detectBrowserLocale()
-  })
+  const [locale, setLocaleState] = useState<Locale>('fr')
 
   // Sync with localStorage changes (from other tabs) and custom events (same tab)
   useEffect(() => {
@@ -29,6 +26,9 @@ export function useTranslation() {
       const newLocale = detectBrowserLocale()
       setLocaleState(newLocale)
     }
+
+    // Ensure client locale is applied after hydration to avoid SSR/client mismatch.
+    handleLocaleChange()
 
     // Écouter les changements de localStorage (autres onglets)
     window.addEventListener('storage', handleLocaleChange)
