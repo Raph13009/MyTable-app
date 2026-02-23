@@ -167,6 +167,31 @@ function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
     try {
       const currentTextField = map.getLayoutProperty(layer.id, 'text-field')
       if (!currentTextField) return
+      const isMarineLabelLayer = layer.id.includes('marine')
+
+      if (locale === 'fr' && isMarineLabelLayer) {
+        map.setLayoutProperty(layer.id, 'text-field', [
+          'coalesce',
+          ['get', 'name_fr'],
+          [
+            'match',
+            ['coalesce', ['get', 'name_en'], ['get', 'name'], ''],
+            'English Channel', 'Manche',
+            'Bay of Biscay', 'Golfe de Gascogne',
+            'Celtic Sea', 'Mer Celtique',
+            'North Sea', 'Mer du Nord',
+            'Mediterranean Sea', 'Mer Mediterranee',
+            'Tyrrhenian Sea', 'Mer Tyrrhenienne',
+            'Ligurian Sea', 'Mer Ligure',
+            'Alboran Sea', "Mer d'Alboran",
+            'Atlantic Ocean', 'Ocean Atlantique',
+            'Strait of Gibraltar', 'Detroit de Gibraltar',
+            ['coalesce', ['get', 'name'], ['get', 'name_en'], currentTextField as any],
+          ],
+          currentTextField as any,
+        ])
+        return
+      }
 
       map.setLayoutProperty(layer.id, 'text-field', [
         'coalesce',
