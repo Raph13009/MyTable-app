@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     const {
       slug,
       name,
+      last_name,
       email,
       phone,
       address,
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
     const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
     const normalizedInfoLinkXx = typeof info_link_xx === 'string' ? info_link_xx.trim() : ''
     const normalizedPrimaryDishPhoto = typeof primary_dish_photo === 'string' ? primary_dish_photo.trim() : ''
+    const normalizedLastName = typeof last_name === 'string' ? last_name.trim() : ''
     const normalizedAddress = typeof address === 'string' ? address.trim() : ''
     const parsedLatitude = latitude === null || latitude === undefined || latitude === ''
       ? null
@@ -137,6 +139,7 @@ export async function POST(request: NextRequest) {
       .insert({
         slug,
         name,
+        last_name: normalizedLastName || null,
         email: email.toLowerCase().trim(),
         phone: phone || null,
         address: normalizedAddress || null,

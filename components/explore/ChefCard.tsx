@@ -32,6 +32,11 @@ function formatGuestsRange(minGuests: number | null, maxGuests: number | null, l
   return locale === 'en' ? 'Guests not specified' : 'Convives non precises'
 }
 
+function formatChefNameWithPrefix(name: string): string {
+  const firstName = (name || '').trim().split(/\s+/)[0] || ''
+  return firstName ? `Chef ${firstName}` : 'Chef'
+}
+
 export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = false, onMountRef }: ChefCardProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
@@ -46,6 +51,7 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
   const infoHref = chef.infoLinkXx
   const mobileHeroImage = chef.heroImage || chef.image
   const mobileAvatarImage = chef.avatarImage || chef.image || chef.heroImage
+  const displayChefName = formatChefNameWithPrefix(chef.name)
 
   useEffect(() => {
     let cancelled = false
@@ -116,7 +122,7 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
         <div className="relative w-full">
           <div className="h-[130px] w-full overflow-hidden rounded-t-xl bg-[#EFEFEF]">
             {mobileHeroImage ? (
-              <img src={mobileHeroImage} alt={chef.name} className="h-full w-full object-cover" />
+              <img src={mobileHeroImage} alt={displayChefName} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
                 {t('explore.photoUnavailable')}
@@ -125,17 +131,17 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
           </div>
           <div className="absolute bottom-[-16px] left-3 z-10 h-11 w-11 overflow-hidden rounded-full border border-white/90 bg-[#F3F3F3] shadow-[0_3px_8px_rgba(0,0,0,0.12)]">
             {mobileAvatarImage ? (
-              <img src={mobileAvatarImage} alt={chef.name} className="h-full w-full object-cover" />
+              <img src={mobileAvatarImage} alt={displayChefName} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[#727272]">
-                {chef.name.slice(0, 1).toUpperCase()}
+                {displayChefName.slice(0, 1).toUpperCase()}
               </div>
             )}
           </div>
         </div>
         <div className="rounded-b-xl bg-white px-3.5 pb-3 pt-6">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate pr-2 text-base font-semibold leading-tight text-[#111111]">{chef.name}</h3>
+            <h3 className="truncate pr-2 text-base font-semibold leading-tight text-[#111111]">{displayChefName}</h3>
             <ChefInfoButton chefName={chef.name} href={infoHref} />
           </div>
           <div className="mt-2 flex items-center gap-1.5">
@@ -161,7 +167,7 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
 
       <div className="relative hidden h-full w-full overflow-hidden md:block">
         {chef.image ? (
-          <img src={chef.image} alt={chef.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+          <img src={chef.image} alt={displayChefName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
             {t('explore.photoUnavailable')}
@@ -197,7 +203,7 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
                 isDarkBackground ? 'font-bold [text-shadow:0_1px_2px_rgba(255,255,255,0.25)]' : 'font-semibold [text-shadow:0_1px_0_rgba(255,255,255,0.35)]'
               }`}
             >
-              {chef.name}
+              {displayChefName}
             </h3>
             <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#34C759] text-[10px] font-bold text-white">
               ✓

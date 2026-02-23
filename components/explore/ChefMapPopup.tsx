@@ -19,6 +19,11 @@ function formatPrice(price: number | null): string {
   return `${Math.round(price)}€`
 }
 
+function formatChefNameWithPrefix(name: string): string {
+  const firstName = (name || '').trim().split(/\s+/)[0] || ''
+  return firstName ? `Chef ${firstName}` : 'Chef'
+}
+
 export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
@@ -26,6 +31,7 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
     (locale === 'en' ? chef.cuisineTypeEn || chef.cuisineType : chef.cuisineType || chef.cuisineTypeEn) ||
     t('explore.signatureCuisine')
   const infoHref = chef.infoLinkXx
+  const displayChefName = formatChefNameWithPrefix(chef.name)
 
   useEffect(() => {
     let cancelled = false
@@ -96,7 +102,7 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
     >
       <div className="relative h-full w-full overflow-hidden">
         {chef.image ? (
-          <img src={chef.image} alt={chef.name} className="h-full w-full object-cover" />
+          <img src={chef.image} alt={displayChefName} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">{t('explore.photoUnavailable')}</div>
         )}
@@ -125,7 +131,7 @@ export function ChefMapPopup({ chef, left, top, onMouseEnter, onMouseLeave }: Ch
                 isDarkBackground ? 'font-bold [text-shadow:0_1px_2px_rgba(255,255,255,0.25)]' : 'font-semibold [text-shadow:0_1px_0_rgba(255,255,255,0.35)]'
               }`}
             >
-              {chef.name}
+              {displayChefName}
             </h3>
             <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#34C759] text-[10px] font-bold text-white">
               ✓

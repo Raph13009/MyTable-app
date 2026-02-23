@@ -14,6 +14,7 @@ export interface Database {
           id: string
           slug: string
           name: string
+          last_name: string | null
           email: string
           phone: string | null
           address: string | null
@@ -37,6 +38,7 @@ export interface Database {
           id?: string
           slug: string
           name: string
+          last_name?: string | null
           email: string
           phone?: string | null
           address?: string | null
@@ -60,6 +62,7 @@ export interface Database {
           id?: string
           slug?: string
           name?: string
+          last_name?: string | null
           email?: string
           phone?: string | null
           address?: string | null

@@ -92,6 +92,7 @@ export default function ChefFormPage() {
   const [activeSection, setActiveSection] = useState<AdminSection>('informations')
   const [formData, setFormData] = useState({
     name: '',
+    last_name: '',
     email: '',
     emailConfirm: '',
     phone: '',
@@ -378,6 +379,7 @@ export default function ChefFormPage() {
       const chefData = chef as any
       setFormData({
         name: chefData.name || '',
+        last_name: chefData.last_name || '',
         email: chefData.email || '',
         emailConfirm: chefData.email || '',
         phone: chefData.phone || '',
@@ -652,7 +654,7 @@ export default function ChefFormPage() {
     if (isSubmittingRef.current) return
     isSubmittingRef.current = true
 
-    if (formData.email !== formData.emailConfirm) {
+    if (!isEditing && formData.email !== formData.emailConfirm) {
       showToast('Les emails ne correspondent pas', 'error')
       isSubmittingRef.current = false
       return
@@ -753,6 +755,7 @@ export default function ChefFormPage() {
       const payload = {
         slug,
         name: formData.name,
+        last_name: formData.last_name.trim() || null,
         email: formData.email.toLowerCase().trim(),
         phone: formData.phone || null,
         address: resolvedAddress,
@@ -929,13 +932,23 @@ export default function ChefFormPage() {
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Informations</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Nom du chef</label>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Prénom</label>
                     <input
                       type="text"
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ex: Jean Dupont"
+                      placeholder="Ex: Jean"
+                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Nom de famille</label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      placeholder="Ex: Dupont"
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
                   </div>
@@ -960,17 +973,19 @@ export default function ChefFormPage() {
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Confirmer email</label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.emailConfirm}
-                      onChange={(e) => setFormData({ ...formData, emailConfirm: e.target.value })}
-                      placeholder="chef@example.com"
-                      className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
-                    />
-                  </div>
+                  {!isEditing && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Confirmer email</label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.emailConfirm}
+                        onChange={(e) => setFormData({ ...formData, emailConfirm: e.target.value })}
+                        placeholder="chef@example.com"
+                        className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Style de cuisine</label>
                     <input
