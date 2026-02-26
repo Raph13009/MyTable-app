@@ -75,3 +75,11 @@ export function getRegionByCode(code: string | null | undefined): RegionMeta | n
   if (!code) return null
   return REGIONS_FRANCE_METRO.find((region) => region.code === code) || null
 }
+
+/** Chef availability radius in km. Must match ExploreMap yellow circle. */
+const CHEF_AVAILABILITY_RADIUS_ALLOWED = [25, 50, 75, 100, 125, 150, 200] as const
+
+export function getChefAvailabilityRadiusKm(chef: { availabilityRadiusKm?: number | null } | null | undefined): number {
+  const raw = typeof chef?.availabilityRadiusKm === 'number' ? chef.availabilityRadiusKm : 25
+  return (CHEF_AVAILABILITY_RADIUS_ALLOWED as readonly number[]).includes(raw) ? raw : 25
+}

@@ -6,7 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { X } from 'lucide-react'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ExploreChef } from './types'
-import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getRegionBySlug } from '@/lib/regions'
+import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm, getRegionBySlug } from '@/lib/regions'
 import type { Locale } from '@/lib/i18n'
 
 const SOURCE_ID = 'chefs'
@@ -465,11 +465,6 @@ function ensureGlobalAbortSuppression() {
 
   window.addEventListener('unhandledrejection', onUnhandledRejection, { capture: true })
   window.addEventListener('error', onWindowError, { capture: true })
-}
-
-function getChefAvailabilityRadiusKm(chef: ExploreChef | null | undefined): number {
-  const raw = typeof chef?.availabilityRadiusKm === 'number' ? chef.availabilityRadiusKm : 25
-  return [25, 50, 75, 100, 125, 150, 200].includes(raw) ? raw : 25
 }
 
 function buildRadiusPolygon(

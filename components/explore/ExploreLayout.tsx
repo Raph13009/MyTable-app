@@ -7,7 +7,7 @@ import { ArrowLeft, X } from 'lucide-react'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
-import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox } from '@/lib/regions'
+import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
 import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
 
@@ -146,14 +146,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     const [targetLng, targetLat] = searchPin.center
     const ids = new Set<string>()
 
+    const EPSILON_KM = 0.1
     sortedChefs.forEach((chef) => {
       if (typeof chef.latitude !== 'number' || typeof chef.longitude !== 'number') return
-      const radiusKm =
-        typeof chef.availabilityRadiusKm === 'number' && Number.isFinite(chef.availabilityRadiusKm) && chef.availabilityRadiusKm > 0
-          ? chef.availabilityRadiusKm
-          : 10
+      const radiusKm = getChefAvailabilityRadiusKm(chef)
       const distance = distanceKm(chef.latitude, chef.longitude, targetLat, targetLng)
-      if (distance > radiusKm) ids.add(chef.id)
+      if (distance > radiusKm + EPSILON_KM) ids.add(chef.id)
     })
 
     return ids
@@ -166,13 +164,26 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return mapDataChefs.filter((chef) => visibleSet.has(chef.id))
   }, [mapDataChefs, mapVisibleChefIds, searchPin])
 
+  const orderedVisibleChefs = useMemo(() => {
+    if (!searchPin || outOfRangeChefIds.size === 0) return visibleChefs
+    const inRange: typeof visibleChefs = []
+    const outOfRange: typeof visibleChefs = []
+    visibleChefs.forEach((chef) => {
+      if (outOfRangeChefIds.has(chef.id)) outOfRange.push(chef)
+      else inRange.push(chef)
+    })
+    inRange.sort((a, b) => a.name.localeCompare(b.name, locale))
+    outOfRange.sort((a, b) => a.name.localeCompare(b.name, locale))
+    return [...inRange, ...outOfRange]
+  }, [visibleChefs, searchPin, outOfRangeChefIds, locale])
+
   const mobileListChefs = useMemo(() => {
-    if (!isMobile || !pinnedChefId) return visibleChefs
-    const pinned = visibleChefs.find((c) => c.id === pinnedChefId)
-    if (!pinned) return visibleChefs
-    const rest = visibleChefs.filter((c) => c.id !== pinnedChefId)
+    if (!isMobile || !pinnedChefId) return orderedVisibleChefs
+    const pinned = orderedVisibleChefs.find((c) => c.id === pinnedChefId)
+    if (!pinned) return orderedVisibleChefs
+    const rest = orderedVisibleChefs.filter((c) => c.id !== pinnedChefId)
     return [pinned, ...rest]
-  }, [isMobile, pinnedChefId, visibleChefs])
+  }, [isMobile, pinnedChefId, orderedVisibleChefs])
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
@@ -779,7 +790,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   }`}
                 >
                   <ChefList
-                    chefs={visibleChefs}
+                    chefs={orderedVisibleChefs}
                     onChefHover={handleChefHover}
                     highlightedChefId={selectedChefId}
                     outOfRangeChefIds={outOfRangeChefIds}
