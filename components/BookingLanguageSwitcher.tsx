@@ -5,7 +5,12 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from '@/hooks/useTranslation'
 import { type Locale } from '@/lib/i18n'
 
-export default function BookingLanguageSwitcher() {
+interface BookingLanguageSwitcherProps {
+  /** Variante blanche plus visible (explore2 embedded) */
+  variant?: 'default' | 'embedded'
+}
+
+export default function BookingLanguageSwitcher({ variant = 'default' }: BookingLanguageSwitcherProps) {
   const { locale, changeLocale } = useTranslation()
   const [isLangOpen, setIsLangOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -69,13 +74,19 @@ export default function BookingLanguageSwitcher() {
       <button
         ref={langButtonRef}
         onClick={() => setIsLangOpen(!isLangOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-black/5 hover:bg-black/10 active:bg-black/15 border border-black/10 hover:border-black/20 transition-all duration-200 touch-manipulation group min-h-[32px] sm:min-h-[36px]"
+        className={`flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full transition-all duration-200 touch-manipulation group min-h-[32px] sm:min-h-[36px] ${
+          variant === 'embedded'
+            ? 'bg-white border border-[#E0E0E0] shadow-[0_2px_10px_rgba(0,0,0,0.08)] hover:bg-white hover:border-[#D0D0D0] active:bg-[#F8F8F8]'
+            : 'bg-black/5 hover:bg-black/10 active:bg-black/15 border border-black/10 hover:border-black/20'
+        }`}
         aria-label="Select language"
         aria-expanded={isLangOpen}
         aria-haspopup="true"
       >
         <svg
-          className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black/70 group-hover:text-black transition-colors flex-shrink-0"
+          className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-colors flex-shrink-0 ${
+            variant === 'embedded' ? 'text-[#1A1A1A] group-hover:text-black' : 'text-black/70 group-hover:text-black'
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -83,11 +94,17 @@ export default function BookingLanguageSwitcher() {
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
         </svg>
-        <span className="text-xs sm:text-sm font-medium text-black/80 group-hover:text-black transition-colors">
+        <span
+          className={`text-xs sm:text-sm font-medium transition-colors ${
+            variant === 'embedded' ? 'text-[#1A1A1A] group-hover:text-black' : 'text-black/80 group-hover:text-black'
+          }`}
+        >
           {currentLanguage.label}
         </span>
         <svg
-          className={`w-2.5 h-2.5 sm:w-3 sm:h-3 text-black/60 group-hover:text-black/80 transition-all duration-200 flex-shrink-0 ${
+          className={`w-2.5 h-2.5 sm:w-3 sm:h-3 transition-all duration-200 flex-shrink-0 ${
+            variant === 'embedded' ? 'text-[#333333] group-hover:text-black' : 'text-black/60 group-hover:text-black/80'
+          } ${
             isLangOpen ? 'rotate-180' : ''
           }`}
           fill="none"

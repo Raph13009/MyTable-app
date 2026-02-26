@@ -22,6 +22,7 @@
   },
   "explore": {
     "searchPlaceholder": "Inscrivez l'adresse du lieu de l'évènement",
+    "searchPlaceholderEmbedded": "Adresse de l'événement",
     "searchLoading": "Recherche...",
     "resetRegion": "Réinitialiser la région",
     "resetPin": "Réinitialiser",

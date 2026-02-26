@@ -705,7 +705,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   }}
                   onFocus={() => setIsSearchOpen(true)}
                   onTouchStart={() => setIsSearchOpen(true)}
-                  placeholder={t('explore.searchPlaceholder')}
+                  placeholder={embedded ? t('explore.searchPlaceholderEmbedded') : t('explore.searchPlaceholder')}
                   className={`w-full flex-1 min-w-0 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
                 />
                 {searchPin && (
@@ -724,7 +724,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               </form>
               {embedded && (
                 <div className="shrink-0">
-                  <BookingLanguageSwitcher />
+                  <BookingLanguageSwitcher variant="embedded" />
                 </div>
               )}
             </div>
