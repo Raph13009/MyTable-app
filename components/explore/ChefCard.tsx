@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useRouter } from 'next/navigation'
+import { useProfileNavigation } from '@/hooks/useProfileNavigation'
 
 interface ChefCardProps {
   chef: ExploreChef
@@ -13,6 +13,8 @@ interface ChefCardProps {
   onMountRef?: (chefId: string, element: HTMLElement | null) => void
   onChefNameClick?: (chefId: string) => void
   forceMobileStyle?: boolean
+  /** When true, profile links break out of iframe (window.top) for full-screen navigation */
+  breakOutOfIframe?: boolean
 }
 
 function formatPrice(price: number | null): string {
@@ -51,8 +53,9 @@ export function ChefCard({
   onMountRef,
   onChefNameClick,
   forceMobileStyle = false,
+  breakOutOfIframe = false,
 }: ChefCardProps) {
-  const router = useRouter()
+  const navigateToProfile = useProfileNavigation(breakOutOfIframe)
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -195,7 +198,7 @@ export function ChefCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  router.push(infoHref)
+                  navigateToProfile(infoHref)
                 }}
                 className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
               >
@@ -266,7 +269,7 @@ export function ChefCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  router.push(infoHref)
+                  navigateToProfile(infoHref)
                 }}
                 className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
               >

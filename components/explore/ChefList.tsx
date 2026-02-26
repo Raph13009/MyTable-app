@@ -12,6 +12,8 @@ interface ChefListProps {
   onChefMountRef?: (chefId: string, element: HTMLElement | null) => void
   onChefNameClick?: (chefId: string) => void
   forceMobileCardStyle?: boolean
+  /** When true, profile links break out of iframe for full-screen navigation */
+  breakOutOfIframe?: boolean
 }
 
 export function ChefList({
@@ -22,6 +24,7 @@ export function ChefList({
   onChefMountRef,
   onChefNameClick,
   forceMobileCardStyle = false,
+  breakOutOfIframe = false,
 }: ChefListProps) {
   const { t } = useTranslation()
 
@@ -43,6 +46,7 @@ export function ChefList({
               onMountRef={onChefMountRef}
               onChefNameClick={onChefNameClick}
               forceMobileStyle={forceMobileCardStyle}
+              breakOutOfIframe={breakOutOfIframe}
             />
           ))
         )}

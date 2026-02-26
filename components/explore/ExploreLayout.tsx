@@ -792,6 +792,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
                     forceMobileCardStyle
+                    breakOutOfIframe={embedded}
                   />
                   <div className="h-[42vh]" aria-hidden />
                 </div>
@@ -821,6 +822,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
                     forceMobileCardStyle
+                    breakOutOfIframe={embedded}
                   />
                 </div>
               </div>
