@@ -6,7 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { X } from 'lucide-react'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ExploreChef } from './types'
-import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm, getRegionBySlug } from '@/lib/regions'
+import { FRANCE_CENTER, FRANCE_ZOOM, EMBEDDED_FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm, getRegionBySlug } from '@/lib/regions'
 import type { Locale } from '@/lib/i18n'
 
 const SOURCE_ID = 'chefs'
@@ -193,6 +193,7 @@ interface ExploreMapProps {
   locale?: Locale
   isMapMode?: boolean
   isMobile?: boolean
+  embedded?: boolean
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
   searchViewport?: SearchViewport | null
@@ -511,6 +512,7 @@ export function ExploreMap({
   locale = 'fr',
   isMapMode = true,
   isMobile = false,
+  embedded = false,
   initialRegionBBox = null,
   focusedRegionSlug = null,
   searchViewport = null,
@@ -690,11 +692,12 @@ export function ExploreMap({
     let isDisposed = false
 
     mapboxgl.accessToken = token
+    const initialZoom = embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: FRANCE_CENTER,
-      zoom: FRANCE_ZOOM,
+      zoom: initialZoom,
       maxBounds: EUROPE_MAX_BOUNDS,
     })
     mapRef.current = map
@@ -1371,7 +1374,13 @@ export function ExploreMap({
   return (
     <div ref={containerRef} className="explore-map-shell relative h-full w-full">
       {!radiusInfoDismissed && (
-        <div className="pointer-events-none absolute left-1/2 top-20 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto">
+        <div
+          className={`pointer-events-none absolute z-10 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur ${
+            embedded
+              ? 'left-4 bottom-[14%] w-[min(calc(100%-2rem),320px)]'
+              : 'left-1/2 top-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto'
+          }`}
+        >
           <button
             type="button"
             onClick={() => {

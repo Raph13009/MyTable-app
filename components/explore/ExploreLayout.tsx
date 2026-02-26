@@ -7,7 +7,7 @@ import { ArrowLeft, X } from 'lucide-react'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
-import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
+import { FRANCE_CENTER, FRANCE_ZOOM, EMBEDDED_FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
 import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
 
@@ -15,6 +15,8 @@ interface ExploreLayoutProps {
   chefs: ExploreChef[]
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
+  /** Version embeddée : pas de header avec logo, barre de recherche compacte + bouton translate à droite */
+  embedded?: boolean
 }
 
 interface SearchSuggestion {
@@ -59,7 +61,9 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   return r * c
 }
 
-export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSlug: initialFocusedRegionSlug = null }: ExploreLayoutProps) {
+const EMBEDDED_BASE_PATH = '/explore2'
+
+export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSlug: initialFocusedRegionSlug = null, embedded = false }: ExploreLayoutProps) {
   const router = useRouter()
   const { t, locale } = useTranslation()
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
@@ -173,12 +177,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [visibleChefs, searchPin, outOfRangeChefIds, locale])
 
   const mobileListChefs = useMemo(() => {
-    if (!isMobile || !pinnedChefId) return orderedVisibleChefs
+    if ((!isMobile && !embedded) || !pinnedChefId) return orderedVisibleChefs
     const pinned = orderedVisibleChefs.find((c) => c.id === pinnedChefId)
     if (!pinned) return orderedVisibleChefs
     const rest = orderedVisibleChefs.filter((c) => c.id !== pinnedChefId)
     return [pinned, ...rest]
-  }, [isMobile, pinnedChefId, orderedVisibleChefs])
+  }, [isMobile, embedded, pinnedChefId, orderedVisibleChefs])
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
@@ -314,7 +318,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [locale, mapboxToken, searchQuery])
 
   const shouldShowMobileDropdown =
-    isMobile && isSearchOpen && (isSearchLoading || searchSuggestions.length > 0)
+    (isMobile || embedded) && isSearchOpen && (isSearchLoading || searchSuggestions.length > 0)
 
   useEffect(() => {
     if (!shouldShowMobileDropdown) {
@@ -352,7 +356,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const handleChefBubbleClick = (chefId: string) => {
     setPinnedChefId(chefId)
     setHoveredChefId(null)
-    if (isMobile) {
+    if (isMobile || embedded) {
       setMobileSheetSnap('mid')
       return
     }
@@ -398,7 +402,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       bbox: viewportBbox,
     })
     setMapVisibleChefIds(null)
-    router.replace('/explore')
+    router.replace(embedded ? EMBEDDED_BASE_PATH : '/explore')
   }
 
   const handleSearchSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -439,11 +443,11 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setSearchViewport({
       key: `france-${Date.now()}`,
       center: FRANCE_CENTER,
-      zoom: FRANCE_ZOOM,
+      zoom: embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM,
       bbox: null,
     })
     setMapVisibleChefIds(null)
-    router.replace('/explore')
+    router.replace(embedded ? EMBEDDED_BASE_PATH : '/explore')
   }
 
   const handleResetSearchPin = () => {
@@ -455,7 +459,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setSearchViewport({
       key: `france-${Date.now()}`,
       center: FRANCE_CENTER,
-      zoom: FRANCE_ZOOM,
+      zoom: embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM,
       bbox: null,
     })
     setMapVisibleChefIds(null)
@@ -468,7 +472,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }
 
   const handleSheetPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isMobile) return
+    if (!isMobile && !embedded) return
     event.preventDefault()
     event.stopPropagation()
     sheetDragRef.current = {
@@ -527,9 +531,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
   const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('bottom') - 1
   const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
+  /** En embedded: toujours la vue mobile (depliant), pas de header */
+  const showMobileLayout = isMobile || embedded
 
   return (
     <main className={`h-[100dvh] w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
+      {!embedded && (
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[#EAEAEA] bg-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <div className="mx-auto flex h-[64px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:h-[84px] lg:px-8">
           {isMobile ? (
@@ -657,15 +664,17 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
           )}
         </div>
       </header>
+      )}
 
-      <section className="pt-[64px] lg:pt-[84px]">
-        {isMobile ? (
-          <div className="relative h-[calc(100dvh-64px)] w-full overflow-hidden">
+      <section className={embedded ? 'pt-0' : 'pt-[64px] lg:pt-[84px]'}>
+        {showMobileLayout ? (
+          <div className={`relative w-full overflow-hidden ${embedded ? 'h-[100dvh]' : 'h-[calc(100dvh-64px)]'}`}>
             <ExploreMap
               chefs={mapDataChefs}
               selectedChefId={selectedChefId}
               isMapMode
               isMobile
+              embedded={embedded}
               onChefHover={handleChefHover}
               onChefClick={handleChefBubbleClick}
               onSelectionClear={handleSelectionClear}
@@ -680,11 +689,11 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
             <div
               ref={searchContainerRef}
-              className="absolute left-4 right-4 top-4 z-30 md:hidden"
+              className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${embedded ? '' : 'md:hidden'}`}
             >
               <form
                 onSubmit={handleSearchSubmit}
-                className="relative flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+                className={`relative flex h-11 flex-1 min-w-0 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]`}
               >
                 <input
                   ref={mobileSearchInputRef}
@@ -697,7 +706,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   onFocus={() => setIsSearchOpen(true)}
                   onTouchStart={() => setIsSearchOpen(true)}
                   placeholder={t('explore.searchPlaceholder')}
-                  className={`w-full flex-1 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
+                  className={`w-full flex-1 min-w-0 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
                 />
                 {searchPin && (
                   <button
@@ -713,8 +722,13 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   </button>
                 )}
               </form>
+              {embedded && (
+                <div className="shrink-0">
+                  <BookingLanguageSwitcher />
+                </div>
+              )}
             </div>
-            {isMobile &&
+            {showMobileLayout &&
               mobileDropdownBounds &&
               createPortal(
                 <div
@@ -785,7 +799,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             </aside>
           </div>
         ) : (
-          <div className="h-[calc(100dvh-64px)] w-full overflow-hidden lg:h-[calc(100dvh-84px)]">
+          <div className={`w-full overflow-hidden ${embedded ? 'h-[calc(100dvh-52px)]' : 'h-[calc(100dvh-64px)] lg:h-[calc(100dvh-84px)]'}`}>
             <div className="relative h-full w-full">
               <div
                 className={`absolute inset-y-0 left-0 ${

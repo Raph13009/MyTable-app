@@ -20,6 +20,9 @@ export const FRANCE_MAX_BOUNDS: [[number, number], [number, number]] = [
 export const FRANCE_CENTER: [number, number] = [2.2137, 46.2276]
 export const FRANCE_ZOOM = 5.5
 
+/** Zoom plus dézoomé pour voir toute la France + Corse (format tablette/embedded) */
+export const EMBEDDED_FRANCE_ZOOM = 4.6
+
 export const REGIONS_FRANCE_METRO: RegionMeta[] = [
   { code: '11', name: 'Île-de-France', slug: 'ile-de-france', bbox: [1.44645, 48.12054, 3.55851, 49.24131] },
   { code: '24', name: 'Centre-Val de Loire', slug: 'centre-val-de-loire', bbox: [0.05297, 46.34719, 3.12857, 48.94105] },
