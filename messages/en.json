@@ -21,7 +21,7 @@
     "add": "Add"
   },
   "explore": {
-    "searchPlaceholder": "Enter your address here",
+    "searchPlaceholder": "Enter the event venue address",
     "searchLoading": "Searching...",
     "resetRegion": "Reset region",
     "resetPin": "Reset",
@@ -31,12 +31,14 @@
     "signatureCuisine": "Signature cuisine",
     "from": "From",
     "reserve": "Book this chef",
+    "viewProfile": "View profile",
     "collapseList": "Collapse list",
     "viewChef": "View {{name}}",
     "fallbackChefName": "Chef",
     "outOfRange": "Out of range",
     "noChefInArea": "No chef in this area",
     "overCount": "Over {{count}} {{label}}",
+    "chefsAvailableInZone": "{{count}} chefs available in this area",
     "chefSingular": "chef",
     "chefPlural": "chefs"
   },

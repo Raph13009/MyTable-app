@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { ReserveChefButton } from './ReserveChefButton'
-import { ChefInfoButton } from './ChefInfoButton'
+import { useRouter } from 'next/navigation'
 
 interface ChefCardProps {
   chef: ExploreChef
@@ -12,6 +11,8 @@ interface ChefCardProps {
   isHighlighted?: boolean
   isOutOfRange?: boolean
   onMountRef?: (chefId: string, element: HTMLElement | null) => void
+  onChefNameClick?: (chefId: string) => void
+  forceMobileStyle?: boolean
 }
 
 function formatPrice(price: number | null): string {
@@ -37,7 +38,16 @@ function formatChefNameWithPrefix(name: string): string {
   return firstName ? `Chef ${firstName}` : 'Chef'
 }
 
-export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = false, onMountRef }: ChefCardProps) {
+export function ChefCard({
+  chef,
+  onHover,
+  isHighlighted = false,
+  isOutOfRange = false,
+  onMountRef,
+  onChefNameClick,
+  forceMobileStyle = false,
+}: ChefCardProps) {
+  const router = useRouter()
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -108,17 +118,27 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
   return (
     <article
       ref={(element) => onMountRef?.(chef.id, element)}
-      className={`group relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ${
-        isOutOfRange ? 'opacity-[0.72] saturate-[0.65]' : ''
-      } ${
-        isHighlighted
-          ? 'ring-1 ring-[#DADADA] md:border-[#D4D4D4] md:shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
-          : 'md:border-[#ECECEC] md:shadow-[0_1px_6px_rgba(0,0,0,0.06)]'
-      } md:aspect-square md:rounded-[24px] md:bg-[#EDEDED] md:transition md:hover:-translate-y-0.5 md:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)]`}
+      className={
+        forceMobileStyle
+          ? `group relative overflow-hidden rounded-xl border bg-white shadow-sm transition ${
+              isOutOfRange ? 'opacity-[0.72] saturate-[0.65]' : ''
+            } ${
+              isHighlighted
+                ? 'border-[#D4D4D4] ring-1 ring-[#DADADA] shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
+                : 'border-[#ECECEC] shadow-[0_1px_6px_rgba(0,0,0,0.06)]'
+            }`
+          : `group relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ${
+              isOutOfRange ? 'opacity-[0.72] saturate-[0.65]' : ''
+            } ${
+              isHighlighted
+                ? 'ring-1 ring-[#DADADA] md:border-[#D4D4D4] md:shadow-[0_10px_24px_rgba(0,0,0,0.14)]'
+                : 'md:border-[#ECECEC] md:shadow-[0_1px_6px_rgba(0,0,0,0.06)]'
+            } md:aspect-square md:rounded-[24px] md:bg-[#EDEDED] md:transition md:hover:-translate-y-0.5 md:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)]`
+      }
       onMouseEnter={() => onHover?.(chef.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="md:hidden">
+      <div className={forceMobileStyle ? '' : 'md:hidden'}>
         <div className="relative w-full">
           <div className="h-[130px] w-full overflow-hidden rounded-t-xl bg-[#EFEFEF]">
             {mobileHeroImage ? (
@@ -141,8 +161,16 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
         </div>
         <div className="rounded-b-xl bg-white px-3.5 pb-3 pt-6">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate pr-2 text-base font-semibold leading-tight text-[#111111]">{displayChefName}</h3>
-            <ChefInfoButton chefName={chef.name} href={infoHref} />
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onChefNameClick?.(chef.id)
+              }}
+              className="truncate pr-2 text-left text-base font-semibold leading-tight text-[#111111] hover:underline"
+            >
+              {displayChefName}
+            </button>
           </div>
           <div className="mt-2 flex items-center gap-1.5">
             <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#4E4E4E]">
@@ -157,15 +185,23 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
           <p className="mt-1.5 truncate text-sm font-semibold text-[#1F1F1F]">{priceLabel}</p>
           <div className="mt-1.5 flex items-end justify-between gap-2">
             <p className="text-sm text-gray-500">{guestsLabel}</p>
-            <ReserveChefButton
-              href={`/book/${chef.slug}`}
-              className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
-            />
+            {infoHref ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(infoHref)
+                }}
+                className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
+              >
+                {t('explore.viewProfile')}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
 
-      <div className="relative hidden h-full w-full overflow-hidden md:block">
+      <div className={forceMobileStyle ? 'hidden' : 'relative hidden h-full w-full overflow-hidden md:block'}>
         {chef.image ? (
           <img src={chef.image} alt={displayChefName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
@@ -187,13 +223,6 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
             {t('explore.outOfRange')}
           </div>
         )}
-        <div className="absolute right-2.5 top-2.5 z-20">
-          <ChefInfoButton
-            chefName={chef.name}
-            href={infoHref}
-            className="border-white/85 bg-white/80 text-[#121212] ring-1 ring-black/20 shadow-[0_2px_10px_rgba(0,0,0,0.28)] backdrop-blur-md hover:bg-white/92"
-          />
-        </div>
         <div
           className={`absolute inset-x-2.5 bottom-2.5 rounded-[18px] border px-3.5 pb-2.5 pt-2.5 backdrop-blur-[22px] ${
             isDarkBackground
@@ -226,10 +255,18 @@ export function ChefCard({ chef, onHover, isHighlighted = false, isOutOfRange = 
               <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">{t('explore.from')}</p>
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
             </div>
-            <ReserveChefButton
-              href={`/book/${chef.slug}`}
-              className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
-            />
+            {infoHref ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(infoHref)
+                }}
+                className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
+              >
+                {t('explore.viewProfile')}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

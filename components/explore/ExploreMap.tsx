@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { X } from 'lucide-react'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, RegionBBox, getRegionBySlug } from '@/lib/regions'
@@ -19,9 +20,22 @@ const REGION_DIM_LAYER_ID = 'explore-region-dim-layer'
 const CHEF_RADIUS_SOURCE_ID = 'explore-chef-radius-source'
 const CHEF_RADIUS_FILL_LAYER_ID = 'explore-chef-radius-fill'
 const CHEF_RADIUS_STROKE_LAYER_ID = 'explore-chef-radius-stroke'
-const POPUP_WIDTH = 234
-const POPUP_HEIGHT = 236
-const POPUP_MARGIN = 12
+const CHEF_SPIDER_LINES_SOURCE_ID = 'explore-chef-spider-lines'
+const CHEF_SPIDER_LINES_LAYER_ID = 'explore-chef-spider-lines-layer'
+
+/** Min zoom to apply pixel-based spiderfy (avoids recalculations when clustered) */
+const MIN_ZOOM_FOR_SPIDERFY = 7
+/** Markers within this pixel distance are grouped and spiderfied */
+const PIXEL_PROXIMITY_THRESHOLD = 28
+/** Minimum gap in pixels between bubble bounding boxes (no touching) */
+const MIN_BUBBLE_GAP_PX = 10
+/** Chef marker: padding 6px 14px, font 14px ~8.5px/char */
+const BUBBLE_PADDING_H = 28
+const BUBBLE_PADDING_V = 12
+const BUBBLE_CHAR_WIDTH = 8.5
+const BUBBLE_MIN_WIDTH = 70
+const BUBBLE_MAX_WIDTH = 200
+const BUBBLE_BASE_HEIGHT = 32
 const EUROPE_MAX_BOUNDS: [[number, number], [number, number]] = [
   [-12, 34],
   [32, 72],
@@ -155,6 +169,7 @@ interface ExploreMapProps {
   selectedChefId: string | null
   locale?: Locale
   isMapMode?: boolean
+  isMobile?: boolean
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
   searchViewport?: SearchViewport | null
@@ -163,6 +178,7 @@ interface ExploreMapProps {
   onChefHover?: (chefId: string | null) => void
   onChefClick?: (chefId: string) => void
   onVisibleChefIdsChange?: (chefIds: string[]) => void
+  onSelectionClear?: () => void
 }
 
 function formatChefNameWithPrefix(name: string, fallback = 'Chef'): string {
@@ -242,6 +258,141 @@ function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
       // Ignore unsupported symbol layers.
     }
   })
+}
+
+/** Estimate bubble size from display name (chef-marker CSS: 6px 14px padding, 14px font) */
+function estimateBubbleSize(displayName: string): { w: number; h: number } {
+  const textWidth = displayName.length * BUBBLE_CHAR_WIDTH
+  const w = Math.min(BUBBLE_MAX_WIDTH, Math.max(BUBBLE_MIN_WIDTH, BUBBLE_PADDING_H + textWidth))
+  return { w, h: BUBBLE_BASE_HEIGHT }
+}
+
+/** Check if two rects (center + half-size) overlap with required gap */
+function rectsOverlapWithGap(
+  cx1: number,
+  cy1: number,
+  w1: number,
+  h1: number,
+  cx2: number,
+  cy2: number,
+  w2: number,
+  h2: number,
+  gap: number
+): boolean {
+  const half = gap / 2
+  const l1 = cx1 - w1 / 2 - half
+  const r1 = cx1 + w1 / 2 + half
+  const t1 = cy1 - h1 / 2 - half
+  const b1 = cy1 + h1 / 2 + half
+  const l2 = cx2 - w2 / 2 - half
+  const r2 = cx2 + w2 / 2 + half
+  const t2 = cy2 - h2 / 2 - half
+  const b2 = cy2 + h2 / 2 + half
+  return !(r1 < l2 || l1 > r2 || b1 < t2 || t1 > b2)
+}
+
+/**
+ * Place bubbles around center using spiral candidate positions.
+ * Returns screen positions (px, py) for each item, ensuring MIN_BUBBLE_GAP_PX between all bubbles.
+ */
+function computeCollisionFreePositions(
+  centerX: number,
+  centerY: number,
+  items: Array<{ name: string }>,
+  formatName: (name: string) => string
+): Array<{ px: number; py: number }> {
+  if (items.length <= 1) {
+    return items.map(() => ({ px: centerX, py: centerY }))
+  }
+
+  const placed: Array<{ px: number; py: number; w: number; h: number }> = []
+  const R0 = 24
+  const dr = 10
+  const dtheta = Math.PI / 6
+  const maxR = 200
+
+  const withSize = items.map((item, origIndex) => ({
+    item,
+    origIndex,
+    ...estimateBubbleSize(formatName(item.name)),
+  }))
+  withSize.sort((a, b) => b.w - a.w)
+
+  for (const { w, h } of withSize) {
+    let found = false
+    for (let r = R0; r <= maxR && !found; r += dr) {
+      for (let t = 0; t < 2 * Math.PI && !found; t += dtheta) {
+        const px = centerX + r * Math.cos(t)
+        const py = centerY + r * Math.sin(t)
+
+        let collides = false
+        for (const p of placed) {
+          if (rectsOverlapWithGap(px, py, w, h, p.px, p.py, p.w, p.h, MIN_BUBBLE_GAP_PX)) {
+            collides = true
+            break
+          }
+        }
+
+        if (!collides) {
+          placed.push({ px, py, w, h })
+          found = true
+        }
+      }
+    }
+
+    if (!found) {
+      const fallbackR = R0 + (placed.length + 1) * 50
+      const fallbackT = (2 * Math.PI * placed.length) / Math.max(1, items.length)
+      placed.push({
+        px: centerX + fallbackR * Math.cos(fallbackT),
+        py: centerY + fallbackR * Math.sin(fallbackT),
+        w,
+        h,
+      })
+    }
+  }
+
+  const indexAtPlace = withSize.map((x) => x.origIndex)
+  return placed
+    .map((p, i) => ({ ...p, origIndex: indexAtPlace[i] }))
+    .sort((a, b) => a.origIndex - b.origIndex)
+    .map((p) => ({ px: p.px, py: p.py }))
+}
+
+/**
+ * Groups indices by pixel proximity (connected components).
+ * Returns array of groups; each group is array of indices into items.
+ */
+function groupByPixelProximity<T extends { screenX: number; screenY: number }>(
+  items: T[],
+  thresholdPx: number
+): number[][] {
+  const n = items.length
+  const parent = items.map((_, i) => i)
+  const find = (i: number): number => {
+    if (parent[i] !== i) parent[i] = find(parent[i])
+    return parent[i]
+  }
+  const union = (i: number, j: number) => {
+    const pi = find(i)
+    const pj = find(j)
+    if (pi !== pj) parent[pi] = pj
+  }
+  for (let i = 0; i < n; i += 1) {
+    for (let j = i + 1; j < n; j += 1) {
+      const dx = items[i].screenX - items[j].screenX
+      const dy = items[i].screenY - items[j].screenY
+      if (dx * dx + dy * dy <= thresholdPx * thresholdPx) union(i, j)
+    }
+  }
+  const byRoot = new Map<number, number[]>()
+  for (let i = 0; i < n; i += 1) {
+    const r = find(i)
+    const list = byRoot.get(r) ?? []
+    list.push(i)
+    byRoot.set(r, list)
+  }
+  return [...byRoot.values()]
 }
 
 function isAbortLikeError(value: unknown): boolean {
@@ -341,6 +492,7 @@ export function ExploreMap({
   selectedChefId,
   locale = 'fr',
   isMapMode = true,
+  isMobile = false,
   initialRegionBBox = null,
   focusedRegionSlug = null,
   searchViewport = null,
@@ -349,6 +501,7 @@ export function ExploreMap({
   onChefHover,
   onChefClick,
   onVisibleChefIdsChange,
+  onSelectionClear,
 }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -358,12 +511,14 @@ export function ExploreMap({
   const onChefHoverRef = useRef<ExploreMapProps['onChefHover']>(onChefHover)
   const onChefClickRef = useRef<ExploreMapProps['onChefClick']>(onChefClick)
   const onVisibleChefIdsChangeRef = useRef<ExploreMapProps['onVisibleChefIdsChange']>(onVisibleChefIdsChange)
+  const onSelectionClearRef = useRef<ExploreMapProps['onSelectionClear']>(onSelectionClear)
   const selectedChefIdRef = useRef<string | null>(selectedChefId)
   const initialRegionBBoxRef = useRef<RegionBBox | null>(initialRegionBBox)
   const focusedRegionCodeRef = useRef<string | null>(getRegionBySlug(focusedRegionSlug)?.code || null)
   const regionsGeojsonRef = useRef<GeoJSON.FeatureCollection<GeoJSON.Geometry, { code?: string }> | null>(null)
   const validChefsRef = useRef<ExploreChef[]>([])
   const isMapModeRef = useRef<boolean>(isMapMode)
+  const isMobileRef = useRef<boolean>(isMobile)
   const popupAnchorRef = useRef<PopupAnchor | null>(null)
   const popupPinnedRef = useRef<boolean>(false)
   const popupHoveredRef = useRef<boolean>(false)
@@ -375,13 +530,13 @@ export function ExploreMap({
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
-  const [popupPosition, setPopupPosition] = useState<{ left: number; top: number } | null>(null)
+  const [radiusInfoDismissed, setRadiusInfoDismissed] = useState(false)
   const radiusInfoTitle = locale === 'en' ? 'Chef travel area' : 'Zone de déplacement du chef'
   const radiusInfoText =
     locale === 'en'
       ? 'Inside the yellow radius, the chef usually travels. You can still request outside this area.'
       : 'Le chef se déplace généralement dans cette zone. Vous pouvez toutefois faire une demande hors zone et voir via la messagerie si cela convient au chef.'
-  const radiusTargetChefId = isMapMode ? activePopupChefId : selectedChefId
+  const radiusTargetChefId = selectedChefId
 
   const closePopup = useCallback(() => {
     if (popupCloseTimerRef.current) {
@@ -392,7 +547,6 @@ export function ExploreMap({
     popupPinnedRef.current = false
     popupHoveredRef.current = false
     setActivePopupChefId(null)
-    setPopupPosition(null)
   }, [])
 
   const schedulePopupClose = useCallback(() => {
@@ -407,6 +561,7 @@ export function ExploreMap({
 
   const closePinnedPopup = useCallback(() => {
     popupPinnedRef.current = false
+    onSelectionClearRef.current?.()
     closePopup()
   }, [closePopup])
 
@@ -464,7 +619,15 @@ export function ExploreMap({
   }, [onVisibleChefIdsChange])
 
   useEffect(() => {
+    onSelectionClearRef.current = onSelectionClear
+  }, [onSelectionClear])
+
+  useEffect(() => {
     selectedChefIdRef.current = selectedChefId
+  }, [selectedChefId])
+
+  useEffect(() => {
+    setRadiusInfoDismissed(false)
   }, [selectedChefId])
 
   useEffect(() => {
@@ -488,6 +651,10 @@ export function ExploreMap({
   }, [isMapMode])
 
   useEffect(() => {
+    isMobileRef.current = isMobile
+  }, [isMobile])
+
+  useEffect(() => {
     localeRef.current = locale
   }, [locale])
 
@@ -497,9 +664,9 @@ export function ExploreMap({
     isUnmountingRef.current = false
     const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
     const clusterRadiusExpression: any = isMobileViewport
-      ? ['step', ['get', 'point_count'], 30, 5, 35, 10, 44, 25, 55]
+      ? ['step', ['get', 'point_count'], 26, 5, 30, 10, 38, 25, 47]
       : ['step', ['get', 'point_count'], 34, 5, 40, 10, 50, 25, 62]
-    const clusterTextSize = isMobileViewport ? 15 : 17
+    const clusterTextSize = isMobileViewport ? 14 : 17
     const markerStore = markersRef.current
     const regionsFetchController = new AbortController()
     let isDisposed = false
@@ -530,42 +697,6 @@ export function ExploreMap({
       })
     }
 
-    const updatePopupPosition = () => {
-      const anchor = popupAnchorRef.current
-      if (!anchor || !containerRef.current) {
-        setPopupPosition(null)
-        return
-      }
-
-      const chef = validChefsRef.current.find((item) => item.id === anchor.chefId)
-      if (!chef || typeof chef.longitude !== 'number' || typeof chef.latitude !== 'number') {
-        setPopupPosition(null)
-        popupAnchorRef.current = null
-        setActivePopupChefId(null)
-        return
-      }
-
-      const point = map.project([anchor.lng, anchor.lat])
-      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-        return
-      }
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const minLeft = POPUP_MARGIN
-      const maxLeft = Math.max(POPUP_MARGIN, containerRect.width - POPUP_WIDTH - POPUP_MARGIN)
-      const left = Math.min(Math.max(point.x - POPUP_WIDTH / 2, minLeft), maxLeft)
-      const preferredTop = point.y - POPUP_HEIGHT - 18
-      const fallbackTop = point.y + 18
-      const top =
-        preferredTop >= POPUP_MARGIN
-          ? preferredTop
-          : Math.min(
-              fallbackTop,
-              Math.max(POPUP_MARGIN, containerRect.height - POPUP_HEIGHT - POPUP_MARGIN)
-            )
-
-      setPopupPosition({ left, top })
-    }
-
     const refreshUnclusteredMarkers = () => {
       if (!map.getSource(SOURCE_ID)) return
 
@@ -579,6 +710,10 @@ export function ExploreMap({
         name: string
         lng: number
         lat: number
+        displayLng: number
+        displayLat: number
+        screenX: number
+        screenY: number
         unavailableForSearch: boolean
       }> = []
 
@@ -595,7 +730,72 @@ export function ExploreMap({
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
         const unavailableForSearch = Number(feature.properties?.unavailableForSearch || 0) === 1
 
-        nextFeatures.push({ id, name, lng, lat, unavailableForSearch })
+        const projected = map.project([lng, lat])
+        const screenX = projected.x
+        const screenY = projected.y
+
+        nextFeatures.push({
+          id,
+          name,
+          lng,
+          lat,
+          displayLng: lng,
+          displayLat: lat,
+          screenX,
+          screenY,
+          unavailableForSearch,
+        })
+      }
+
+      const spiderLineFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = []
+      const zoom = map.getZoom()
+
+      if (zoom >= MIN_ZOOM_FOR_SPIDERFY && nextFeatures.length > 0) {
+        const groups = groupByPixelProximity(nextFeatures, PIXEL_PROXIMITY_THRESHOLD)
+
+        for (const indices of groups) {
+          if (indices.length <= 1) continue
+
+          const items = indices.map((i) => nextFeatures[i])
+          const centerX = items.reduce((s, p) => s + p.screenX, 0) / items.length
+          const centerY = items.reduce((s, p) => s + p.screenY, 0) / items.length
+          const centerLngLat = map.unproject([centerX, centerY])
+
+          const positions = computeCollisionFreePositions(
+            centerX,
+            centerY,
+            items,
+            (name) => formatChefNameWithPrefix(name, locale === 'en' ? 'Chef' : 'Chef')
+          )
+
+          for (let i = 0; i < items.length; i += 1) {
+            const { px, py } = positions[i]
+            const pos = map.unproject([px, py])
+
+            items[i].displayLng = pos.lng
+            items[i].displayLat = pos.lat
+
+            spiderLineFeatures.push({
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [centerLngLat.lng, centerLngLat.lat],
+                  [pos.lng, pos.lat],
+                ],
+              },
+            })
+          }
+        }
+      }
+
+      const spiderSource = map.getSource(CHEF_SPIDER_LINES_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+      if (spiderSource) {
+        spiderSource.setData({
+          type: 'FeatureCollection',
+          features: spiderLineFeatures,
+        })
       }
 
       markerStore.forEach(({ marker }, chefId) => {
@@ -622,9 +822,8 @@ export function ExploreMap({
               clearTimeout(popupCloseTimerRef.current)
               popupCloseTimerRef.current = null
             }
-            popupAnchorRef.current = { chefId: item.id, lng: item.lng, lat: item.lat }
+            popupAnchorRef.current = { chefId: item.id, lng: item.displayLng, lat: item.displayLat }
             setActivePopupChefId(item.id)
-            requestAnimationFrame(updatePopupPosition)
           })
           el.addEventListener('mouseleave', () => {
             onChefHoverRef.current?.(null)
@@ -634,6 +833,11 @@ export function ExploreMap({
             event.stopPropagation()
 
             if (isMapModeRef.current) {
+              if (isMobileRef.current) {
+                setActivePopupChefId(item.id)
+                onChefClickRef.current?.(item.id)
+                return
+              }
               const isSamePinnedMarker =
                 popupPinnedRef.current && popupAnchorRef.current?.chefId === item.id
               if (isSamePinnedMarker) {
@@ -647,16 +851,16 @@ export function ExploreMap({
               popupPinnedRef.current = true
               popupAnchorRef.current = {
                 chefId: item.id,
-                lng: item.lng,
-                lat: item.lat,
+                lng: item.displayLng,
+                lat: item.displayLat,
               }
               setActivePopupChefId(item.id)
-              requestAnimationFrame(updatePopupPosition)
+              onChefClickRef.current?.(item.id)
               return
             }
 
             map.flyTo({
-              center: [item.lng, item.lat],
+              center: [item.displayLng, item.displayLat],
               zoom: Math.max(13, map.getZoom()),
               duration: 700,
               essential: true,
@@ -665,7 +869,7 @@ export function ExploreMap({
           })
 
           const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([item.lng, item.lat])
+            .setLngLat([item.displayLng, item.displayLat])
             .addTo(map)
 
           markerStore.set(item.id, { marker, el })
@@ -678,7 +882,7 @@ export function ExploreMap({
           if (existing.el.textContent !== displayChefName) {
             existing.el.textContent = displayChefName
           }
-          existing.marker.setLngLat([item.lng, item.lat])
+          existing.marker.setLngLat([item.displayLng, item.displayLat])
         }
       })
 
@@ -791,23 +995,45 @@ export function ExploreMap({
         type: 'geojson',
         data: geojsonRef.current,
         cluster: true,
-        clusterMaxZoom: 8,
-        clusterRadius: 35,
+        clusterMaxZoom: 6,
+        clusterRadius: 20,
         promoteId: 'id',
       })
+
+      if (isMobileViewport) {
+        map.addLayer({
+          id: 'chefs-clusters-shadow',
+          type: 'circle',
+          source: SOURCE_ID,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': 'rgba(0,0,0,0.04)',
+            'circle-radius': ['+', clusterRadiusExpression, 3],
+            'circle-opacity': 1,
+          },
+        })
+      }
 
       map.addLayer({
         id: CLUSTER_LAYER_ID,
         type: 'circle',
         source: SOURCE_ID,
         filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#FFFFFF',
-          'circle-radius': clusterRadiusExpression,
-          'circle-stroke-width': 2.2,
-          'circle-stroke-color': '#D7D7D7',
-          'circle-opacity': 0.98,
-        },
+        paint: isMobileViewport
+          ? {
+              'circle-color': '#FFFFFF',
+              'circle-radius': clusterRadiusExpression,
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': '#E2E2E2',
+              'circle-opacity': 0.98,
+            }
+          : {
+              'circle-color': '#FFFFFF',
+              'circle-radius': clusterRadiusExpression,
+              'circle-stroke-width': 2.2,
+              'circle-stroke-color': '#D7D7D7',
+              'circle-opacity': 0.98,
+            },
       })
 
       map.addLayer({
@@ -858,6 +1084,22 @@ export function ExploreMap({
         },
       })
 
+      map.addSource(CHEF_SPIDER_LINES_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addLayer({
+        id: CHEF_SPIDER_LINES_LAYER_ID,
+        type: 'line',
+        source: CHEF_SPIDER_LINES_SOURCE_ID,
+        paint: {
+          'line-color': '#606060',
+          'line-opacity': 0.5,
+          'line-width': 1.5,
+        },
+      })
+
       if (map.getLayer(CLUSTER_LAYER_ID)) map.moveLayer(CLUSTER_LAYER_ID)
       if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) map.moveLayer(CLUSTER_COUNT_LAYER_ID)
 
@@ -885,21 +1127,17 @@ export function ExploreMap({
 
     map.on('moveend', refreshUnclusteredMarkers)
     map.on('moveend', emitVisibleChefsInBounds)
-    map.on('move', updatePopupPosition)
     map.on('zoomend', refreshUnclusteredMarkers)
     map.on('zoomend', emitVisibleChefsInBounds)
-    map.on('zoom', updatePopupPosition)
-    const onMapInteraction = () => {
-      if (popupPinnedRef.current) return
+    const onMapClick = () => {
+      onSelectionClearRef.current?.()
       closePopup()
     }
-    map.on('click', onMapInteraction)
-    map.on('dragstart', onMapInteraction)
+    map.on('click', onMapClick)
     const onSourceData = (event: mapboxgl.MapSourceDataEvent) => {
       if (event.sourceId === SOURCE_ID) {
         refreshUnclusteredMarkers()
         emitVisibleChefsInBounds()
-        updatePopupPosition()
       }
     }
     map.on('sourcedata', onSourceData)
@@ -916,12 +1154,9 @@ export function ExploreMap({
       map.off('load', onMapLoad)
       map.off('moveend', refreshUnclusteredMarkers)
       map.off('moveend', emitVisibleChefsInBounds)
-      map.off('move', updatePopupPosition)
       map.off('zoomend', refreshUnclusteredMarkers)
       map.off('zoomend', emitVisibleChefsInBounds)
-      map.off('zoom', updatePopupPosition)
-      map.off('click', onMapInteraction)
-      map.off('dragstart', onMapInteraction)
+      map.off('click', onMapClick)
       map.off('sourcedata', onSourceData)
       map.stop()
       try {
@@ -978,7 +1213,6 @@ export function ExploreMap({
     if (chefById.has(activePopupChefId)) return
     popupAnchorRef.current = null
     setActivePopupChefId(null)
-    setPopupPosition(null)
   }, [activePopupChefId, chefById])
 
   useEffect(() => {
@@ -1058,7 +1292,7 @@ export function ExploreMap({
     }
 
     if (!searchPinMarkerRef.current) {
-      searchPinMarkerRef.current = new mapboxgl.Marker({ color: '#2563EB' })
+      searchPinMarkerRef.current = new mapboxgl.Marker({ color: '#FBCF03' })
     }
 
     searchPinMarkerRef.current
@@ -1096,8 +1330,17 @@ export function ExploreMap({
 
   return (
     <div ref={containerRef} className="explore-map-shell relative h-full w-full">
-      <div className="pointer-events-none absolute left-1/2 top-4 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:bottom-4 md:top-auto md:w-auto md:translate-x-0">
-          <div className="flex items-start gap-3">
+      {!radiusInfoDismissed && (
+        <div className="pointer-events-none absolute left-1/2 top-24 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto">
+          <button
+            type="button"
+            onClick={() => setRadiusInfoDismissed(true)}
+            className="pointer-events-auto absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#E5E7EB] hover:text-[#374151]"
+            aria-label={locale === 'en' ? 'Close' : 'Fermer'}
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+          <div className="flex items-start gap-3 pr-6">
             <div className="relative mt-0.5 h-7 w-7 shrink-0">
               <div className="absolute inset-0 rounded-full border-2 border-[#D9A901] bg-[#FBCF03]/25" />
               <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#D9A901]" />
@@ -1107,12 +1350,11 @@ export function ExploreMap({
               <p className="mt-1 text-[11px] leading-[1.35] text-[#4B4B4B]">{radiusInfoText}</p>
             </div>
           </div>
-      </div>
-      {isMapMode && popupChef && popupPosition && (
+        </div>
+      )}
+      {isMapMode && !isMobile && popupChef && (
         <ChefMapPopup
           chef={popupChef}
-          left={popupPosition.left}
-          top={popupPosition.top}
           onRequestClose={closePinnedPopup}
           onCardClick={() => {
             if (popupPinnedRef.current) {

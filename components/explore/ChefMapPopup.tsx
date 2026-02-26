@@ -3,13 +3,10 @@
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { ReserveChefButton } from './ReserveChefButton'
-import { ChefInfoButton } from './ChefInfoButton'
+import { useRouter } from 'next/navigation'
 
 interface ChefMapPopupProps {
   chef: ExploreChef
-  left: number
-  top: number
   onRequestClose?: () => void
   onCardClick?: () => void
   onMouseEnter?: () => void
@@ -26,7 +23,8 @@ function formatChefNameWithPrefix(name: string): string {
   return firstName ? `Chef ${firstName}` : 'Chef'
 }
 
-export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
+export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
+  const router = useRouter()
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -63,7 +61,6 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
         canvas.height = height
         ctx.drawImage(image, 0, 0, width, height)
 
-        // Analyze the lower zone where the glass bubble sits.
         const sampleHeight = Math.floor(height * 0.42)
         const sampleY = height - sampleHeight
         const pixels = ctx.getImageData(0, sampleY, width, sampleHeight).data
@@ -74,7 +71,6 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
           const r = pixels[i] / 255
           const g = pixels[i + 1] / 255
           const b = pixels[i + 2] / 255
-          // Relative luminance, perceptual weighting.
           const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
           luminanceSum += lum
           count += 1
@@ -83,7 +79,6 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
         const avgLuminance = count > 0 ? luminanceSum / count : 1
         setIsDarkBackground(avgLuminance < 0.36)
       } catch {
-        // Cross-origin protected images can fail canvas reads; keep default mode.
         setIsDarkBackground(false)
       }
     }
@@ -99,8 +94,7 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
 
   return (
     <article
-      className="pointer-events-auto absolute z-30 h-[236px] w-[234px] overflow-hidden rounded-[20px] border border-white/65 bg-[#EDEDED] shadow-[0_16px_34px_rgba(0,0,0,0.20)] animate-map-popup-enter"
-      style={{ left, top }}
+      className="pointer-events-auto absolute left-6 top-6 z-30 h-[236px] w-[234px] shrink-0 overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-map-popup-enter"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onClick={(event) => {
@@ -112,7 +106,9 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
         {backgroundImage ? (
           <img src={backgroundImage} alt={displayChefName} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">{t('explore.photoUnavailable')}</div>
+          <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
+            {t('explore.photoUnavailable')}
+          </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
         <div
@@ -136,13 +132,6 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
             <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
           </svg>
         </button>
-        <div className="absolute right-2.5 top-2.5 z-20">
-          <ChefInfoButton
-            chefName={chef.name}
-            href={infoHref}
-            className="border-white/85 bg-white/80 text-[#121212] ring-1 ring-black/20 shadow-[0_2px_10px_rgba(0,0,0,0.28)] backdrop-blur-md hover:bg-white/92"
-          />
-        </div>
         <div
           className={`absolute inset-x-2.5 bottom-2.5 rounded-[16px] border px-3 pb-2 pt-2 backdrop-blur-[22px] ${
             isDarkBackground
@@ -157,7 +146,7 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
               </div>
               <h3
                 className={`truncate text-[13px] leading-tight text-[#0F0F0F] ${
-                isDarkBackground ? 'font-bold [text-shadow:0_1px_2px_rgba(255,255,255,0.25)]' : 'font-semibold [text-shadow:0_1px_0_rgba(255,255,255,0.35)]'
+                  isDarkBackground ? 'font-bold [text-shadow:0_1px_2px_rgba(255,255,255,0.25)]' : 'font-semibold [text-shadow:0_1px_0_rgba(255,255,255,0.35)]'
                 }`}
               >
                 {displayChefName}
@@ -180,10 +169,18 @@ export function ChefMapPopup({ chef, left, top, onRequestClose, onCardClick, onM
               <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">{t('explore.from')}</p>
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
             </div>
-            <ReserveChefButton
-              href={`/book/${chef.slug}`}
-              className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
-            />
+            {infoHref ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(infoHref)
+                }}
+                className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
+              >
+                {t('explore.viewProfile')}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

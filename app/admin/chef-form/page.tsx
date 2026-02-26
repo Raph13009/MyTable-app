@@ -104,7 +104,7 @@ export default function ChefFormPage() {
     cuisine_style: '',
     cuisine_style_en: '',
     info_link_xx: '',
-    availability_radius_km: '10',
+    availability_radius_km: '25',
     min_guests: '',
     max_guests: '',
     profile_picture: null as File | null,
@@ -391,7 +391,7 @@ export default function ChefFormPage() {
         cuisine_style: chefData.cuisine_style || '',
         cuisine_style_en: chefData.cuisine_style_en || '',
         info_link_xx: chefData.info_link_xx || '',
-        availability_radius_km: chefData.availability_radius_km ? String(chefData.availability_radius_km) : '10',
+        availability_radius_km: chefData.availability_radius_km ? String(chefData.availability_radius_km) : '25',
         min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
         profile_picture: null,
@@ -766,7 +766,7 @@ export default function ChefFormPage() {
         cuisine_style: formData.cuisine_style || null,
         cuisine_style_en: formData.cuisine_style_en || null,
         info_link_xx: formData.info_link_xx.trim() || null,
-        availability_radius_km: Number.parseInt(formData.availability_radius_km, 10) || 10,
+        availability_radius_km: Number.parseInt(formData.availability_radius_km, 10) || 25,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
         dish_photos: dishPhotos,
@@ -1247,12 +1247,13 @@ export default function ChefFormPage() {
                         onChange={(e) => setFormData({ ...formData, availability_radius_km: e.target.value })}
                         className="h-11 w-full appearance-none rounded-[10px] border border-[#EAEAEA] bg-white px-3 pr-10 text-sm outline-none transition focus:border-black"
                       >
-                        <option value="10">10 km</option>
-                        <option value="20">20 km</option>
-                        <option value="30">30 km</option>
-                        <option value="40">40 km</option>
+                        <option value="25">25 km</option>
                         <option value="50">50 km</option>
-                        <option value="60">60 km</option>
+                        <option value="75">75 km</option>
+                        <option value="100">100 km</option>
+                        <option value="125">125 km</option>
+                        <option value="150">150 km</option>
+                        <option value="200">200 km</option>
                       </select>
                       <svg
                         className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]"

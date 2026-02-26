@@ -21,7 +21,7 @@
     "add": "Ajouter"
   },
   "explore": {
-    "searchPlaceholder": "Rentrez votre adresse ici",
+    "searchPlaceholder": "Inscrivez l'adresse du lieu de l'évènement",
     "searchLoading": "Recherche...",
     "resetRegion": "Réinitialiser la région",
     "resetPin": "Réinitialiser",
@@ -31,12 +31,14 @@
     "signatureCuisine": "Cuisine signature",
     "from": "A partir de",
     "reserve": "Reserver",
+    "viewProfile": "Voir le profil",
     "collapseList": "Replier la liste",
     "viewChef": "Voir {{name}}",
     "fallbackChefName": "Chef",
     "outOfRange": "Hors zone",
     "noChefInArea": "Aucun chef dans cette zone",
     "overCount": "Plus de {{count}} {{label}}",
+    "chefsAvailableInZone": "{{count}} Chefs disponibles dans cette zone",
     "chefSingular": "chef",
     "chefPlural": "chefs"
   },

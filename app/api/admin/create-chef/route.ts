@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
       ? null
       : Number.parseInt(String(max_guests), 10)
     const parsedAvailabilityRadiusKm = availability_radius_km === null || availability_radius_km === undefined || availability_radius_km === ''
-      ? 10
+      ? 25
       : Number.parseInt(String(availability_radius_km), 10)
-    const normalizedAvailabilityRadiusKm = Number.isFinite(parsedAvailabilityRadiusKm) ? parsedAvailabilityRadiusKm : 10
+    const normalizedAvailabilityRadiusKm = Number.isFinite(parsedAvailabilityRadiusKm) ? parsedAvailabilityRadiusKm : 25
 
     if (normalizedMinGuests !== null && (!Number.isFinite(normalizedMinGuests) || normalizedMinGuests < 1)) {
       return NextResponse.json({ error: 'Le minimum de convives est invalide' }, { status: 400 })
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     if (normalizedLongitude !== null && (normalizedLongitude < -180 || normalizedLongitude > 180)) {
       return NextResponse.json({ error: 'Longitude invalide' }, { status: 400 })
     }
-    if (![10, 20, 30, 40, 50, 60].includes(normalizedAvailabilityRadiusKm)) {
+    if (![25, 50, 75, 100, 125, 150, 200].includes(normalizedAvailabilityRadiusKm)) {
       return NextResponse.json({ error: 'Rayon de disponibilité invalide' }, { status: 400 })
     }
 

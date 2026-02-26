@@ -10,6 +10,8 @@ interface ChefListProps {
   highlightedChefId?: string | null
   outOfRangeChefIds?: Set<string>
   onChefMountRef?: (chefId: string, element: HTMLElement | null) => void
+  onChefNameClick?: (chefId: string) => void
+  forceMobileCardStyle?: boolean
 }
 
 export function ChefList({
@@ -18,12 +20,14 @@ export function ChefList({
   highlightedChefId = null,
   outOfRangeChefIds = new Set<string>(),
   onChefMountRef,
+  onChefNameClick,
+  forceMobileCardStyle = false,
 }: ChefListProps) {
   const { t } = useTranslation()
 
   return (
     <section className="min-h-full">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className={forceMobileCardStyle ? 'grid grid-cols-1 gap-4 sm:grid-cols-2' : 'grid grid-cols-1 gap-6 md:grid-cols-2'}>
         {chefs.length === 0 ? (
           <div className="col-span-full rounded-2xl border border-[#EAEAEA] bg-[#FAFAFA] px-5 py-8 text-center text-sm text-[#666666]">
             {t('explore.noChefInArea')}
@@ -37,6 +41,8 @@ export function ChefList({
               isHighlighted={highlightedChefId === chef.id}
               isOutOfRange={outOfRangeChefIds.has(chef.id)}
               onMountRef={onChefMountRef}
+              onChefNameClick={onChefNameClick}
+              forceMobileStyle={forceMobileCardStyle}
             />
           ))
         )}

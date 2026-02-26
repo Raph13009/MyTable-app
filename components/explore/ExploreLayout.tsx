@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
@@ -53,7 +54,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const { t, locale } = useTranslation()
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
   const [isMobile, setIsMobile] = useState(false)
-  const [selectedChefId, setSelectedChefId] = useState<string | null>(null)
+  const [pinnedChefId, setPinnedChefId] = useState<string | null>(null)
+  const [hoveredChefId, setHoveredChefId] = useState<string | null>(null)
   const [focusedRegionSlug, setFocusedRegionSlug] = useState<string | null>(initialFocusedRegionSlug)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([])
@@ -71,9 +73,16 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   } | null>(null)
   const [mapVisibleChefIds, setMapVisibleChefIds] = useState<string[] | null>(null)
   const [searchPin, setSearchPin] = useState<SearchPin | null>(null)
+  const [mobileDropdownBounds, setMobileDropdownBounds] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
 
   const cardRefs = useRef<Record<string, HTMLElement | null>>({})
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null)
+  const mobileDropdownRef = useRef<HTMLDivElement | null>(null)
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mobileSheetScrollRef = useRef<HTMLDivElement | null>(null)
@@ -81,6 +90,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const [mobileSheetSnap, setMobileSheetSnap] = useState<'bottom' | 'mid' | 'full'>('bottom')
   const [mobileSheetDragTranslate, setMobileSheetDragTranslate] = useState<number | null>(null)
+  const selectedChefId = pinnedChefId ?? hoveredChefId
 
   const sortedChefs = useMemo(() => {
     return [...chefs].sort((a, b) => a.name.localeCompare(b.name, locale))
@@ -123,6 +133,14 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     const visibleSet = new Set(mapVisibleChefIds)
     return mapDataChefs.filter((chef) => visibleSet.has(chef.id))
   }, [mapDataChefs, mapVisibleChefIds, searchPin])
+
+  const mobileListChefs = useMemo(() => {
+    if (!isMobile || !pinnedChefId) return visibleChefs
+    const pinned = visibleChefs.find((c) => c.id === pinnedChefId)
+    if (!pinned) return visibleChefs
+    const rest = visibleChefs.filter((c) => c.id !== pinnedChefId)
+    return [pinned, ...rest]
+  }, [isMobile, pinnedChefId, visibleChefs])
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
@@ -185,18 +203,25 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [initialRegionBBox, initialFocusedRegionSlug])
 
   useEffect(() => {
-    const onClickOutside = (event: MouseEvent) => {
-      if (!searchContainerRef.current) return
-      if (searchContainerRef.current.contains(event.target as Node)) return
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node
+      if (searchContainerRef.current?.contains(target)) return
+      if (mobileDropdownRef.current?.contains(target)) return
       setIsSearchOpen(false)
     }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [])
+
+  const SEARCH_DEBOUNCE_MS = 300
 
   useEffect(() => {
     const query = searchQuery.trim()
-    if (!isSearchOpen || query.length < 2 || !mapboxToken) {
+    if (query.length < 2 || !mapboxToken) {
       setSearchSuggestions([])
       setIsSearchLoading(false)
       return
@@ -208,6 +233,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       const controller = new AbortController()
       searchAbortRef.current = controller
       setIsSearchLoading(true)
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[explore] geocoding request', { query })
+      }
 
       try {
         const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=8&language=${locale}&country=fr&types=address,place,locality,postcode,neighborhood&access_token=${mapboxToken}`
@@ -229,6 +257,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               })
               .filter((item: SearchSuggestion | null): item is SearchSuggestion => !!item && !!item.label)
           : []
+        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+          console.log('[explore] geocoding response', { query, count: suggestions.length, features: payload?.features?.length })
+        }
         setSearchSuggestions(suggestions)
       } catch (error: any) {
         if (error?.name !== 'AbortError') {
@@ -237,35 +268,78 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       } finally {
         setIsSearchLoading(false)
       }
-    }, 180)
+    }, SEARCH_DEBOUNCE_MS)
 
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
     }
-  }, [isSearchOpen, locale, mapboxToken, searchQuery])
+  }, [locale, mapboxToken, searchQuery])
+
+  const shouldShowMobileDropdown =
+    isMobile && isSearchOpen && (isSearchLoading || searchSuggestions.length > 0)
+
+  useEffect(() => {
+    if (!shouldShowMobileDropdown) {
+      setMobileDropdownBounds(null)
+      return
+    }
+    const updateBounds = () => {
+      const el = mobileSearchInputRef.current
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        setMobileDropdownBounds({
+          top: rect.bottom + 8,
+          left: rect.left,
+          width: rect.width,
+        })
+      } else {
+        setMobileDropdownBounds({ top: 80, left: 16, width: window.innerWidth - 32 })
+      }
+    }
+    updateBounds()
+    const raf = requestAnimationFrame(updateBounds)
+    window.visualViewport?.addEventListener('resize', updateBounds)
+    window.visualViewport?.addEventListener('scroll', updateBounds)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.visualViewport?.removeEventListener('resize', updateBounds)
+      window.visualViewport?.removeEventListener('scroll', updateBounds)
+    }
+  }, [shouldShowMobileDropdown])
 
   const handleChefMountRef = (chefId: string, element: HTMLElement | null) => {
     cardRefs.current[chefId] = element
   }
 
   const handleChefBubbleClick = (chefId: string) => {
-    setSelectedChefId(chefId)
+    setPinnedChefId(chefId)
+    setHoveredChefId(null)
     if (isMobile) {
-      setMobileSheetSnap('full')
-      requestAnimationFrame(() => {
-        const element = cardRefs.current[chefId]
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      })
+      setMobileSheetSnap('mid')
       return
     }
-
+    if (viewMode === 'map') {
+      return
+    }
     setViewMode('list')
     const element = cardRefs.current[chefId]
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
+  }
+
+  const handleSelectionClear = () => {
+    setPinnedChefId(null)
+    setHoveredChefId(null)
+  }
+
+  const handleChefHover = (chefId: string | null) => {
+    setHoveredChefId(chefId)
+  }
+
+  const handleChefNameToggle = (chefId: string) => {
+    setPinnedChefId((prev) => (prev === chefId ? null : chefId))
+    setHoveredChefId((prev) => (prev === chefId ? null : prev))
   }
 
   const applySuggestion = (suggestion: SearchSuggestion) => {
@@ -394,10 +468,8 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setMobileSheetDragTranslate(null)
   }
 
-  const mobileOverCount = Math.max(visibleChefs.length - 1, 0)
-  const mobileCountLabel = t('explore.overCount', {
-    count: mobileOverCount,
-    label: mobileOverCount > 1 ? t('explore.chefPlural') : t('explore.chefSingular'),
+  const mobileCountLabel = t('explore.chefsAvailableInZone', {
+    count: visibleChefs.length,
   })
   const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
   const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('bottom') - 1
@@ -539,8 +611,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               chefs={mapDataChefs}
               selectedChefId={selectedChefId}
               isMapMode
-              onChefHover={setSelectedChefId}
+              isMobile
+              onChefHover={handleChefHover}
               onChefClick={handleChefBubbleClick}
+              onSelectionClear={handleSelectionClear}
               onVisibleChefIdsChange={setMapVisibleChefIds}
               initialRegionBBox={initialRegionBBox}
               focusedRegionSlug={focusedRegionSlug}
@@ -549,6 +623,72 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               outOfRangeChefIds={[...outOfRangeChefIds]}
               locale={locale}
             />
+
+            <div
+              ref={searchContainerRef}
+              className="absolute left-4 right-4 top-4 z-30 md:hidden"
+            >
+              <form
+                onSubmit={handleSearchSubmit}
+                className="relative flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+              >
+                <input
+                  ref={mobileSearchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value)
+                    setIsSearchOpen(true)
+                  }}
+                  onFocus={() => setIsSearchOpen(true)}
+                  onTouchStart={() => setIsSearchOpen(true)}
+                  placeholder={t('explore.searchPlaceholder')}
+                  className={`w-full flex-1 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
+                />
+                {searchPin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleResetSearchPin()
+                    }}
+                    className="absolute right-1 flex h-9 min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F0F0F0] hover:text-[#374151] active:bg-[#E5E7EB]"
+                    aria-label={t('explore.resetPin')}
+                  >
+                    <X className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  </button>
+                )}
+              </form>
+            </div>
+            {isMobile &&
+              mobileDropdownBounds &&
+              createPortal(
+                <div
+                  ref={mobileDropdownRef}
+                  className="fixed z-[100] max-h-[min(50vh,320px)] overflow-y-auto rounded-2xl border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]"
+                  style={{
+                    top: mobileDropdownBounds.top,
+                    left: mobileDropdownBounds.left,
+                    width: mobileDropdownBounds.width,
+                  }}
+                >
+                  {isSearchLoading ? (
+                    <p className="px-4 py-4 text-sm text-[#6B7280]">{t('explore.searchLoading')}</p>
+                  ) : (
+                    searchSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => applySuggestion(suggestion)}
+                        className="flex min-h-[44px] w-full touch-manipulation items-center border-b border-[#F3F3F3] px-4 py-3 text-left text-sm text-[#222222] active:bg-[#F0F0F0] last:border-b-0 hover:bg-[#FAFAFA]"
+                      >
+                        {suggestion.label}
+                      </button>
+                    ))
+                  )}
+                </div>,
+                document.body
+              )}
 
             <aside
               className="absolute inset-x-0 bottom-0 z-20 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -576,11 +716,13 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               >
                 <div className={mobileSheetSnap === 'bottom' ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity'}>
                   <ChefList
-                    chefs={visibleChefs}
-                    onChefHover={setSelectedChefId}
+                    chefs={mobileListChefs}
+                    onChefHover={handleChefHover}
                     highlightedChefId={selectedChefId}
                     outOfRangeChefIds={outOfRangeChefIds}
                     onChefMountRef={handleChefMountRef}
+                    onChefNameClick={handleChefNameToggle}
+                    forceMobileCardStyle
                   />
                   <div className="h-[42vh]" aria-hidden />
                 </div>
@@ -604,10 +746,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 >
                   <ChefList
                     chefs={visibleChefs}
-                    onChefHover={setSelectedChefId}
+                    onChefHover={handleChefHover}
                     highlightedChefId={selectedChefId}
                     outOfRangeChefIds={outOfRangeChefIds}
                     onChefMountRef={handleChefMountRef}
+                    onChefNameClick={handleChefNameToggle}
+                    forceMobileCardStyle
                   />
                 </div>
               </div>
@@ -628,8 +772,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     chefs={mapDataChefs}
                     selectedChefId={selectedChefId}
                     isMapMode={viewMode === 'map'}
-                    onChefHover={setSelectedChefId}
+                    onChefHover={handleChefHover}
                     onChefClick={handleChefBubbleClick}
+                    onSelectionClear={handleSelectionClear}
                     onVisibleChefIdsChange={setMapVisibleChefIds}
                     initialRegionBBox={initialRegionBBox}
                     focusedRegionSlug={focusedRegionSlug}
