@@ -33,6 +33,16 @@ function inBBox(longitude: number, latitude: number, bbox: RegionBBox) {
   return longitude >= bbox[0] && longitude <= bbox[2] && latitude >= bbox[1] && latitude <= bbox[3]
 }
 
+/** Build a bbox ~100km around a center (for address search default view) */
+function bbox100kmAroundCenter(center: [number, number]): RegionBBox {
+  const [lng, lat] = center
+  const kmPerDegLat = 111.32
+  const kmPerDegLng = 111.32 * Math.cos((lat * Math.PI) / 180)
+  const deltaLat = 100 / kmPerDegLat
+  const deltaLng = 100 / kmPerDegLng
+  return [lng - deltaLng, lat - deltaLat, lng + deltaLng, lat + deltaLat]
+}
+
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   const toRad = (deg: number) => (deg * Math.PI) / 180
   const r = 6371
@@ -374,11 +384,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       center: suggestion.center,
     })
     setActiveSearch({ center: suggestion.center, bbox: suggestion.bbox || null })
+    const viewportBbox = bbox100kmAroundCenter(suggestion.center)
     setSearchViewport({
       key: `${suggestion.id}-${Date.now()}`,
       center: suggestion.center,
-      zoom: suggestion.bbox ? 8.5 : 10.5,
-      bbox: suggestion.bbox || null,
+      zoom: 6,
+      bbox: viewportBbox,
     })
     setMapVisibleChefIds(null)
     router.replace('/explore')
@@ -545,7 +556,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               >
                 <form
                   onSubmit={handleSearchSubmit}
-                  className="flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+                  className="relative flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
                 >
                   <input
                     type="text"
@@ -556,8 +567,18 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     }}
                     onFocus={() => setIsSearchOpen(true)}
                     placeholder={t('explore.searchPlaceholder')}
-                    className="w-full bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A]"
+                    className={`w-full bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-8' : ''}`}
                   />
+                  {searchPin && (
+                    <button
+                      type="button"
+                      onClick={handleResetSearchPin}
+                      className="absolute right-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F0F0F0] hover:text-[#374151]"
+                      aria-label={t('explore.resetPin')}
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  )}
                 </form>
 
                 {isSearchOpen && (isSearchLoading || searchSuggestions.length > 0) && (
@@ -579,15 +600,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   </div>
                 )}
               </div>
-              {searchPin && (
-                <button
-                  type="button"
-                  onClick={handleResetSearchPin}
-                  className="hidden h-10 items-center rounded-full border border-[#E3E3E3] bg-white px-4 text-sm font-medium text-[#333333] shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition hover:bg-[#F9F9F9] md:inline-flex"
-                >
-                  {t('explore.resetPin')}
-                </button>
-              )}
 
               <div className="ml-auto flex items-center gap-3">
                 {focusedRegionSlug && (
