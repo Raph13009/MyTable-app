@@ -67,6 +67,13 @@ function hideMapNoiseLayers(map: mapboxgl.Map) {
     'airport-label',
     'transit-label',
     'poi-label',
+    'marine',
+    'waterway-label',
+    'water-label',
+    'natural-line-label',
+    'natural-point-label',
+    'water-line-label',
+    'water-point-label',
   ]
 
   layers.forEach((layer) => {
@@ -167,6 +174,45 @@ function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
   if (!map.isStyleLoaded()) return
   const style = map.getStyle()
   const layers = style?.layers || []
+  const nameToMatch = ['coalesce', ['get', 'name_fr'], ['get', 'name_en'], ['get', 'name'], '']
+  const fallbackName = ['coalesce', ['get', 'name_fr'], ['get', 'name'], ['get', 'name_en'], '']
+  const frenchSeaFallbackExpression: any = [
+    'match',
+    nameToMatch,
+    'English Channel', 'Manche',
+    'The English Channel', 'La Manche',
+    'Bay of Biscay', 'Golfe de Gascogne',
+    'Celtic Sea', 'Mer Celtique',
+    'North Sea', 'Mer du Nord',
+    'Mediterranean Sea', 'Mer Méditerranée',
+    'Mediterranean', 'Mer Méditerranée',
+    'Tyrrhenian Sea', 'Mer Tyrrhénienne',
+    'Ligurian Sea', 'Mer Ligure',
+    'Alboran Sea', "Mer d'Alboran",
+    'Atlantic Ocean', 'Océan Atlantique',
+    'North Atlantic', 'Atlantique Nord',
+    'South Atlantic', 'Atlantique Sud',
+    'Strait of Gibraltar', 'Détroit de Gibraltar',
+    'Irish Sea', "Mer d'Irlande",
+    "St George's Channel", 'Canal de Saint George',
+    'Bristol Channel', 'Canal de Bristol',
+    'Ionian Sea', 'Mer Ionienne',
+    'Adriatic Sea', 'Mer Adriatique',
+    'Aegean Sea', 'Mer Égée',
+    'Balearic Sea', 'Mer des Baléares',
+    'Gulf of Lion', 'Golfe du Lion',
+    'Gulf of Valencia', 'Golfe de Valence',
+    'Gulf of Genoa', 'Golfe de Gênes',
+    'Black Sea', 'Mer Noire',
+    'Baltic Sea', 'Mer Baltique',
+    'Norwegian Sea', 'Mer de Norvège',
+    'Labrador Sea', 'Mer du Labrador',
+    'Sea of Marmara', 'Mer de Marmara',
+    'Sea of Azov', "Mer d'Azov",
+    'Marmara Sea', 'Mer de Marmara',
+    'Azov Sea', "Mer d'Azov",
+    fallbackName,
+  ]
 
   layers.forEach((layer) => {
     if (layer.type !== 'symbol') return
@@ -175,27 +221,12 @@ function applyMapLanguage(map: mapboxgl.Map, locale: Locale) {
     try {
       const currentTextField = map.getLayoutProperty(layer.id, 'text-field')
       if (!currentTextField) return
-      const isMarineLabelLayer = layer.id.includes('marine')
 
-      if (locale === 'fr' && isMarineLabelLayer) {
+      if (locale === 'fr') {
         map.setLayoutProperty(layer.id, 'text-field', [
           'coalesce',
           ['get', 'name_fr'],
-          [
-            'match',
-            ['coalesce', ['get', 'name_en'], ['get', 'name'], ''],
-            'English Channel', 'Manche',
-            'Bay of Biscay', 'Golfe de Gascogne',
-            'Celtic Sea', 'Mer Celtique',
-            'North Sea', 'Mer du Nord',
-            'Mediterranean Sea', 'Mer Mediterranee',
-            'Tyrrhenian Sea', 'Mer Tyrrhenienne',
-            'Ligurian Sea', 'Mer Ligure',
-            'Alboran Sea', "Mer d'Alboran",
-            'Atlantic Ocean', 'Ocean Atlantique',
-            'Strait of Gibraltar', 'Detroit de Gibraltar',
-            ['coalesce', ['get', 'name'], ['get', 'name_en'], currentTextField as any],
-          ],
+          frenchSeaFallbackExpression,
           currentTextField as any,
         ])
         return
@@ -263,8 +294,8 @@ function ensureGlobalAbortSuppression() {
 }
 
 function getChefAvailabilityRadiusKm(chef: ExploreChef | null | undefined): number {
-  const raw = typeof chef?.availabilityRadiusKm === 'number' ? chef.availabilityRadiusKm : 10
-  return [10, 20, 30, 40, 50, 60].includes(raw) ? raw : 10
+  const raw = typeof chef?.availabilityRadiusKm === 'number' ? chef.availabilityRadiusKm : 25
+  return [25, 50, 75, 100, 125, 150, 200].includes(raw) ? raw : 25
 }
 
 function buildRadiusPolygon(
@@ -464,6 +495,11 @@ export function ExploreMap({
     if (!containerRef.current || mapRef.current || !token) return
     ensureGlobalAbortSuppression()
     isUnmountingRef.current = false
+    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches
+    const clusterRadiusExpression: any = isMobileViewport
+      ? ['step', ['get', 'point_count'], 30, 5, 35, 10, 44, 25, 55]
+      : ['step', ['get', 'point_count'], 34, 5, 40, 10, 50, 25, 62]
+    const clusterTextSize = isMobileViewport ? 15 : 17
     const markerStore = markersRef.current
     const regionsFetchController = new AbortController()
     let isDisposed = false
@@ -767,7 +803,7 @@ export function ExploreMap({
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': '#FFFFFF',
-          'circle-radius': ['step', ['get', 'point_count'], 34, 5, 40, 10, 50, 25, 62],
+          'circle-radius': clusterRadiusExpression,
           'circle-stroke-width': 2.2,
           'circle-stroke-color': '#D7D7D7',
           'circle-opacity': 0.98,
@@ -781,7 +817,7 @@ export function ExploreMap({
         filter: ['has', 'point_count'],
         layout: {
           'text-field': ['get', 'point_count_abbreviated'],
-          'text-size': 17,
+          'text-size': clusterTextSize,
           'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
         },
         paint: {
