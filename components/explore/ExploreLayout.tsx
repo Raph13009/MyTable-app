@@ -118,7 +118,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mobileSheetScrollRef = useRef<HTMLDivElement | null>(null)
-  const sheetDragRef = useRef<{ startY: number; startTranslate: number } | null>(null)
+  const sheetDragRef = useRef<{ startY: number; startTranslate: number; hasMoved: boolean } | null>(null)
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const [mobileSheetSnap, setMobileSheetSnap] = useState<'bottom' | 'mid' | 'full'>('bottom')
   const [mobileSheetDragTranslate, setMobileSheetDragTranslate] = useState<number | null>(null)
@@ -474,16 +474,19 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     sheetDragRef.current = {
       startY: event.clientY,
       startTranslate: mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap),
+      hasMoved: false,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handleSheetPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!sheetDragRef.current) return
+    const delta = event.clientY - sheetDragRef.current.startY
+    if (Math.abs(delta) > 8) sheetDragRef.current.hasMoved = true
     event.preventDefault()
     event.stopPropagation()
-    const delta = event.clientY - sheetDragRef.current.startY
-    const next = sheetDragRef.current.startTranslate + (delta / window.innerHeight) * 100
+    const SENSITIVITY = 2.8
+    const next = sheetDragRef.current.startTranslate + (delta / window.innerHeight) * 100 * SENSITIVITY
     setMobileSheetDragTranslate(Math.max(0, Math.min(90, next)))
   }
 
@@ -494,7 +497,17 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     }
     if (!sheetDragRef.current) return
     const value = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
+    const hasMoved = sheetDragRef.current.hasMoved
     sheetDragRef.current = null
+
+    if (!hasMoved) {
+      const nextSnap: 'bottom' | 'mid' | 'full' =
+        mobileSheetSnap === 'bottom' ? 'mid' : mobileSheetSnap === 'mid' ? 'full' : 'mid'
+      setMobileSheetSnap(nextSnap)
+      setMobileSheetDragTranslate(null)
+      return
+    }
+
     const snaps: Array<{ id: 'bottom' | 'mid' | 'full'; value: number }> = [
       { id: 'full', value: 0 },
       { id: 'mid', value: 48 },
@@ -731,26 +744,27 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               )}
 
             <aside
-              className="absolute inset-x-0 bottom-0 z-20 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              className={`absolute inset-x-0 bottom-0 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isMobileSheetExpanded ? 'z-40' : 'z-20'}`}
               style={{
                 bottom: 'env(safe-area-inset-bottom)',
                 transform: `translateY(${mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)}%)`,
               }}
             >
               <div
-                className="flex cursor-grab touch-none flex-col px-4 pb-3 pt-2 active:cursor-grabbing"
+                className="flex min-h-[72px] cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-4 active:cursor-grabbing"
                 onPointerDown={handleSheetPointerDown}
                 onPointerMove={handleSheetPointerMove}
                 onPointerUp={handleSheetPointerUp}
                 onPointerCancel={handleSheetPointerUp}
+                style={{ touchAction: 'none' }}
               >
-                <div className="mx-auto h-1.5 w-12 rounded-full bg-[#D8D8D8]" />
-                <p className="mt-2 text-center text-sm font-medium text-[#2B2B2B]">{mobileCountLabel}</p>
+                <div className="h-1 w-14 rounded-full bg-[#D8D8D8]" />
+                <p className="text-center text-sm font-medium text-[#2B2B2B]">{mobileCountLabel}</p>
               </div>
 
               <div
                 ref={mobileSheetScrollRef}
-                className={`explore-scroll explore-scroll--hidden h-[calc(100%-56px)] overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] ${
+                className={`explore-scroll explore-scroll--hidden h-[calc(100%-72px)] overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] ${
                   mobileSheetSnap === 'bottom' ? 'overflow-hidden' : 'overflow-y-auto'
                 }`}
               >
