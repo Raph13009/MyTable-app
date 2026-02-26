@@ -128,19 +128,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return [...chefs].sort((a, b) => a.name.localeCompare(b.name, locale))
   }, [chefs, locale])
 
-  const mapDataChefs = useMemo(() => {
-    if (searchPin) return sortedChefs
-    if (!activeSearch) return sortedChefs
-
-    return sortedChefs.filter((chef) => {
-      if (typeof chef.latitude !== 'number' || typeof chef.longitude !== 'number') return false
-      if (activeSearch.bbox) {
-        return inBBox(chef.longitude, chef.latitude, activeSearch.bbox)
-      }
-      return distanceKm(chef.latitude, chef.longitude, activeSearch.center[1], activeSearch.center[0]) <= 70
-    })
-  }, [activeSearch, searchPin, sortedChefs])
-
   const outOfRangeChefIds = useMemo(() => {
     if (!searchPin) return new Set<string>()
     const [targetLng, targetLat] = searchPin.center
@@ -157,6 +144,20 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return ids
   }, [searchPin, sortedChefs])
 
+  const mapDataChefs = useMemo(() => {
+    if (searchPin) {
+      return sortedChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
+    }
+    if (!activeSearch) return sortedChefs
+    return sortedChefs.filter((chef) => {
+      if (typeof chef.latitude !== 'number' || typeof chef.longitude !== 'number') return false
+      if (activeSearch.bbox) {
+        return inBBox(chef.longitude, chef.latitude, activeSearch.bbox)
+      }
+      return distanceKm(chef.latitude, chef.longitude, activeSearch.center[1], activeSearch.center[0]) <= 70
+    })
+  }, [activeSearch, searchPin, sortedChefs, outOfRangeChefIds])
+
   const visibleChefs = useMemo(() => {
     if (searchPin) return mapDataChefs
     if (!mapVisibleChefIds) return mapDataChefs
@@ -165,16 +166,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [mapDataChefs, mapVisibleChefIds, searchPin])
 
   const orderedVisibleChefs = useMemo(() => {
-    if (!searchPin || outOfRangeChefIds.size === 0) return visibleChefs
-    const inRange: typeof visibleChefs = []
-    const outOfRange: typeof visibleChefs = []
-    visibleChefs.forEach((chef) => {
-      if (outOfRangeChefIds.has(chef.id)) outOfRange.push(chef)
-      else inRange.push(chef)
-    })
+    if (!searchPin) return visibleChefs
+    const inRange = visibleChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
     inRange.sort((a, b) => a.name.localeCompare(b.name, locale))
-    outOfRange.sort((a, b) => a.name.localeCompare(b.name, locale))
-    return [...inRange, ...outOfRange]
+    return inRange
   }, [visibleChefs, searchPin, outOfRangeChefIds, locale])
 
   const mobileListChefs = useMemo(() => {
