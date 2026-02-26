@@ -39,6 +39,7 @@
     "noChefInArea": "No chef in this area",
     "overCount": "Over {{count}} {{label}}",
     "chefsAvailableInZone": "{{count}} chefs available in this area",
+    "chefsAvailableInZone_one": "{{count}} chef available in this area",
     "chefSingular": "chef",
     "chefPlural": "chefs",
     "guestsRange": "From {{min}} to {{max}} people",

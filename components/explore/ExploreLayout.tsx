@@ -520,9 +520,10 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setMobileSheetDragTranslate(null)
   }
 
-  const mobileCountLabel = t('explore.chefsAvailableInZone', {
-    count: visibleChefs.length,
-  })
+  const mobileCountLabel =
+    visibleChefs.length === 1
+      ? t('explore.chefsAvailableInZone_one', { count: 1 })
+      : t('explore.chefsAvailableInZone', { count: visibleChefs.length })
   const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
   const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('bottom') - 1
   const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
