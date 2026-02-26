@@ -40,7 +40,11 @@
     "overCount": "Over {{count}} {{label}}",
     "chefsAvailableInZone": "{{count}} chefs available in this area",
     "chefSingular": "chef",
-    "chefPlural": "chefs"
+    "chefPlural": "chefs",
+    "guestsRange": "From {{min}} to {{max}} people",
+    "guestsMinOnly": "From {{min}} people",
+    "guestsMaxOnly": "Up to {{max}} people",
+    "guestsNotSpecified": "Guests not specified"
   },
   "auth": {
     "login": "Log in",

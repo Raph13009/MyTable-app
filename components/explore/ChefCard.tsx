@@ -20,17 +20,22 @@ function formatPrice(price: number | null): string {
   return `${Math.round(price)}€`
 }
 
-function formatGuestsRange(minGuests: number | null, maxGuests: number | null, locale: string): string {
+function formatGuestsRange(
+  minGuests: number | null,
+  maxGuests: number | null,
+  locale: string
+): string {
+  const isFr = locale === 'fr'
   if (typeof minGuests === 'number' && typeof maxGuests === 'number') {
-    return locale === 'en' ? `${minGuests}-${maxGuests} guests` : `${minGuests}-${maxGuests} pers`
+    return isFr ? `De ${minGuests} à ${maxGuests} personnes` : `From ${minGuests} to ${maxGuests} people`
   }
   if (typeof minGuests === 'number') {
-    return locale === 'en' ? `${minGuests}+ guests` : `${minGuests}+ pers`
+    return isFr ? `À partir de ${minGuests} personnes` : `From ${minGuests} people`
   }
   if (typeof maxGuests === 'number') {
-    return locale === 'en' ? `Up to ${maxGuests} guests` : `Jusqu'a ${maxGuests} pers`
+    return isFr ? `Jusqu'à ${maxGuests} personnes` : `Up to ${maxGuests} people`
   }
-  return locale === 'en' ? 'Guests not specified' : 'Convives non precises'
+  return isFr ? 'Convives non précisés' : 'Guests not specified'
 }
 
 function formatChefNameWithPrefix(name: string): string {
@@ -254,6 +259,7 @@ export function ChefCard({
             <div>
               <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">{t('explore.from')}</p>
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
+              <p className="mt-0.5 text-[11px] text-[#555555]">{guestsLabel}</p>
             </div>
             {infoHref ? (
               <button

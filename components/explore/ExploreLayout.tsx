@@ -78,6 +78,28 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     left: number
     width: number
   } | null>(null)
+  const [mapLayoutTransitioning, setMapLayoutTransitioning] = useState(false)
+  const layoutTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const setViewModeWithTransition = (mode: 'map' | 'list') => {
+    if (mode === viewMode) return
+    if (layoutTransitionTimerRef.current) {
+      clearTimeout(layoutTransitionTimerRef.current)
+      layoutTransitionTimerRef.current = null
+    }
+    setMapLayoutTransitioning(true)
+    setViewMode(mode)
+    layoutTransitionTimerRef.current = setTimeout(() => {
+      layoutTransitionTimerRef.current = null
+      setMapLayoutTransitioning(false)
+    }, 1000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (layoutTransitionTimerRef.current) clearTimeout(layoutTransitionTimerRef.current)
+    }
+  }, [])
 
   const cardRefs = useRef<Record<string, HTMLElement | null>>({})
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
@@ -580,7 +602,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 <div className="inline-flex rounded-full border border-[#EAEAEA] bg-white p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
                   <button
                     type="button"
-                    onClick={() => setViewMode('map')}
+                    onClick={() => setViewModeWithTransition('map')}
                     className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                       viewMode === 'map' ? 'bg-[#111111] text-white' : 'text-[#555555] hover:bg-[#F5F5F5]'
                     }`}
@@ -589,7 +611,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode('list')}
+                    onClick={() => setViewModeWithTransition('list')}
                     className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                       viewMode === 'list' ? 'bg-[#111111] text-white' : 'text-[#555555] hover:bg-[#F5F5F5]'
                     }`}
@@ -733,7 +755,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
           <div className="h-[calc(100dvh-64px)] w-full overflow-hidden lg:h-[calc(100dvh-84px)]">
             <div className="relative h-full w-full">
               <div
-                className={`absolute inset-y-0 left-0 transition-all duration-300 ${
+                className={`absolute inset-y-0 left-0 ${
                   viewMode === 'map'
                     ? 'w-0 pointer-events-none opacity-0'
                     : 'w-full lg:w-1/2 opacity-100'
@@ -757,32 +779,55 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               </div>
 
               <div
-                className={`absolute inset-y-0 right-0 transition-all duration-300 ${
+                className={`absolute inset-y-0 right-0 ${
                   viewMode === 'map' ? 'w-full p-4' : 'hidden w-1/2 p-4 lg:block'
                 }`}
               >
                 <div
-                  className={`h-full w-full overflow-hidden rounded-[24px] ${
+                  className={`relative h-full w-full overflow-hidden rounded-[24px] ${
                     viewMode === 'map'
                       ? 'bg-[#F7F7F7] shadow-[0_12px_34px_rgba(0,0,0,0.10)]'
                       : 'border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.08)]'
                   }`}
                 >
-                  <ExploreMap
-                    chefs={mapDataChefs}
-                    selectedChefId={selectedChefId}
-                    isMapMode={viewMode === 'map'}
-                    onChefHover={handleChefHover}
-                    onChefClick={handleChefBubbleClick}
-                    onSelectionClear={handleSelectionClear}
-                    onVisibleChefIdsChange={setMapVisibleChefIds}
-                    initialRegionBBox={initialRegionBBox}
-                    focusedRegionSlug={focusedRegionSlug}
-                    searchViewport={searchViewport}
-                    searchPin={searchPin}
-                    outOfRangeChefIds={[...outOfRangeChefIds]}
-                    locale={locale}
-                  />
+                  {mapLayoutTransitioning && (
+                    <div
+                      className="pointer-events-auto absolute inset-0 z-20 flex select-none items-center justify-center bg-[#F7F7F7]"
+                      aria-hidden
+                    >
+                      <div className="relative h-24 w-24">
+                        <div className="absolute inset-0 rounded-full border border-[#F8E7A0] animate-ping [animation-duration:1400ms]" />
+                        <div className="absolute inset-[10px] rounded-full border-2 border-[#F1D56A]/60 border-t-[#D4A602] animate-spin [animation-duration:900ms]" />
+                        <div className="absolute inset-[22px] rounded-full bg-white shadow-[0_6px_20px_rgba(0,0,0,0.08)]" />
+                        <img
+                          src="/logo-cercle.png"
+                          alt="MyTable"
+                          className="absolute inset-0 m-auto h-10 w-10 object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.12)]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    className={`h-full w-full transition-opacity duration-500 ${
+                      mapLayoutTransitioning ? 'pointer-events-none opacity-0' : 'opacity-100'
+                    }`}
+                  >
+                    <ExploreMap
+                      chefs={mapDataChefs}
+                      selectedChefId={selectedChefId}
+                      isMapMode={viewMode === 'map'}
+                      onChefHover={handleChefHover}
+                      onChefClick={handleChefBubbleClick}
+                      onSelectionClear={handleSelectionClear}
+                      onVisibleChefIdsChange={setMapVisibleChefIds}
+                      initialRegionBBox={initialRegionBBox}
+                      focusedRegionSlug={focusedRegionSlug}
+                      searchViewport={searchViewport}
+                      searchPin={searchPin}
+                      outOfRangeChefIds={[...outOfRangeChefIds]}
+                      locale={locale}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -43,6 +43,29 @@ const EUROPE_MAX_BOUNDS: [[number, number], [number, number]] = [
 
 const DEFAULT_REGION_BORDER_COLOR = '#E8E8E8'
 const FOCUS_REGION_BORDER_COLOR = '#606060'
+const RADIUS_BUBBLE_STORAGE_KEY = 'mytable_explore_radius_bubble_dismissed'
+
+function getRadiusBubbleDismissed(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return localStorage.getItem(RADIUS_BUBBLE_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setRadiusBubbleDismissed(dismissed: boolean): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (dismissed) {
+      localStorage.setItem(RADIUS_BUBBLE_STORAGE_KEY, '1')
+    } else {
+      localStorage.removeItem(RADIUS_BUBBLE_STORAGE_KEY)
+    }
+  } catch {
+    // Ignore storage errors (private mode, quota, etc.)
+  }
+}
 
 function getRegionsFillColorExpression(_regionCode: string | null): any {
   return '#FFFFFF'
@@ -531,11 +554,15 @@ export function ExploreMap({
   const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
   const [radiusInfoDismissed, setRadiusInfoDismissed] = useState(false)
+
+  useEffect(() => {
+    setRadiusInfoDismissed(getRadiusBubbleDismissed())
+  }, [])
   const radiusInfoTitle = locale === 'en' ? 'Chef travel area' : 'Zone de déplacement du chef'
   const radiusInfoText =
     locale === 'en'
-      ? 'Inside the yellow radius, the chef usually travels. You can still request outside this area.'
-      : 'Le chef se déplace généralement dans cette zone. Vous pouvez toutefois faire une demande hors zone et voir via la messagerie si cela convient au chef.'
+      ? 'The Chef usually travels within this area. You can still book outside this zone; the Chef will get back to you to confirm your request.'
+      : "Le Chef se déplace généralement dans cette zone. Vous pouvez toutefois faire une réservation hors zone, le Chef reviendra vers vous pour confirmer votre demande."
   const radiusTargetChefId = selectedChefId
 
   const closePopup = useCallback(() => {
@@ -624,10 +651,6 @@ export function ExploreMap({
 
   useEffect(() => {
     selectedChefIdRef.current = selectedChefId
-  }, [selectedChefId])
-
-  useEffect(() => {
-    setRadiusInfoDismissed(false)
   }, [selectedChefId])
 
   useEffect(() => {
@@ -1142,7 +1165,35 @@ export function ExploreMap({
     }
     map.on('sourcedata', onSourceData)
 
+    const container = containerRef.current
+    let resizeRaf: number | null = null
+    let resizeDebounce: ReturnType<typeof setTimeout> | null = null
+    const resizeObserver =
+      container &&
+      new ResizeObserver(() => {
+        const m = mapRef.current
+        if (!m || isDisposed) return
+        const center = m.getCenter()
+        const zoom = m.getZoom()
+        if (resizeDebounce) clearTimeout(resizeDebounce)
+        resizeDebounce = setTimeout(() => {
+          resizeDebounce = null
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+          resizeRaf = requestAnimationFrame(() => {
+            resizeRaf = null
+            if (!mapRef.current || mapRef.current !== m || isDisposed) return
+            m.resize()
+            m.setCenter(center)
+            m.setZoom(zoom)
+          })
+        }, 50)
+      })
+    if (resizeObserver && container) resizeObserver.observe(container)
+
     return () => {
+      if (resizeDebounce) clearTimeout(resizeDebounce)
+      if (resizeRaf) cancelAnimationFrame(resizeRaf)
+      resizeObserver?.disconnect()
       isDisposed = true
       isUnmountingRef.current = true
       regionsFetchController.abort()
@@ -1331,10 +1382,13 @@ export function ExploreMap({
   return (
     <div ref={containerRef} className="explore-map-shell relative h-full w-full">
       {!radiusInfoDismissed && (
-        <div className="pointer-events-none absolute left-1/2 top-24 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto">
+        <div className="pointer-events-none absolute left-1/2 top-20 z-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto">
           <button
             type="button"
-            onClick={() => setRadiusInfoDismissed(true)}
+            onClick={() => {
+              setRadiusInfoDismissed(true)
+              setRadiusBubbleDismissed(true)
+            }}
             className="pointer-events-auto absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#E5E7EB] hover:text-[#374151]"
             aria-label={locale === 'en' ? 'Close' : 'Fermer'}
           >
