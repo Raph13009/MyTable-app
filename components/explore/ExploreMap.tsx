@@ -882,12 +882,6 @@ export function ExploreMap({
               return
             }
 
-            map.flyTo({
-              center: [item.displayLng, item.displayLat],
-              zoom: Math.max(13, map.getZoom()),
-              duration: 700,
-              essential: true,
-            })
             onChefClickRef.current?.(item.id)
           })
 
