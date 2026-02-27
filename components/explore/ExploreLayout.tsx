@@ -150,7 +150,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const mapDataChefs = useMemo(() => {
     if (searchPin) {
-      return sortedChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
+      return sortedChefs
     }
     if (!activeSearch) return sortedChefs
     return sortedChefs.filter((chef) => {
@@ -163,17 +163,18 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [activeSearch, searchPin, sortedChefs, outOfRangeChefIds])
 
   const visibleChefs = useMemo(() => {
-    if (searchPin) return mapDataChefs
     if (!mapVisibleChefIds) return mapDataChefs
     const visibleSet = new Set(mapVisibleChefIds)
     return mapDataChefs.filter((chef) => visibleSet.has(chef.id))
-  }, [mapDataChefs, mapVisibleChefIds, searchPin])
+  }, [mapDataChefs, mapVisibleChefIds])
 
   const orderedVisibleChefs = useMemo(() => {
     if (!searchPin) return visibleChefs
     const inRange = visibleChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
+    const outOfRange = visibleChefs.filter((chef) => outOfRangeChefIds.has(chef.id))
     inRange.sort((a, b) => a.name.localeCompare(b.name, locale))
-    return inRange
+    outOfRange.sort((a, b) => a.name.localeCompare(b.name, locale))
+    return [...inRange, ...outOfRange]
   }, [visibleChefs, searchPin, outOfRangeChefIds, locale])
 
   const mobileListChefs = useMemo(() => {
@@ -467,7 +468,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const mobileSnapTranslate = (snap: 'bottom' | 'mid' | 'full') => {
     if (snap === 'full') return 0
-    if (snap === 'mid') return 48
+    if (snap === 'mid') return 38
     return 90
   }
 
@@ -514,7 +515,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
     const snaps: Array<{ id: 'bottom' | 'mid' | 'full'; value: number }> = [
       { id: 'full', value: 0 },
-      { id: 'mid', value: 48 },
+      { id: 'mid', value: 38 },
       { id: 'bottom', value: 90 },
     ]
     const closest = snaps.reduce((prev, curr) =>
@@ -792,6 +793,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
                     forceMobileCardStyle
+                    compact
                     breakOutOfIframe={embedded}
                   />
                   <div className="h-[42vh]" aria-hidden />

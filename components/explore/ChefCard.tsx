@@ -13,6 +13,8 @@ interface ChefCardProps {
   onMountRef?: (chefId: string, element: HTMLElement | null) => void
   onChefNameClick?: (chefId: string) => void
   forceMobileStyle?: boolean
+  /** Version compacte (drawer tablette) pour afficher 2 cards à mi-hauteur */
+  compact?: boolean
   /** When true, profile links break out of iframe (window.top) for full-screen navigation */
   breakOutOfIframe?: boolean
 }
@@ -53,6 +55,7 @@ export function ChefCard({
   onMountRef,
   onChefNameClick,
   forceMobileStyle = false,
+  compact = false,
   breakOutOfIframe = false,
 }: ChefCardProps) {
   const navigateToProfile = useProfileNavigation(breakOutOfIframe)
@@ -148,7 +151,9 @@ export function ChefCard({
     >
       <div className={forceMobileStyle ? '' : 'md:hidden'}>
         <div className="relative w-full">
-          <div className="h-[130px] w-full overflow-hidden rounded-t-xl bg-[#EFEFEF]">
+          <div
+            className={`w-full overflow-hidden rounded-t-xl bg-[#EFEFEF] ${compact ? 'h-[95px]' : 'h-[130px]'}`}
+          >
             {mobileHeroImage ? (
               <img src={mobileHeroImage} alt={displayChefName} className="h-full w-full object-cover" />
             ) : (
@@ -157,7 +162,11 @@ export function ChefCard({
               </div>
             )}
           </div>
-          <div className="absolute bottom-[-16px] left-3 z-10 h-11 w-11 overflow-hidden rounded-full border border-white/90 bg-[#F3F3F3] shadow-[0_3px_8px_rgba(0,0,0,0.12)]">
+          <div
+            className={`absolute left-3 z-10 overflow-hidden rounded-full border border-white/90 bg-[#F3F3F3] shadow-[0_3px_8px_rgba(0,0,0,0.12)] ${
+              compact ? 'bottom-[-12px] h-9 w-9' : 'bottom-[-16px] h-11 w-11'
+            }`}
+          >
             {mobileAvatarImage ? (
               <img src={mobileAvatarImage} alt={displayChefName} className="h-full w-full object-cover" />
             ) : (
@@ -167,32 +176,18 @@ export function ChefCard({
             )}
           </div>
         </div>
-        <div className="rounded-b-xl bg-white px-3.5 pb-3 pt-6">
-          <div className="flex items-start justify-between gap-2">
+        <div className="rounded-b-xl bg-white px-3.5 pb-3 pt-5">
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 onChefNameClick?.(chef.id)
               }}
-              className="truncate pr-2 text-left text-base font-semibold leading-tight text-[#111111] hover:underline"
+              className={`truncate pr-2 text-left font-semibold leading-tight text-[#111111] hover:underline ${compact ? 'text-sm' : 'text-base'}`}
             >
               {displayChefName}
             </button>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#4E4E4E]">
-              {displayedCuisine}
-            </span>
-            {isOutOfRange && (
-              <span className="ml-1.5 inline-flex rounded-full border border-[#E0E0E0] bg-[#F3F3F3] px-2 py-0.5 text-[10px] font-semibold text-[#6A6A6A]">
-                {t('explore.outOfRange')}
-              </span>
-            )}
-          </div>
-          <p className="mt-1.5 truncate text-sm font-semibold text-[#1F1F1F]">{priceLabel}</p>
-          <div className="mt-1.5 flex items-end justify-between gap-2">
-            <p className="text-sm text-gray-500">{guestsLabel}</p>
             {infoHref ? (
               <button
                 type="button"
@@ -205,6 +200,22 @@ export function ChefCard({
                 {t('explore.viewProfile')}
               </button>
             ) : null}
+          </div>
+          <div className={`flex items-center gap-1.5 ${compact ? 'mt-1.5' : 'mt-2'}`}>
+            <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#4E4E4E]">
+              {displayedCuisine}
+            </span>
+            {isOutOfRange && (
+              <span className="ml-1.5 inline-flex rounded-full border border-[#E0E0E0] bg-[#F3F3F3] px-2 py-0.5 text-[10px] font-semibold text-[#6A6A6A]">
+                {t('explore.outOfRange')}
+              </span>
+            )}
+          </div>
+          <p className={`truncate text-sm font-semibold text-[#1F1F1F] ${compact ? 'mt-1' : 'mt-1.5'}`}>
+            {priceLabel}
+          </p>
+          <div className={`flex items-end gap-2 ${compact ? 'mt-1' : 'mt-1.5'}`}>
+            <p className="text-sm text-gray-500">{guestsLabel}</p>
           </div>
         </div>
       </div>
