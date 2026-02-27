@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { ensureUniqueChefSlug } from '@/lib/chef-slug'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
 
@@ -133,12 +134,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Rayon de disponibilité invalide' }, { status: 400 })
     }
 
+    const uniqueSlug = await ensureUniqueChefSlug(supabaseAdmin, slug, chefId)
+
     // Mettre à jour le chef
     const { error: chefError } = await supabaseAdmin
       .from('chefs')
       // @ts-expect-error - Supabase type inference issue
       .update({
-        slug,
+        slug: uniqueSlug,
         name,
         last_name: normalizedLastName || null,
         email: email.toLowerCase().trim(),

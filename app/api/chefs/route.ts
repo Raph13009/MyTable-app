@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureUniqueChefSlug } from '@/lib/chef-slug'
 
 /**
  * Route API pour créer un chef
@@ -22,20 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
-
-    // Vérifier si le chef existe déjà
-    const { data: existingChef } = await supabase
-      .from('chefs')
-      .select('id, email')
-      .eq('slug', slug)
-      .single()
-
-    if (existingChef) {
-      return NextResponse.json(
-        { error: 'Un chef avec ce slug existe déjà' },
-        { status: 400 }
-      )
-    }
+    const uniqueSlug = await ensureUniqueChefSlug(supabase, slug)
 
     // Créer l'utilisateur auth pour le chef
     let chefUserId: string | null = null
@@ -81,7 +69,7 @@ export async function POST(request: NextRequest) {
     const { data: chef, error: chefError } = await supabase
       .from('chefs')
       .insert({
-        slug,
+        slug: uniqueSlug,
         name,
         email,
         phone: phone || null,

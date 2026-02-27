@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { slugifyChefName } from '@/lib/chef-slug'
 
 interface Menu {
   id: string
@@ -685,12 +686,7 @@ export default function ChefFormPage() {
 
     try {
       setIsSaving(true)
-      const slug = formData.name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
+      const slug = slugifyChefName(formData.name)
 
       let profilePictureUrl = currentProfilePicture
       const tempId = chefId || crypto.randomUUID()
