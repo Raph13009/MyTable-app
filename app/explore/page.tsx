@@ -65,7 +65,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
       image: row.profile_picture || null,
       heroImage: (primaryDishPhoto && dishPhotos.includes(primaryDishPhoto) ? primaryDishPhoto : null) || dishPhotos[0] || row.profile_picture || null,
       avatarImage: row.profile_picture || null,
-      dishPhotos: dishPhotos.filter((url) => url !== row.profile_picture),
+      dishPhotos: dishPhotos.filter((url: string) => url !== row.profile_picture),
       cuisineType: row.cuisine_style || null,
       cuisineTypeEn: row.cuisine_style_en || null,
       availabilityRadiusKm:
