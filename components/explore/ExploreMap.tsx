@@ -694,9 +694,10 @@ export function ExploreMap({
 
     mapboxgl.accessToken = token
     const initialZoom = embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM
+    const mapStyle = isMobileViewport ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/streets-v12'
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: mapStyle,
       center: FRANCE_CENTER,
       zoom: initialZoom,
       maxBounds: EUROPE_MAX_BOUNDS,
@@ -835,14 +836,28 @@ export function ExploreMap({
         })
       }
 
+      const MAX_DOM_MARKERS_MOBILE = 35
+      let featuresToRender = nextFeatures
+      if (isMobileViewport && nextFeatures.length > MAX_DOM_MARKERS_MOBILE) {
+        const center = map.getCenter()
+        featuresToRender = [...nextFeatures]
+          .sort((a, b) => {
+            const da = (a.displayLng - center.lng) ** 2 + (a.displayLat - center.lat) ** 2
+            const db = (b.displayLng - center.lng) ** 2 + (b.displayLat - center.lat) ** 2
+            return da - db
+          })
+          .slice(0, MAX_DOM_MARKERS_MOBILE)
+      }
+
+      const seenRender = new Set(featuresToRender.map((f) => f.id))
       markerStore.forEach(({ marker }, chefId) => {
-        if (!seen.has(chefId)) {
+        if (!seenRender.has(chefId)) {
           marker.remove()
           markerStore.delete(chefId)
         }
       })
 
-      nextFeatures.forEach((item) => {
+      featuresToRender.forEach((item) => {
         const existing = markerStore.get(item.id)
         const displayChefName = formatChefNameWithPrefix(item.name)
 
@@ -1176,12 +1191,25 @@ export function ExploreMap({
     const container = containerRef.current
     let resizeRaf: number | null = null
     let resizeDebounce: ReturnType<typeof setTimeout> | null = null
-    const resizeDebounceMs = isMobileViewport ? 180 : 50
+    let lastWidth = 0
+    let lastHeight = 0
+    const resizeDebounceMs = isMobileViewport ? 250 : 50
+    const resizeThresholdPx = isMobileViewport ? 25 : 10
     const resizeObserver =
       container &&
-      new ResizeObserver(() => {
+      new ResizeObserver((entries) => {
         const m = mapRef.current
         if (!m || isDisposed) return
+        if (typeof document !== 'undefined' && document.hidden) return
+        const entry = entries[0]
+        if (!entry?.contentRect) return
+        const w = Math.round(entry.contentRect.width)
+        const h = Math.round(entry.contentRect.height)
+        const dw = Math.abs(w - lastWidth)
+        const dh = Math.abs(h - lastHeight)
+        if (lastWidth > 0 && lastHeight > 0 && dw < resizeThresholdPx && dh < resizeThresholdPx) return
+        lastWidth = w
+        lastHeight = h
         const center = m.getCenter()
         const zoom = m.getZoom()
         if (resizeDebounce) clearTimeout(resizeDebounce)
@@ -1191,18 +1219,37 @@ export function ExploreMap({
           resizeRaf = requestAnimationFrame(() => {
             resizeRaf = null
             if (!mapRef.current || mapRef.current !== m || isDisposed) return
+            if (typeof document !== 'undefined' && document.hidden) return
             m.resize()
             m.setCenter(center)
             m.setZoom(zoom)
           })
         }, resizeDebounceMs)
       })
-    if (resizeObserver && container) resizeObserver.observe(container)
+    if (resizeObserver && container) {
+      const rect = container.getBoundingClientRect()
+      lastWidth = Math.round(rect.width)
+      lastHeight = Math.round(rect.height)
+      resizeObserver.observe(container)
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && mapRef.current && !isDisposed) {
+        lastWidth = 0
+        lastHeight = 0
+        requestAnimationFrame(() => {
+          if (mapRef.current && !isDisposed) mapRef.current.resize()
+        })
+      }
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
 
     return () => {
       if (resizeDebounce) clearTimeout(resizeDebounce)
       if (resizeRaf) cancelAnimationFrame(resizeRaf)
       resizeObserver?.disconnect()
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibilityChange)
       isDisposed = true
       isUnmountingRef.current = true
       regionsFetchController.abort()
