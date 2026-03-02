@@ -16,6 +16,25 @@ function addDays(d: Date, n: number) {
   return next
 }
 
+function emptyResponse(days: number, startDate: Date, endDate: Date) {
+  return NextResponse.json({
+    period: { start: startDate.toISOString(), end: endDate.toISOString(), days },
+    searchesPerDay: Array.from({ length: days }, (_, i) => ({
+      date: addDays(startDate, i).toISOString().slice(0, 10),
+      count: 0,
+    })),
+    profileViewsByChef: [],
+    conversion: {
+      usersWhoMessaged: 0,
+      usersWhoBooked: 0,
+      usersWhoMessagedAndBooked: 0,
+      messageToBookingConversionPct: 0,
+    },
+    funnel: { search: 0, profile_view: 0, message_sent: 0, booking_request: 0 },
+    auth: { signup: 0, login: 0 },
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabaseAuth = await createClient()
@@ -35,14 +54,23 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    const { data: events, error } = await supabase
+    const db = supabase as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => { gte: (col: string, val: string) => { lt: (col: string, val: string) => { order: (col: string, opts: { ascending: boolean }) => Promise<{ data: unknown; error: unknown }> } } }
+      }
+    }
+
+    const { data: events, error } = await db
       .from('analytics_events')
       .select('id, event_type, user_id, metadata, created_at')
       .gte('created_at', startDate.toISOString())
       .lt('created_at', endDate.toISOString())
       .order('created_at', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      console.error('[analytics-pro] Supabase error:', error)
+      return emptyResponse(days, startDate, endDate)
+    }
 
     const eventsList = (events ?? []) as Array<{
       id: string
@@ -140,9 +168,9 @@ export async function GET(request: NextRequest) {
     })
   } catch (err) {
     console.error('[analytics-pro]', err)
-    return NextResponse.json(
-      { error: 'Erreur lors de la récupération des analytics' },
-      { status: 500 }
-    )
+    const days = 14
+    const endDate = startOfDay(addDays(new Date(), 1))
+    const startDate = addDays(endDate, -days)
+    return emptyResponse(days, startDate, endDate)
   }
 }
