@@ -31,14 +31,16 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
-
-    await supabase.from('analytics_events').insert({
+    const row = {
       user_id: userId || null,
       role: role || null,
       event_type: event_type.trim(),
       page: page || null,
       metadata: typeof metadata === 'object' ? metadata : {},
-    })
+    }
+    // Table ajoutée manuellement, types non générés - cast pour bypass
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('analytics_events').insert(row as any)
 
     return new NextResponse(null, { status: 204 })
   } catch {
