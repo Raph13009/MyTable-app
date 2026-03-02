@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, X } from 'lucide-react'
@@ -135,7 +135,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return [...chefs].sort((a, b) => a.name.localeCompare(b.name, locale))
   }, [chefs, locale])
 
-  const outOfRangeChefIds = useMemo(() => {
+  const outOfRangeChefIdsSet = useMemo(() => {
     if (!searchPin) return new Set<string>()
     const [targetLng, targetLat] = searchPin.center
     const ids = new Set<string>()
@@ -151,9 +151,14 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return ids
   }, [searchPin, sortedChefs])
 
+  const outOfRangeChefIds = useMemo(
+    () => [...outOfRangeChefIdsSet],
+    [outOfRangeChefIdsSet]
+  )
+
   const mapDataChefs = useMemo(() => {
     if (searchPin) {
-      return sortedChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
+      return sortedChefs.filter((chef) => !outOfRangeChefIdsSet.has(chef.id))
     }
     if (!activeSearch) return sortedChefs
     return sortedChefs.filter((chef) => {
@@ -163,7 +168,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       }
       return distanceKm(chef.latitude, chef.longitude, activeSearch.center[1], activeSearch.center[0]) <= 70
     })
-  }, [activeSearch, searchPin, sortedChefs, outOfRangeChefIds])
+  }, [activeSearch, searchPin, sortedChefs, outOfRangeChefIdsSet])
 
   const visibleChefs = useMemo(() => {
     if (!mapVisibleChefIds) return mapDataChefs
@@ -173,12 +178,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const orderedVisibleChefs = useMemo(() => {
     if (!searchPin) return visibleChefs
-    const inRange = visibleChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
-    const outOfRange = visibleChefs.filter((chef) => outOfRangeChefIds.has(chef.id))
+    const inRange = visibleChefs.filter((chef) => !outOfRangeChefIdsSet.has(chef.id))
+    const outOfRange = visibleChefs.filter((chef) => outOfRangeChefIdsSet.has(chef.id))
     inRange.sort((a, b) => a.name.localeCompare(b.name, locale))
     outOfRange.sort((a, b) => a.name.localeCompare(b.name, locale))
     return [...inRange, ...outOfRange]
-  }, [visibleChefs, searchPin, outOfRangeChefIds, locale])
+  }, [visibleChefs, searchPin, outOfRangeChefIdsSet, locale])
 
   const mobileListChefs = useMemo(() => {
     if ((!isMobile && !embedded) || !pinnedChefId) return orderedVisibleChefs
@@ -344,40 +349,28 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     }
   }, [shouldShowMobileDropdown])
 
-  const handleChefMountRef = (chefId: string, element: HTMLElement | null) => {
+  const handleChefMountRef = useCallback((chefId: string, element: HTMLElement | null) => {
     cardRefs.current[chefId] = element
-  }
+  }, [])
 
-  const handleChefBubbleClick = (chefId: string) => {
+  const handleChefBubbleClick = useCallback((chefId: string) => {
     setPinnedChefId(chefId)
     setHoveredChefId(null)
-    if (isMobile || embedded) {
-      setMobileSheetSnap('mid')
-      return
-    }
-    if (viewMode === 'map') {
-      return
-    }
-    setViewMode('list')
-    const element = cardRefs.current[chefId]
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
+  }, [])
 
-  const handleSelectionClear = () => {
+  const handleSelectionClear = useCallback(() => {
     setPinnedChefId(null)
     setHoveredChefId(null)
-  }
+  }, [])
 
-  const handleChefHover = (chefId: string | null) => {
+  const handleChefHover = useCallback((chefId: string | null) => {
     setHoveredChefId(chefId)
-  }
+  }, [])
 
-  const handleChefNameToggle = (chefId: string) => {
+  const handleChefNameToggle = useCallback((chefId: string) => {
     setPinnedChefId((prev) => (prev === chefId ? null : chefId))
     setHoveredChefId((prev) => (prev === chefId ? null : prev))
-  }
+  }, [])
 
   const applySuggestion = (suggestion: SearchSuggestion) => {
     setFocusedRegionSlug(null)
@@ -681,7 +674,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
               focusedRegionSlug={focusedRegionSlug}
               searchViewport={searchViewport}
               searchPin={searchPin}
-              outOfRangeChefIds={[...outOfRangeChefIds]}
+              outOfRangeChefIds={outOfRangeChefIds}
               locale={locale}
             />
 
@@ -756,7 +749,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       chefs={mobileListChefs}
                       onChefHover={handleChefHover}
                       highlightedChefId={selectedChefId}
-                      outOfRangeChefIds={outOfRangeChefIds}
+                      outOfRangeChefIds={outOfRangeChefIdsSet}
                       onChefMountRef={handleChefMountRef}
                       onChefNameClick={handleChefNameToggle}
                       forceMobileCardStyle
@@ -828,7 +821,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                     chefs={orderedVisibleChefs}
                     onChefHover={handleChefHover}
                     highlightedChefId={selectedChefId}
-                    outOfRangeChefIds={outOfRangeChefIds}
+                    outOfRangeChefIds={outOfRangeChefIdsSet}
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
                     forceMobileCardStyle
@@ -883,7 +876,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                       focusedRegionSlug={focusedRegionSlug}
                       searchViewport={searchViewport}
                       searchPin={searchPin}
-                      outOfRangeChefIds={[...outOfRangeChefIds]}
+                      outOfRangeChefIds={outOfRangeChefIds}
                       locale={locale}
                     />
                   </div>

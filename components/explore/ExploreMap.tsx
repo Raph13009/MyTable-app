@@ -726,19 +726,34 @@ export function ExploreMap({
       })
     }
 
-    let queryRetryScheduled = false
-    const refreshUnclusteredMarkers = () => {
+    let refreshMarkersRaf: number | null = null
+    let refreshMarkersTimer: ReturnType<typeof setTimeout> | null = null
+    const scheduleRefreshMarkers = () => {
+      if (refreshMarkersTimer) return
+      refreshMarkersTimer = setTimeout(() => {
+        refreshMarkersTimer = null
+        if (isDisposed) return
+        if (refreshMarkersRaf) cancelAnimationFrame(refreshMarkersRaf)
+        refreshMarkersRaf = requestAnimationFrame(() => {
+          refreshMarkersRaf = null
+          if (isDisposed) return
+          refreshUnclusteredMarkersImmediate()
+        })
+      }, 80)
+    }
+
+    const refreshUnclusteredMarkersImmediate = () => {
       if (!map.getSource(SOURCE_ID)) return
 
       const features = map.querySourceFeatures(SOURCE_ID, {
         filter: ['!', ['has', 'point_count']],
       })
 
-      if (features.length === 0 && map.isStyleLoaded() && !queryRetryScheduled) {
-        queryRetryScheduled = true
+      if (features.length === 0 && map.isStyleLoaded()) {
         setTimeout(() => {
-          refreshUnclusteredMarkers()
-        }, 200)
+          if (!isDisposed) refreshUnclusteredMarkersImmediate()
+        }, 250)
+        return
       }
 
       const seen = new Set<string>()
@@ -932,6 +947,16 @@ export function ExploreMap({
       })
 
       syncMarkerActiveState()
+    }
+
+    let emitVisibleTimer: ReturnType<typeof setTimeout> | null = null
+    const scheduleEmitVisible = () => {
+      if (emitVisibleTimer) return
+      emitVisibleTimer = setTimeout(() => {
+        emitVisibleTimer = null
+        if (isDisposed) return
+        emitVisibleChefsInBounds()
+      }, 100)
     }
 
     const emitVisibleChefsInBounds = () => {
@@ -1165,24 +1190,24 @@ export function ExploreMap({
         })
       })
 
-      refreshUnclusteredMarkers()
+      refreshUnclusteredMarkersImmediate()
       emitVisibleChefsInBounds()
     }
     map.on('load', onMapLoad)
 
-    map.on('moveend', refreshUnclusteredMarkers)
-    map.on('moveend', emitVisibleChefsInBounds)
-    map.on('zoomend', refreshUnclusteredMarkers)
-    map.on('zoomend', emitVisibleChefsInBounds)
+    map.on('moveend', scheduleRefreshMarkers)
+    map.on('moveend', scheduleEmitVisible)
+    map.on('zoomend', scheduleRefreshMarkers)
+    map.on('zoomend', scheduleEmitVisible)
     const onMapClick = () => {
       onSelectionClearRef.current?.()
       closePopup()
     }
     map.on('click', onMapClick)
     const onSourceData = (event: mapboxgl.MapSourceDataEvent) => {
-      if (event.sourceId === SOURCE_ID) {
-        refreshUnclusteredMarkers()
-        emitVisibleChefsInBounds()
+      if (event.sourceId === SOURCE_ID && event.isSourceLoaded) {
+        scheduleRefreshMarkers()
+        scheduleEmitVisible()
       }
     }
     map.on('sourcedata', onSourceData)
@@ -1257,18 +1282,19 @@ export function ExploreMap({
         searchPinMarkerRef.current.remove()
         searchPinMarkerRef.current = null
       }
+      if (refreshMarkersTimer) clearTimeout(refreshMarkersTimer)
+      if (refreshMarkersRaf) cancelAnimationFrame(refreshMarkersRaf)
+      if (emitVisibleTimer) clearTimeout(emitVisibleTimer)
       map.off('load', onMapLoad)
-      map.off('moveend', refreshUnclusteredMarkers)
-      map.off('moveend', emitVisibleChefsInBounds)
-      map.off('zoomend', refreshUnclusteredMarkers)
-      map.off('zoomend', emitVisibleChefsInBounds)
+      map.off('moveend', scheduleRefreshMarkers)
+      map.off('moveend', scheduleEmitVisible)
+      map.off('zoomend', scheduleRefreshMarkers)
+      map.off('zoomend', scheduleEmitVisible)
       map.off('click', onMapClick)
       map.off('sourcedata', onSourceData)
       map.stop()
       try {
-        if (process.env.NODE_ENV !== 'production') {
-          ;(map as any)._removed = true
-        } else if (!(map as any)._removed) {
+        if (!(map as any)._removed) {
           map.remove()
         }
       } catch (error: any) {
