@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useProfileNavigation } from '@/hooks/useProfileNavigation'
+import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
 
 interface ChefCardProps {
   chef: ExploreChef
@@ -85,7 +86,7 @@ export function ChefCard({
     const image = new Image()
     image.crossOrigin = 'anonymous'
     image.referrerPolicy = 'no-referrer'
-    image.src = chef.image
+    image.src = getOptimizedSupabaseImageUrl(chef.image, 400) ?? chef.image
 
     image.onload = () => {
       if (cancelled) return
@@ -155,7 +156,21 @@ export function ChefCard({
             className={`w-full overflow-hidden rounded-t-xl bg-[#EFEFEF] ${compact ? 'h-[95px]' : 'h-[130px]'}`}
           >
             {mobileHeroImage ? (
-              <img src={mobileHeroImage} alt={displayChefName} className="h-full w-full object-cover" />
+              (() => {
+                const isSupabase = mobileHeroImage.includes('supabase.co/storage')
+                const src = getOptimizedSupabaseImageUrl(mobileHeroImage, 400) ?? mobileHeroImage
+                const src300 = isSupabase ? getOptimizedSupabaseImageUrl(mobileHeroImage, 300) : null
+                return (
+                  <img
+                    src={src}
+                    srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                    sizes="(max-width: 768px) 300px, 400px"
+                    alt={displayChefName}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                )
+              })()
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
                 {t('explore.photoUnavailable')}
@@ -168,7 +183,21 @@ export function ChefCard({
             }`}
           >
             {mobileAvatarImage ? (
-              <img src={mobileAvatarImage} alt={displayChefName} className="h-full w-full object-cover" />
+              (() => {
+                const isSupabase = mobileAvatarImage.includes('supabase.co/storage')
+                const src = getOptimizedSupabaseImageUrl(mobileAvatarImage, 400) ?? mobileAvatarImage
+                const src300 = isSupabase ? getOptimizedSupabaseImageUrl(mobileAvatarImage, 300) : null
+                return (
+                  <img
+                    src={src}
+                    srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                    sizes="(max-width: 768px) 36px, 44px"
+                    alt={displayChefName}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                )
+              })()
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[#727272]">
                 {displayChefName.slice(0, 1).toUpperCase()}
@@ -222,7 +251,21 @@ export function ChefCard({
 
       <div className={forceMobileStyle ? 'hidden' : 'relative hidden h-full w-full overflow-hidden md:block'}>
         {chef.image ? (
-          <img src={chef.image} alt={displayChefName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+          (() => {
+            const isSupabase = chef.image.includes('supabase.co/storage')
+            const src = getOptimizedSupabaseImageUrl(chef.image, 400) ?? chef.image
+            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(chef.image, 300) : null
+            return (
+              <img
+                src={src}
+                srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                sizes="(max-width: 768px) 300px, 400px"
+                alt={displayChefName}
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                loading="lazy"
+              />
+            )
+          })()
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
             {t('explore.photoUnavailable')}

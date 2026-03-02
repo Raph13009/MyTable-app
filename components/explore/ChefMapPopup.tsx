@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useRouter } from 'next/navigation'
+import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
 
 interface ChefMapPopupProps {
   chef: ExploreChef
@@ -46,7 +47,7 @@ export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, 
     const image = new Image()
     image.crossOrigin = 'anonymous'
     image.referrerPolicy = 'no-referrer'
-    image.src = backgroundImage
+    image.src = getOptimizedSupabaseImageUrl(backgroundImage, 400) ?? backgroundImage
 
     image.onload = () => {
       if (cancelled) return
@@ -104,7 +105,21 @@ export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, 
     >
       <div className="relative h-full w-full overflow-hidden">
         {backgroundImage ? (
-          <img src={backgroundImage} alt={displayChefName} className="h-full w-full object-cover" />
+          (() => {
+            const isSupabase = backgroundImage.includes('supabase.co/storage')
+            const src = getOptimizedSupabaseImageUrl(backgroundImage, 400) ?? backgroundImage
+            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(backgroundImage, 300) : null
+            return (
+              <img
+                src={src}
+                srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                sizes="(max-width: 768px) 234px, 400px"
+                alt={displayChefName}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            )
+          })()
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#8A8A8A]">
             {t('explore.photoUnavailable')}
@@ -142,7 +157,23 @@ export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, 
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <div className="h-6 w-6 overflow-hidden rounded-full border border-white/80 bg-white/70">
-                {avatarImage ? <img src={avatarImage} alt={displayChefName} className="h-full w-full object-cover" /> : null}
+                {avatarImage ? (
+                  (() => {
+                    const isSupabase = avatarImage.includes('supabase.co/storage')
+                    const src = getOptimizedSupabaseImageUrl(avatarImage, 400) ?? avatarImage
+                    const src300 = isSupabase ? getOptimizedSupabaseImageUrl(avatarImage, 300) : null
+                    return (
+                      <img
+                        src={src}
+                        srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                        sizes="24px"
+                        alt={displayChefName}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    )
+                  })()
+                ) : null}
               </div>
               <h3
                 className={`truncate text-[13px] leading-tight text-[#0F0F0F] ${
