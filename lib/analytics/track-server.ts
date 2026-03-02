@@ -23,7 +23,6 @@ export async function trackEventServer(payload: {
       metadata: payload.metadata ?? {},
     }
     // Table ajoutée manuellement, types non générés - cast pour bypass
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('analytics_events').insert(row as any)
   } catch {
     // silent

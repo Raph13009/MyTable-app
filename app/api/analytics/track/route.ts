@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
       metadata: typeof metadata === 'object' ? metadata : {},
     }
     // Table ajoutée manuellement, types non générés - cast pour bypass
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('analytics_events').insert(row as any)
 
     return new NextResponse(null, { status: 204 })
