@@ -134,7 +134,7 @@ export function ChefMapPopup({
           onCardClick?.()
         }}
       >
-        <div className="relative h-[200px] w-full overflow-hidden md:h-[220px]">
+        <div className="relative h-[80px] w-full overflow-hidden md:h-[160px]">
           {backgroundImage ? (
             (() => {
               const isSupabase = backgroundImage.includes('supabase.co/storage')
@@ -170,21 +170,23 @@ export function ChefMapPopup({
             </svg>
           </button>
         </div>
-        <div className="space-y-4 px-5 pb-5 pt-5 md:space-y-5 md:px-8 md:pb-6 md:pt-6">
-          <div className="space-y-2">
-            <h3 className="truncate text-[19px] font-semibold leading-tight text-[#222222] md:text-[21px]">
-              {displayChefName}
-            </h3>
-            <span className="inline-flex rounded-full bg-[#F0F0F0] px-2.5 py-1 text-[13px] font-medium text-[#525252] md:text-[14px]">
-              {displayedCuisine}
-            </span>
+        <div className="space-y-3 px-5 pb-4 pt-4 md:space-y-5 md:px-8 md:pb-6 md:pt-6">
+          <div className="space-y-1">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+              <h3 className="truncate text-[17px] font-semibold leading-tight text-[#111111] md:text-[21px]">
+                {displayChefName}
+              </h3>
+              <span className="shrink-0 text-[13px] font-normal text-[#8A8A8A] md:text-[14px]">
+                {displayedCuisine}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-            <div className="space-y-0.5">
-              <p className="text-[20px] font-semibold leading-tight text-[#222222] md:text-[22px]">
+          <div className="flex items-end justify-between gap-5">
+            <div className="min-w-0 shrink space-y-0.5">
+              <p className="text-[16px] font-semibold leading-tight text-[#111111] md:text-[20px]">
                 {priceLabel}
               </p>
-              <p className="text-[14px] text-[#717171] md:text-[15px]">
+              <p className="text-[13px] font-normal text-[#8A8A8A] md:text-[14px]">
                 {guestsLabel}
               </p>
             </div>
@@ -195,7 +197,7 @@ export function ChefMapPopup({
                   e.stopPropagation()
                   router.push(infoHref)
                 }}
-                className="mt-2 h-11 shrink-0 self-start rounded-full bg-[#FBCF03] px-6 font-bold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:scale-[1.02] active:scale-[0.98] sm:mt-0"
+                className="ml-1 h-9 shrink-0 rounded-full bg-[#FBCF03] px-5 text-[14px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-11 md:px-6 md:text-base"
               >
                 {t('explore.viewProfile')}
               </button>
