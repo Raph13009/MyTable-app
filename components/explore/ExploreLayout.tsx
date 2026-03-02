@@ -11,6 +11,7 @@ import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, EMBEDDED_FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
 import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface ExploreLayoutProps {
   chefs: ExploreChef[]
@@ -68,7 +69,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const router = useRouter()
   const { t, locale } = useTranslation()
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [pinnedChefId, setPinnedChefId] = useState<string | null>(null)
   const [hoveredChefId, setHoveredChefId] = useState<string | null>(null)
   const [focusedRegionSlug, setFocusedRegionSlug] = useState<string | null>(initialFocusedRegionSlug)
@@ -211,15 +212,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
       if (searchAbortRef.current) searchAbortRef.current.abort()
     }
-  }, [])
-
-  useEffect(() => {
-    const syncViewport = () => {
-      setIsMobile(window.innerWidth < 1024)
-    }
-    syncViewport()
-    window.addEventListener('resize', syncViewport)
-    return () => window.removeEventListener('resize', syncViewport)
   }, [])
 
   useEffect(() => {

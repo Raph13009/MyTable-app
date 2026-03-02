@@ -551,6 +551,7 @@ export function ExploreMap({
   const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
   const [radiusInfoDismissed, setRadiusInfoDismissed] = useState(false)
+  const [webglContextLost, setWebglContextLost] = useState(false)
 
   useEffect(() => {
     setRadiusInfoDismissed(getRadiusBubbleDismissed())
@@ -703,6 +704,13 @@ export function ExploreMap({
     mapRef.current = map
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
 
+    const canvas = map.getCanvas()
+    const onWebGLContextLost = (e: Event) => {
+      e.preventDefault()
+      setWebglContextLost(true)
+    }
+    canvas.addEventListener('webglcontextlost', onWebGLContextLost)
+
     const clearAllMarkers = () => {
       markerStore.forEach(({ marker }) => marker.remove())
       markerStore.clear()
@@ -718,12 +726,20 @@ export function ExploreMap({
       })
     }
 
+    let queryRetryScheduled = false
     const refreshUnclusteredMarkers = () => {
       if (!map.getSource(SOURCE_ID)) return
 
       const features = map.querySourceFeatures(SOURCE_ID, {
         filter: ['!', ['has', 'point_count']],
       })
+
+      if (features.length === 0 && map.isStyleLoaded() && !queryRetryScheduled) {
+        queryRetryScheduled = true
+        setTimeout(() => {
+          refreshUnclusteredMarkers()
+        }, 200)
+      }
 
       const seen = new Set<string>()
       const nextFeatures: Array<{
@@ -1160,6 +1176,7 @@ export function ExploreMap({
     const container = containerRef.current
     let resizeRaf: number | null = null
     let resizeDebounce: ReturnType<typeof setTimeout> | null = null
+    const resizeDebounceMs = isMobileViewport ? 180 : 50
     const resizeObserver =
       container &&
       new ResizeObserver(() => {
@@ -1178,7 +1195,7 @@ export function ExploreMap({
             m.setCenter(center)
             m.setZoom(zoom)
           })
-        }, 50)
+        }, resizeDebounceMs)
       })
     if (resizeObserver && container) resizeObserver.observe(container)
 
@@ -1213,6 +1230,7 @@ export function ExploreMap({
           console.error('[ExploreMap] map.remove cleanup error:', error)
         }
       }
+      canvas.removeEventListener('webglcontextlost', onWebGLContextLost)
       map.off('error', onMapError)
       if (popupCloseTimerRef.current) {
         clearTimeout(popupCloseTimerRef.current)
@@ -1373,6 +1391,17 @@ export function ExploreMap({
 
   return (
     <div ref={containerRef} className="explore-map-shell relative h-full w-full">
+      {webglContextLost && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="pointer-events-auto absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#F7F7F7] text-center"
+        >
+          <span className="text-[15px] font-medium text-[#222222]">
+            {locale === 'en' ? 'Map unavailable. Tap to reload.' : 'Carte indisponible. Touchez pour actualiser.'}
+          </span>
+        </button>
+      )}
       {!radiusInfoDismissed && (
         <div
           className={`pointer-events-none absolute z-10 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur ${
