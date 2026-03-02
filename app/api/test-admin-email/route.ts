@@ -4,6 +4,9 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getBaseUrl } from '@/lib/utils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
 
+/** Prevent static prerendering - must only run when explicitly requested (manual/cron) */
+export const dynamic = 'force-dynamic'
+
 /**
  * Route de test pour envoyer l'email admin pour la dernière réservation validée
  */

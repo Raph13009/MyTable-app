@@ -5,6 +5,9 @@ import { getBaseUrl, generateDecisionToken, hashToken } from '@/lib/utils'
 import { formatDateForDisplay } from '@/lib/dateUtils'
 import { getServiceTypeLabel } from '@/lib/i18n/constants'
 
+/** Prevent static prerendering - must only run when called by Vercel Cron or manual request */
+export const dynamic = 'force-dynamic'
+
 /**
  * Endpoint pour vérifier les booking_requests en attente depuis plus de 12h
  * et envoyer un email d'alerte à contact@guidemytable.fr

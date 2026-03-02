@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+/** Prevent static prerendering - mutates auth.users, must only run when explicitly requested */
+export const dynamic = 'force-dynamic'
+
 /**
  * Route API pour créer les utilisateurs auth.users pour les chefs existants
  * À appeler une fois pour migrer les chefs existants
