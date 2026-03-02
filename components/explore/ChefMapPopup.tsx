@@ -12,6 +12,8 @@ interface ChefMapPopupProps {
   onCardClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
+  /** Mode bottom sheet mobile/tablet : full width, image brut, pas d'encadré blanc */
+  bottomSheet?: boolean
 }
 
 function formatPrice(price: number | null): string {
@@ -19,12 +21,37 @@ function formatPrice(price: number | null): string {
   return `${Math.round(price)}€`
 }
 
+function formatGuestsRange(
+  minGuests: number | null,
+  maxGuests: number | null,
+  locale: string
+): string {
+  const isFr = locale === 'fr'
+  if (typeof minGuests === 'number' && typeof maxGuests === 'number') {
+    return isFr ? `De ${minGuests} à ${maxGuests} personnes` : `From ${minGuests} to ${maxGuests} people`
+  }
+  if (typeof minGuests === 'number') {
+    return isFr ? `À partir de ${minGuests} personnes` : `From ${minGuests} people`
+  }
+  if (typeof maxGuests === 'number') {
+    return isFr ? `Jusqu'à ${maxGuests} personnes` : `Up to ${maxGuests} people`
+  }
+  return isFr ? 'Convives non précisés' : 'Guests not specified'
+}
+
 function formatChefNameWithPrefix(name: string): string {
   const firstName = (name || '').trim().split(/\s+/)[0] || ''
   return firstName ? `Chef ${firstName}` : 'Chef'
 }
 
-export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, onMouseLeave }: ChefMapPopupProps) {
+export function ChefMapPopup({
+  chef,
+  onRequestClose,
+  onCardClick,
+  onMouseEnter,
+  onMouseLeave,
+  bottomSheet = false,
+}: ChefMapPopupProps) {
   const router = useRouter()
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
@@ -92,6 +119,92 @@ export function ChefMapPopup({ chef, onRequestClose, onCardClick, onMouseEnter, 
       cancelled = true
     }
   }, [backgroundImage])
+
+  if (bottomSheet) {
+    const priceLabel =
+      typeof chef.minPrice === 'number' && Number.isFinite(chef.minPrice)
+        ? `${t('explore.from')} ${Math.round(chef.minPrice)}€${locale === 'en' ? '/guest' : '/pers'}`
+        : formatPrice(chef.minPrice)
+    const guestsLabel = formatGuestsRange(chef.minGuests, chef.maxGuests, locale)
+    return (
+      <article
+        className="pointer-events-auto absolute bottom-0 left-4 right-4 z-40 overflow-hidden animate-in slide-in-from-bottom-4 rounded-t-[24px] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] duration-200 md:left-1/2 md:right-auto md:w-[min(512px,calc(100%-32px))] md:-translate-x-1/2"
+        onClick={(event) => {
+          event.stopPropagation()
+          onCardClick?.()
+        }}
+      >
+        <div className="relative h-[200px] w-full overflow-hidden md:h-[220px]">
+          {backgroundImage ? (
+            (() => {
+              const isSupabase = backgroundImage.includes('supabase.co/storage')
+              const src = getOptimizedSupabaseImageUrl(backgroundImage, 400) ?? backgroundImage
+              const src300 = isSupabase ? getOptimizedSupabaseImageUrl(backgroundImage, 300) : null
+              return (
+                <img
+                  src={src}
+                  srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                  sizes="100vw"
+                  alt={displayChefName}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              )
+            })()
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[#F7F7F7] text-[13px] font-medium text-[#717171] md:text-[14px]">
+              {t('explore.photoUnavailable')}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRequestClose?.()
+            }}
+            className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition hover:bg-white md:right-5 md:top-5"
+            aria-label={locale === 'en' ? 'Close card' : 'Fermer la fiche'}
+          >
+            <svg className="h-4 w-4 text-[#222222]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div className="space-y-4 px-5 pb-5 pt-5 md:space-y-5 md:px-8 md:pb-6 md:pt-6">
+          <div className="space-y-2">
+            <h3 className="truncate text-[19px] font-semibold leading-tight text-[#222222] md:text-[21px]">
+              {displayChefName}
+            </h3>
+            <span className="inline-flex rounded-full bg-[#F0F0F0] px-2.5 py-1 text-[13px] font-medium text-[#525252] md:text-[14px]">
+              {displayedCuisine}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+            <div className="space-y-0.5">
+              <p className="text-[20px] font-semibold leading-tight text-[#222222] md:text-[22px]">
+                {priceLabel}
+              </p>
+              <p className="text-[14px] text-[#717171] md:text-[15px]">
+                {guestsLabel}
+              </p>
+            </div>
+            {infoHref ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(infoHref)
+                }}
+                className="mt-2 h-11 shrink-0 self-start rounded-full bg-[#FBCF03] px-6 font-bold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:scale-[1.02] active:scale-[0.98] sm:mt-0"
+              >
+                {t('explore.viewProfile')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <article

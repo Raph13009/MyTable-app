@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, X } from 'lucide-react'
+import { ChefMapPopup } from './ChefMapPopup'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
 import { ExploreChef } from './types'
@@ -150,7 +151,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
   const mapDataChefs = useMemo(() => {
     if (searchPin) {
-      return sortedChefs
+      return sortedChefs.filter((chef) => !outOfRangeChefIds.has(chef.id))
     }
     if (!activeSearch) return sortedChefs
     return sortedChefs.filter((chef) => {
@@ -532,12 +533,14 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const currentMobileSheetTranslate = mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)
   const isMobileSheetExpanded = currentMobileSheetTranslate < mobileSnapTranslate('bottom') - 1
   const showMobileBackButton = Boolean(focusedRegionSlug) || isMobileSheetExpanded
-  /** En embedded: toujours la vue mobile (depliant), pas de header */
-  const showMobileLayout = isMobile || embedded
+  /** Explore2 embed: pas de header, layout compact. Mobile/tablet: carte en bas (pas de drawer) pour explore ET explore2. */
+  const useExplore2MobileLayout = embedded && isMobile
+  const showMobileLayout = isMobile
+  const useBottomCardOnMobile = isMobile
 
   return (
     <main className={`h-[100dvh] w-screen overflow-hidden ${viewMode === 'list' ? 'bg-white' : 'bg-[#F7F7F7]'}`}>
-      {!embedded && (
+      {!useExplore2MobileLayout && (
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[#EAEAEA] bg-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <div className="mx-auto flex h-[64px] w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:h-[84px] lg:px-8">
           {isMobile ? (
@@ -667,15 +670,15 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       </header>
       )}
 
-      <section className={embedded ? 'pt-0' : 'pt-[64px] lg:pt-[84px]'}>
+      <section className={useExplore2MobileLayout ? 'pt-0' : 'pt-[64px] lg:pt-[84px]'}>
         {showMobileLayout ? (
-          <div className={`relative w-full overflow-hidden ${embedded ? 'h-[100dvh]' : 'h-[calc(100dvh-64px)]'}`}>
+          <div className={`relative w-full overflow-hidden ${useExplore2MobileLayout ? 'h-[100dvh]' : 'h-[calc(100dvh-64px)]'}`}>
             <ExploreMap
               chefs={mapDataChefs}
               selectedChefId={selectedChefId}
               isMapMode
               isMobile
-              embedded={embedded}
+              embedded={useBottomCardOnMobile}
               onChefHover={handleChefHover}
               onChefClick={handleChefBubbleClick}
               onSelectionClear={handleSelectionClear}
@@ -690,7 +693,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
 
             <div
               ref={searchContainerRef}
-              className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${embedded ? '' : 'md:hidden'}`}
+              className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${useExplore2MobileLayout ? '' : 'md:hidden'}`}
             >
               <form
                 onSubmit={handleSearchSubmit}
@@ -706,7 +709,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   }}
                   onFocus={() => setIsSearchOpen(true)}
                   onTouchStart={() => setIsSearchOpen(true)}
-                  placeholder={embedded ? t('explore.searchPlaceholderEmbedded') : t('explore.searchPlaceholder')}
+                  placeholder={useExplore2MobileLayout ? t('explore.searchPlaceholderEmbedded') : t('explore.searchPlaceholder')}
                   className={`w-full flex-1 min-w-0 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
                 />
                 {searchPin && (
@@ -723,12 +726,65 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                   </button>
                 )}
               </form>
-              {embedded && (
+              {useExplore2MobileLayout && (
                 <div className="shrink-0">
                   <BookingLanguageSwitcher variant="embedded" />
                 </div>
               )}
             </div>
+            {!useBottomCardOnMobile && showMobileLayout && (
+              <aside
+                className={`absolute inset-x-0 bottom-0 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isMobileSheetExpanded ? 'z-40' : 'z-20'}`}
+                style={{
+                  bottom: 'env(safe-area-inset-bottom)',
+                  transform: `translateY(${mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)}%)`,
+                }}
+              >
+                <div
+                  className="flex min-h-[72px] cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-4 active:cursor-grabbing"
+                  onPointerDown={handleSheetPointerDown}
+                  onPointerMove={handleSheetPointerMove}
+                  onPointerUp={handleSheetPointerUp}
+                  onPointerCancel={handleSheetPointerUp}
+                  style={{ touchAction: 'none' }}
+                >
+                  <div className="h-1 w-14 rounded-full bg-[#D8D8D8]" />
+                  <p className="text-center text-sm font-medium text-[#2B2B2B]">{mobileCountLabel}</p>
+                </div>
+                <div
+                  ref={mobileSheetScrollRef}
+                  className={`explore-scroll explore-scroll--hidden h-[calc(100%-72px)] overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] ${
+                    mobileSheetSnap === 'bottom' ? 'overflow-hidden' : 'overflow-y-auto'
+                  }`}
+                >
+                  <div className={mobileSheetSnap === 'bottom' ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity'}>
+                    <ChefList
+                      chefs={mobileListChefs}
+                      onChefHover={handleChefHover}
+                      highlightedChefId={selectedChefId}
+                      outOfRangeChefIds={outOfRangeChefIds}
+                      onChefMountRef={handleChefMountRef}
+                      onChefNameClick={handleChefNameToggle}
+                      forceMobileCardStyle
+                      compact
+                      breakOutOfIframe={embedded}
+                    />
+                    <div className="h-[42vh]" aria-hidden />
+                  </div>
+                </div>
+              </aside>
+            )}
+            {useBottomCardOnMobile && pinnedChefId && (() => {
+              const chef = mapDataChefs.find((c) => c.id === pinnedChefId)
+              if (!chef) return null
+              return (
+                <ChefMapPopup
+                  chef={chef}
+                  onRequestClose={() => setPinnedChefId(null)}
+                  bottomSheet
+                />
+              )
+            })()}
             {showMobileLayout &&
               mobileDropdownBounds &&
               createPortal(
@@ -758,51 +814,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 </div>,
                 document.body
               )}
-
-            <aside
-              className={`absolute inset-x-0 bottom-0 h-full rounded-t-[24px] border-t border-[#EAEAEA] bg-white shadow-[0_-14px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isMobileSheetExpanded ? 'z-40' : 'z-20'}`}
-              style={{
-                bottom: 'env(safe-area-inset-bottom)',
-                transform: `translateY(${mobileSheetDragTranslate ?? mobileSnapTranslate(mobileSheetSnap)}%)`,
-              }}
-            >
-              <div
-                className="flex min-h-[72px] cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-4 active:cursor-grabbing"
-                onPointerDown={handleSheetPointerDown}
-                onPointerMove={handleSheetPointerMove}
-                onPointerUp={handleSheetPointerUp}
-                onPointerCancel={handleSheetPointerUp}
-                style={{ touchAction: 'none' }}
-              >
-                <div className="h-1 w-14 rounded-full bg-[#D8D8D8]" />
-                <p className="text-center text-sm font-medium text-[#2B2B2B]">{mobileCountLabel}</p>
-              </div>
-
-              <div
-                ref={mobileSheetScrollRef}
-                className={`explore-scroll explore-scroll--hidden h-[calc(100%-72px)] overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+8rem)] ${
-                  mobileSheetSnap === 'bottom' ? 'overflow-hidden' : 'overflow-y-auto'
-                }`}
-              >
-                <div className={mobileSheetSnap === 'bottom' ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity'}>
-                  <ChefList
-                    chefs={mobileListChefs}
-                    onChefHover={handleChefHover}
-                    highlightedChefId={selectedChefId}
-                    outOfRangeChefIds={outOfRangeChefIds}
-                    onChefMountRef={handleChefMountRef}
-                    onChefNameClick={handleChefNameToggle}
-                    forceMobileCardStyle
-                    compact
-                    breakOutOfIframe={embedded}
-                  />
-                  <div className="h-[42vh]" aria-hidden />
-                </div>
-              </div>
-            </aside>
           </div>
         ) : (
-          <div className={`w-full overflow-hidden ${embedded ? 'h-[calc(100dvh-52px)]' : 'h-[calc(100dvh-64px)] lg:h-[calc(100dvh-84px)]'}`}>
+          <div className="w-full overflow-hidden h-[calc(100dvh-64px)] lg:h-[calc(100dvh-84px)]">
             <div className="relative h-full w-full">
               <div
                 className={`absolute inset-y-0 left-0 ${

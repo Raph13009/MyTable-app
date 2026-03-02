@@ -1377,7 +1377,7 @@ export function ExploreMap({
         <div
           className={`pointer-events-none absolute z-10 rounded-2xl border border-white/75 bg-white/88 p-3 shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur ${
             embedded
-              ? 'left-4 bottom-[14%] w-[min(calc(100%-2rem),320px)]'
+              ? 'left-4 top-20 w-[min(calc(100%-2rem),320px)]'
               : 'left-1/2 top-20 w-[calc(100%-1.5rem)] max-w-[330px] -translate-x-1/2 md:left-4 md:top-auto md:bottom-4 md:translate-x-0 md:w-auto'
           }`}
         >
