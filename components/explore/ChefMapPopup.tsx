@@ -127,6 +127,35 @@ export function ChefMapPopup({
         ? `${t('explore.from')} ${Math.round(chef.minPrice)}€${locale === 'en' ? '/guest' : '/pers'}`
         : formatPrice(chef.minPrice)
     const guestsLabel = formatGuestsRange(chef.minGuests, chef.maxGuests, locale)
+    const dishPhotos = chef.dishPhotos ?? []
+    const nonPpUrls = dishPhotos.filter((url) => url && url !== chef.image)
+    const image1 = backgroundImage
+    const image2 = nonPpUrls.find((url) => url !== chef.heroImage) ?? nonPpUrls[0] ?? backgroundImage
+    const image3 = nonPpUrls.find((url) => url !== image1 && url !== image2) ?? image2
+
+    const renderImage = (url: string | null, alt: string) => {
+      if (!url) {
+        return (
+          <div className="flex h-full w-full items-center justify-center bg-[#F7F7F7] text-[11px] font-medium text-[#717171] md:text-[13px]">
+            {t('explore.photoUnavailable')}
+          </div>
+        )
+      }
+      const isSupabase = url.includes('supabase.co/storage')
+      const src = getOptimizedSupabaseImageUrl(url, 400) ?? url
+      const src300 = isSupabase ? getOptimizedSupabaseImageUrl(url, 300) : null
+      return (
+        <img
+          src={src}
+          srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+          sizes="33vw"
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      )
+    }
+
     return (
       <article
         className="pointer-events-auto absolute bottom-0 left-4 right-4 z-40 overflow-hidden animate-in slide-in-from-bottom-4 rounded-t-[24px] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] duration-200 md:left-1/2 md:right-auto md:w-[min(512px,calc(100%-32px))] md:-translate-x-1/2"
@@ -135,61 +164,39 @@ export function ChefMapPopup({
           onCardClick?.()
         }}
       >
-        <div className="relative h-[80px] w-full overflow-hidden md:h-[160px]">
-          {backgroundImage ? (
-            (() => {
-              const isSupabase = backgroundImage.includes('supabase.co/storage')
-              const src = getOptimizedSupabaseImageUrl(backgroundImage, 400) ?? backgroundImage
-              const src300 = isSupabase ? getOptimizedSupabaseImageUrl(backgroundImage, 300) : null
-              return (
-                <img
-                  src={src}
-                  srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
-                  sizes="100vw"
-                  alt={displayChefName}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              )
-            })()
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#F7F7F7] text-[13px] font-medium text-[#717171] md:text-[14px]">
-              {t('explore.photoUnavailable')}
-            </div>
-          )}
+        <div className="relative flex h-[80px] w-full overflow-hidden md:h-[160px]">
+          <div className="relative h-full w-1/3 shrink-0 overflow-hidden">
+            {renderImage(image1, displayChefName)}
+          </div>
+          <div className="relative h-full w-1/3 shrink-0 overflow-hidden border-l border-white/20">
+            {renderImage(image2, displayChefName)}
+          </div>
+          <div className="relative h-full w-1/3 shrink-0 overflow-hidden border-l border-white/20">
+            {renderImage(image3, displayChefName)}
+          </div>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation()
               onRequestClose?.()
             }}
-            className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition hover:bg-white md:right-5 md:top-5"
+            className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white transition hover:bg-black/40 md:left-4 md:top-4 md:h-9 md:w-9"
             aria-label={locale === 'en' ? 'Close card' : 'Fermer la fiche'}
           >
-            <svg className="h-4 w-4 text-[#222222]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="h-3.5 w-3.5 md:h-4 md:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
             </svg>
           </button>
         </div>
-        <div className="space-y-3 px-5 pb-4 pt-4 md:space-y-5 md:px-8 md:pb-6 md:pt-6">
-          <div className="space-y-1">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+        <div className="space-y-2 px-5 pb-4 pt-3 md:space-y-3 md:px-8 md:pb-6 md:pt-4">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="space-y-0.5">
               <h3 className="truncate text-[17px] font-semibold leading-tight text-[#111111] md:text-[21px]">
                 {displayChefName}
               </h3>
-              <span className="shrink-0 text-[13px] font-normal text-[#8A8A8A] md:text-[14px]">
+              <span className="inline-block text-[10px] font-medium uppercase tracking-[0.06em] text-[#737373] md:text-[11px]">
                 {displayedCuisine}
               </span>
-            </div>
-          </div>
-          <div className="flex items-end justify-between gap-5">
-            <div className="min-w-0 shrink space-y-0.5">
-              <p className="text-[16px] font-semibold leading-tight text-[#111111] md:text-[20px]">
-                {priceLabel}
-              </p>
-              <p className="text-[13px] font-normal text-[#8A8A8A] md:text-[14px]">
-                {guestsLabel}
-              </p>
             </div>
             {infoHref ? (
               <button
@@ -199,12 +206,17 @@ export function ChefMapPopup({
                   trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'popup' })
                   router.push(infoHref)
                 }}
-                className="ml-1 h-9 shrink-0 rounded-full bg-[#FBCF03] px-5 text-[14px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-11 md:px-6 md:text-base"
+                className="mt-0.5 h-8 shrink-0 rounded-full bg-[#FBCF03] px-4 text-[13px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-9 md:px-5 md:text-[14px]"
               >
                 {t('explore.viewProfile')}
               </button>
             ) : null}
           </div>
+          <p className="text-[13px] text-[#525252] md:text-[14px]">
+            <span className="font-semibold text-[#111111]">{priceLabel}</span>
+            <span className="mx-1.5 text-[#A3A3A3]">·</span>
+            <span>{guestsLabel}</span>
+          </p>
         </div>
       </article>
     )
