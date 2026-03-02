@@ -694,10 +694,9 @@ export function ExploreMap({
 
     mapboxgl.accessToken = token
     const initialZoom = embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM
-    const mapStyle = isMobileViewport ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/streets-v12'
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: mapStyle,
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: FRANCE_CENTER,
       zoom: initialZoom,
       maxBounds: EUROPE_MAX_BOUNDS,
