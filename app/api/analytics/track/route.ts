@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       page: page || null,
       metadata: typeof metadata === 'object' ? metadata : {},
     }
-    // Table ajoutée manuellement, types non générés - cast pour bypass
-    await (supabase as any).from('analytics_events').insert(row as any)
+    const db = supabase as unknown as { from: (t: string) => { insert: (r: object) => Promise<unknown> } }
+    await db.from('analytics_events').insert(row)
 
     return new NextResponse(null, { status: 204 })
   } catch {
