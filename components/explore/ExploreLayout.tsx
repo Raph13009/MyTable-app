@@ -11,6 +11,7 @@ import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, EMBEDDED_FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
 import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
+import { trackEvent } from '@/lib/analytics/track'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface ExploreLayoutProps {
@@ -396,6 +397,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       bbox: viewportBbox,
     })
     setMapVisibleChefIds(null)
+    trackEvent('search', { search_query: suggestion.label, search_label: suggestion.label })
     router.replace(embedded ? EMBEDDED_BASE_PATH : '/explore')
   }
 

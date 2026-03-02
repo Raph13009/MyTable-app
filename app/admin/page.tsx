@@ -224,6 +224,15 @@ export default function AdminPage() {
             >
               Analytics
             </button>
+            <a
+              href="/analytics-pro"
+              className="flex items-center gap-1.5 py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700"
+            >
+              Analytics
+              <span className="inline-flex items-center rounded bg-black px-1.5 py-0.5 text-[10px] font-bold text-[#FBCF03]">
+                PRO
+              </span>
+            </a>
           </nav>
         </div>
       </div>

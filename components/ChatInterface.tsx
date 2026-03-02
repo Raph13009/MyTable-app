@@ -11,6 +11,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { formatDateForDisplay } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
+import { trackEvent } from '@/lib/analytics/track'
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Participant = Database['public']['Tables']['participants']['Row']
@@ -473,6 +474,7 @@ export default function ChatInterface({
       const responseBody = await response.json()
       const insertedMessage = responseBody?.message
 
+      trackEvent('message_sent', { conversation_id: conversationId })
       console.log('[ChatInterface] Message sent successfully:', insertedMessage)
       
       // REVALIDATION: Vérifier après 500ms si le message est bien arrivé via subscription

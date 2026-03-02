@@ -322,6 +322,35 @@ export interface Database {
           created_at?: string
         }
       }
+      analytics_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          role: string | null
+          event_type: string
+          page: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          role?: string | null
+          event_type: string
+          page?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          role?: string | null
+          event_type?: string
+          page?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+      }
     }
   }
 }

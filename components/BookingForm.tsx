@@ -17,6 +17,7 @@ import {
   isValidBookingDate 
 } from '@/lib/dateUtils'
 import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
+import { trackEvent } from '@/lib/analytics/track'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -694,6 +695,13 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       console.log('[BookingForm] Booking created successfully', {
         bookingRequestId: data.bookingRequestId,
         conversationId: data.conversationId,
+      })
+
+      trackEvent('booking_request', {
+        chef_id: chef.id,
+        booking_request_id: data.bookingRequestId,
+        conversation_id: data.conversationId,
+        service_type: formData.serviceType,
       })
 
       // Rediriger vers une page de confirmation

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useProfileNavigation } from '@/hooks/useProfileNavigation'
+import { trackEvent } from '@/lib/analytics/track'
 import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
 
 interface ChefCardProps {
@@ -222,6 +223,7 @@ export function ChefCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
+                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'list' })
                   navigateToProfile(infoHref)
                 }}
                 className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
@@ -323,6 +325,7 @@ export function ChefCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
+                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'map' })
                   navigateToProfile(infoHref)
                 }}
                 className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"

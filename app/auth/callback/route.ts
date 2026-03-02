@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/types/database'
+import { trackAuthSuccess } from '@/lib/analytics/track-server'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -247,6 +248,8 @@ export async function GET(request: NextRequest) {
     console.log('[auth/callback] Next parameter:', next)
     console.log('[auth/callback] Decoded next:', decodeURIComponent(next))
     console.log('[auth/callback] Redirecting to:', next)
+
+    trackAuthSuccess(user)
     
     // La réponse devrait déjà contenir tous les cookies de session grâce à setAll
     // Vérifier les cookies dans la réponse
