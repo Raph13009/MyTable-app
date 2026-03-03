@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useRouter } from 'next/navigation'
 import { trackEvent } from '@/lib/analytics/track'
 import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
+import { resolveFullUrl } from '@/lib/navigation'
 
 interface ChefMapPopupProps {
   chef: ExploreChef
@@ -53,7 +53,6 @@ export function ChefMapPopup({
   onMouseLeave,
   bottomSheet = false,
 }: ChefMapPopupProps) {
-  const router = useRouter()
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -136,21 +135,21 @@ export function ChefMapPopup({
     const renderImage = (url: string | null, alt: string) => {
       if (!url) {
         return (
-          <div className="flex h-full w-full items-center justify-center bg-[#F7F7F7] text-[11px] font-medium text-[#717171] md:text-[13px]">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#F7F7F7] text-[11px] font-medium text-[#717171] md:text-[13px]">
             {t('explore.photoUnavailable')}
           </div>
         )
       }
       const isSupabase = url.includes('supabase.co/storage')
-      const src = getOptimizedSupabaseImageUrl(url, 400) ?? url
-      const src300 = isSupabase ? getOptimizedSupabaseImageUrl(url, 300) : null
+      const src = getOptimizedSupabaseImageUrl(url, 400, 70, true) ?? url
+      const src300 = isSupabase ? getOptimizedSupabaseImageUrl(url, 300, 70, true) : null
       return (
         <img
           src={src}
           srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
           sizes="33vw"
           alt={alt}
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-center"
           loading="lazy"
         />
       )
@@ -164,14 +163,14 @@ export function ChefMapPopup({
           onCardClick?.()
         }}
       >
-        <div className="relative flex h-[80px] w-full overflow-hidden md:h-[160px]">
-          <div className="relative h-full w-1/3 shrink-0 overflow-hidden">
+        <div className="relative flex w-full overflow-hidden">
+          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden bg-[#F0F0F0]">
             {renderImage(image1, displayChefName)}
           </div>
-          <div className="relative h-full w-1/3 shrink-0 overflow-hidden border-l border-white/20">
+          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
             {renderImage(image2, displayChefName)}
           </div>
-          <div className="relative h-full w-1/3 shrink-0 overflow-hidden border-l border-white/20">
+          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
             {renderImage(image3, displayChefName)}
           </div>
           <button
@@ -204,7 +203,7 @@ export function ChefMapPopup({
                 onClick={(e) => {
                   e.stopPropagation()
                   trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'popup' })
-                  router.push(infoHref)
+                  window.open(resolveFullUrl(infoHref), '_blank', 'noopener,noreferrer')
                 }}
                 className="mt-0.5 h-8 shrink-0 rounded-full bg-[#FBCF03] px-4 text-[13px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-9 md:px-5 md:text-[14px]"
               >
@@ -224,7 +223,7 @@ export function ChefMapPopup({
 
   return (
     <article
-      className="pointer-events-auto absolute left-6 top-6 z-30 h-[236px] w-[234px] shrink-0 overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-map-popup-enter"
+      className="pointer-events-auto absolute left-6 top-6 z-30 w-[234px] shrink-0 overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-map-popup-enter aspect-square"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onClick={(event) => {
@@ -236,15 +235,15 @@ export function ChefMapPopup({
         {backgroundImage ? (
           (() => {
             const isSupabase = backgroundImage.includes('supabase.co/storage')
-            const src = getOptimizedSupabaseImageUrl(backgroundImage, 400) ?? backgroundImage
-            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(backgroundImage, 300) : null
+            const src = getOptimizedSupabaseImageUrl(backgroundImage, 400, 70, true) ?? backgroundImage
+            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(backgroundImage, 300, 70, true) : null
             return (
               <img
                 src={src}
                 srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
                 sizes="(max-width: 768px) 234px, 400px"
                 alt={displayChefName}
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover object-center"
                 loading="lazy"
               />
             )
@@ -335,7 +334,7 @@ export function ChefMapPopup({
                 onClick={(e) => {
                   e.stopPropagation()
                   trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'map_bubble' })
-                  router.push(infoHref)
+                  window.open(resolveFullUrl(infoHref), '_blank', 'noopener,noreferrer')
                 }}
                 className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
               >

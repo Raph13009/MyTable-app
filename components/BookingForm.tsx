@@ -1912,13 +1912,13 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                         key={`${photoUrl}-${index}`}
                         type="button"
                         onClick={() => openDishLightbox(dishPhotos, index)}
-                        className="group relative overflow-hidden rounded-lg border border-gray-200"
+                        className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200"
                         aria-label={`Voir la photo ${index + 1}`}
                       >
                         <img
                           src={photoUrl}
                           alt={`Plat ${index + 1}`}
-                          className="h-20 w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                          className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-200 group-hover:scale-[1.03]"
                         />
                         <span className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/20" />
                       </button>

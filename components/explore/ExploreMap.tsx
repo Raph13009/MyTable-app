@@ -1285,21 +1285,23 @@ export function ExploreMap({
       if (refreshMarkersTimer) clearTimeout(refreshMarkersTimer)
       if (refreshMarkersRaf) cancelAnimationFrame(refreshMarkersRaf)
       if (emitVisibleTimer) clearTimeout(emitVisibleTimer)
-      map.off('load', onMapLoad)
-      map.off('moveend', scheduleRefreshMarkers)
-      map.off('moveend', scheduleEmitVisible)
-      map.off('zoomend', scheduleRefreshMarkers)
-      map.off('zoomend', scheduleEmitVisible)
-      map.off('click', onMapClick)
-      map.off('sourcedata', onSourceData)
-      map.stop()
       try {
+        map.off('load', onMapLoad)
+        map.off('moveend', scheduleRefreshMarkers)
+        map.off('moveend', scheduleEmitVisible)
+        map.off('zoomend', scheduleRefreshMarkers)
+        map.off('zoomend', scheduleEmitVisible)
+        map.off('click', onMapClick)
+        map.off('sourcedata', onSourceData)
+        map.stop()
         if (!(map as any)._removed) {
+          ;(map as any)._removed = true
           map.remove()
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        ;(map as any)._removed = true
         if (!isAbortLikeError(error)) {
-          console.error('[ExploreMap] map.remove cleanup error:', error)
+          console.error('[ExploreMap] map cleanup error:', error)
         }
       }
       canvas.removeEventListener('webglcontextlost', onWebGLContextLost)

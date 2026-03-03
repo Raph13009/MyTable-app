@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { useTranslation } from '@/hooks/useTranslation'
+import { resolveFullUrl } from '@/lib/navigation'
 
 interface ChefInfoButtonProps {
   chefName: string
@@ -12,7 +12,6 @@ interface ChefInfoButtonProps {
 }
 
 export function ChefInfoButton({ chefName, href, className = '' }: ChefInfoButtonProps) {
-  const router = useRouter()
   const { locale } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -95,7 +94,7 @@ export function ChefInfoButton({ chefName, href, className = '' }: ChefInfoButto
                   onClick={() => {
                     if (!hasValidHref || !href) return
                     setIsOpen(false)
-                    router.push(href)
+                    window.open(resolveFullUrl(href), '_blank', 'noopener,noreferrer')
                   }}
                   className={`inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold ${
                     hasValidHref

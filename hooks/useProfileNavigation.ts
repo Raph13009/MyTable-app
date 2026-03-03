@@ -1,25 +1,18 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { isInIframe, resolveFullUrl } from '@/lib/navigation'
+import { resolveFullUrl } from '@/lib/navigation'
 
 /**
  * Returns a navigation function for profile links.
- * When breakOutOfIframe is true and the app is inside an iframe,
- * opens the URL in the top window (full screen). Otherwise uses router.push.
+ * Always opens the URL in a new browser tab to break out of any embedded context.
  */
-export function useProfileNavigation(breakOutOfIframe: boolean) {
-  const router = useRouter()
-
+export function useProfileNavigation(_breakOutOfIframe?: boolean) {
   return useCallback(
     (url: string) => {
-      if (breakOutOfIframe && isInIframe()) {
-        window.top!.location.href = resolveFullUrl(url)
-      } else {
-        router.push(url)
-      }
+      const fullUrl = resolveFullUrl(url)
+      window.open(fullUrl, '_blank', 'noopener,noreferrer')
     },
-    [breakOutOfIframe, router]
+    []
   )
 }

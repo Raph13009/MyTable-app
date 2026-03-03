@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import 'react-easy-crop/react-easy-crop.css'
 import LocaleProvider from '@/components/LocaleProvider'
 
 export const metadata: Metadata = {

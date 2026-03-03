@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { slugifyChefName } from '@/lib/chef-slug'
+import AvatarCropper from '@/components/admin/AvatarCropper'
 
 interface Menu {
   id: string
@@ -114,6 +115,11 @@ export default function ChefFormPage() {
   const [newMenu, setNewMenu] = useState({ name: '', description: '', price: '' })
   const [currentProfilePicture, setCurrentProfilePicture] = useState<string | null>(null)
   const [pendingProfilePreview, setPendingProfilePreview] = useState<string | null>(null)
+  const [cropSourceImage, setCropSourceImage] = useState<string | null>(null)
+  const [isCropperOpen, setIsCropperOpen] = useState(false)
+  const [dishCropQueue, setDishCropQueue] = useState<File[]>([])
+  const [dishCropSourceImage, setDishCropSourceImage] = useState<string | null>(null)
+  const [isDishCropperOpen, setIsDishCropperOpen] = useState(false)
   const [dishPhotoFiles, setDishPhotoFiles] = useState<File[]>([])
   const [dishPhotoPreviews, setDishPhotoPreviews] = useState<string[]>([])
   const [currentDishPhotos, setCurrentDishPhotos] = useState<string[]>([])
@@ -136,6 +142,7 @@ export default function ChefFormPage() {
   const [isLoadingPostalSuggestions, setIsLoadingPostalSuggestions] = useState(false)
 
   const profileFileInputRef = useRef<HTMLInputElement | null>(null)
+  const pendingProfilePreviewObjectUrlRef = useRef<string | null>(null)
   const dishFileInputRef = useRef<HTMLInputElement | null>(null)
   const isSubmittingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -155,6 +162,22 @@ export default function ChefFormPage() {
       reader.onerror = () => reject(new Error('Impossible de lire le fichier'))
       reader.readAsDataURL(file)
     })
+
+  const clearPendingProfilePreview = () => {
+    if (pendingProfilePreviewObjectUrlRef.current) {
+      URL.revokeObjectURL(pendingProfilePreviewObjectUrlRef.current)
+      pendingProfilePreviewObjectUrlRef.current = null
+    }
+    setPendingProfilePreview(null)
+  }
+
+  const clearCropSourceImage = () => {
+    setCropSourceImage(null)
+  }
+
+  const clearDishCropSourceImage = () => {
+    setDishCropSourceImage(null)
+  }
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     if (toastTimeoutRef.current) {
@@ -190,8 +213,42 @@ export default function ChefFormPage() {
       if (postalDebounceRef.current) {
         clearTimeout(postalDebounceRef.current)
       }
+      if (pendingProfilePreviewObjectUrlRef.current) {
+        URL.revokeObjectURL(pendingProfilePreviewObjectUrlRef.current)
+        pendingProfilePreviewObjectUrlRef.current = null
+      }
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (dishCropQueue.length === 0) {
+      setIsDishCropperOpen(false)
+      clearDishCropSourceImage()
+      return
+    }
+
+    const loadCurrentDishCropImage = async () => {
+      try {
+        const source = await fileToDataUrl(dishCropQueue[0])
+        if (cancelled) return
+        setDishCropSourceImage(source)
+        setIsDishCropperOpen(true)
+      } catch (error) {
+        if (cancelled) return
+        console.error('Error preparing dish image crop:', error)
+        showToast('Impossible de lire cette image', 'error')
+        setDishCropQueue((prev) => prev.slice(1))
+      }
+    }
+
+    void loadCurrentDishCropImage()
+
+    return () => {
+      cancelled = true
+    }
+  }, [dishCropQueue])
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -421,35 +478,107 @@ export default function ChefFormPage() {
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      const preview = await fileToDataUrl(file)
-      setPendingProfilePreview(preview)
-      setFormData((prev) => ({ ...prev, profile_picture: file }))
+    if (!e.target.files || !e.target.files[0]) return
+    const file = e.target.files[0]
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Veuillez selectionner une image valide', 'error')
+      if (profileFileInputRef.current) {
+        profileFileInputRef.current.value = ''
+      }
+      return
+    }
+
+    try {
+      clearCropSourceImage()
+      const dataUrl = await fileToDataUrl(file)
+      setCropSourceImage(dataUrl)
+      setIsCropperOpen(true)
+    } catch (error) {
+      console.error('Error reading selected profile image:', error)
+      showToast('Impossible de lire cette image', 'error')
+    }
+  }
+
+  const handleCropClose = () => {
+    setIsCropperOpen(false)
+    clearCropSourceImage()
+    if (profileFileInputRef.current) {
+      profileFileInputRef.current.value = ''
+    }
+  }
+
+  const handleCropSave = (file: File) => {
+    clearPendingProfilePreview()
+    const previewObjectUrl = URL.createObjectURL(file)
+    pendingProfilePreviewObjectUrlRef.current = previewObjectUrl
+    setPendingProfilePreview(previewObjectUrl)
+    setFormData((prev) => ({ ...prev, profile_picture: file }))
+    setIsCropperOpen(false)
+    clearCropSourceImage()
+    if (profileFileInputRef.current) {
+      profileFileInputRef.current.value = ''
     }
   }
 
   const removeProfilePicture = () => {
     setFormData(prev => ({ ...prev, profile_picture: null }))
     setCurrentProfilePicture(null)
+    clearPendingProfilePreview()
     if (profileFileInputRef.current) {
       profileFileInputRef.current.value = ''
     }
   }
 
-  const appendDishFiles = async (files: File[]) => {
+  const appendDishFiles = (files: File[]) => {
     if (!files.length) return
-    const remainingSlots = Math.max(0, 3 - (currentDishPhotos.length + dishPhotoFiles.length))
-    const selected = files.slice(0, remainingSlots)
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+    const remainingSlots = Math.max(0, 3 - (currentDishPhotos.length + dishPhotoFiles.length + dishCropQueue.length))
+    const selected = imageFiles.slice(0, remainingSlots)
     if (!selected.length) return
-    const previews = await Promise.all(selected.map((file) => fileToDataUrl(file)))
-    setDishPhotoFiles(prev => [...prev, ...selected])
-    setDishPhotoPreviews(prev => [...prev, ...previews])
+    setDishCropQueue((prev) => [...prev, ...selected])
   }
 
-  const handleDishPhotosChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDishPhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
-    await appendDishFiles(Array.from(e.target.files))
+    appendDishFiles(Array.from(e.target.files))
+    if (dishFileInputRef.current) {
+      dishFileInputRef.current.value = ''
+    }
+  }
+
+  const openDishFilePicker = () => {
+    if (isDishPhotoLimitReached) return
+    dishFileInputRef.current?.click()
+  }
+
+  const handleDishSlotDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    if (isDishPhotoLimitReached) return
+    const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'))
+    appendDishFiles(files)
+  }
+
+  const handleDishCropClose = () => {
+    setDishCropQueue([])
+    clearDishCropSourceImage()
+    setIsDishCropperOpen(false)
+    if (dishFileInputRef.current) {
+      dishFileInputRef.current.value = ''
+    }
+  }
+
+  const handleDishCropSave = async (file: File) => {
+    try {
+      const preview = await fileToDataUrl(file)
+      setDishPhotoFiles((prev) => [...prev, file])
+      setDishPhotoPreviews((prev) => [...prev, preview])
+      setDishCropQueue((prev) => prev.slice(1))
+    } catch (error) {
+      console.error('Error preparing cropped dish preview:', error)
+      showToast('Impossible de preparer cette photo', 'error')
+      setDishCropQueue((prev) => prev.slice(1))
+    }
   }
 
   const removeCurrentDishPhoto = (index: number) => {
@@ -798,6 +927,7 @@ export default function ChefFormPage() {
       setCurrentDishPhotos(dishPhotos)
       setPrimaryDishIndex(0)
       setFormData((prev) => ({ ...prev, profile_picture: null }))
+      clearPendingProfilePreview()
       if (profileFileInputRef.current) {
         profileFileInputRef.current.value = ''
       }
@@ -847,6 +977,9 @@ export default function ChefFormPage() {
     ...currentDishPhotos.map((url) => ({ kind: 'current' as const, url })),
     ...dishPhotoPreviews.map((url) => ({ kind: 'pending' as const, url })),
   ]
+  const totalDishPhotoSlotsUsed = allDishPhotos.length + dishCropQueue.length
+  const isDishPhotoLimitReached = totalDishPhotoSlotsUsed >= 3
+  const dishPhotoSlots = Array.from({ length: 3 }, (_, index) => allDishPhotos[index] ?? null)
 
   if (isPageLoading && isEditing) {
     return (
@@ -1395,48 +1528,53 @@ export default function ChefFormPage() {
             {activeSection === 'photos' && (
               <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Photos</h2>
-                <div className="space-y-5">
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photo de profil</p>
-                    <div className="flex items-center gap-4">
-                      <div className="group relative">
+                <div className="space-y-4">
+                  <div className="rounded-[12px] border border-[#EAEAEA] bg-[#FCFCFC] p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photo de profil</p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
                         {profilePreviewUrl ? (
-                          <img src={profilePreviewUrl} alt="Avatar chef" className="h-[120px] w-[120px] rounded-full object-cover ring-1 ring-[#EAEAEA]" />
+                          <img src={profilePreviewUrl} alt="Avatar chef" className="h-[96px] w-[96px] rounded-full object-cover ring-1 ring-[#EAEAEA]" />
                         ) : (
-                          <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gray-100 text-3xl">👨‍🍳</div>
+                          <div className="flex h-[96px] w-[96px] items-center justify-center rounded-full bg-gray-100 text-2xl">👨‍🍳</div>
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-full bg-black/45 opacity-0 transition group-hover:opacity-100">
-                          <button type="button" onClick={() => profileFileInputRef.current?.click()} className="rounded bg-white/90 px-2 py-1 text-xs">
-                            Changer
-                          </button>
-                          <button type="button" onClick={removeProfilePicture} className="rounded bg-white/90 px-2 py-1 text-xs text-red-600">
-                            Supprimer
-                          </button>
+                        <div>
+                          <p className="text-sm font-semibold text-[#111111]">Avatar</p>
+                          <p className="text-xs text-[#6B7280]">PNG, JPG, WebP - sortie optimisee 400x400</p>
                         </div>
                       </div>
-                      <input ref={profileFileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                      <button
-                        type="button"
-                        onClick={() => profileFileInputRef.current?.click()}
-                        className="inline-flex h-10 items-center rounded-[10px] border border-[#EAEAEA] px-4 text-sm hover:bg-gray-50"
-                      >
-                        Choisir une image
-                      </button>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input ref={profileFileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                        <button
+                          type="button"
+                          onClick={() => profileFileInputRef.current?.click()}
+                          className="inline-flex h-10 items-center rounded-[10px] border border-[#EAEAEA] px-4 text-sm font-medium hover:bg-gray-50"
+                        >
+                          {profilePreviewUrl ? "Changer l'image" : "Ajouter l'image"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={removeProfilePicture}
+                          disabled={!profilePreviewUrl}
+                          className="inline-flex h-10 items-center rounded-[10px] border border-[#F0D1D1] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF5F5] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photos des plats (max 3)</p>
-                    <div
-                      className={`rounded-[12px] border border-dashed p-5 text-center ${allDishPhotos.length >= 3 ? 'border-gray-200 bg-gray-50' : 'border-[#EAEAEA] bg-white'}`}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        if (allDishPhotos.length >= 3) return
-                        const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'))
-                        void appendDishFiles(files)
-                      }}
-                    >
+                  <div className="rounded-[12px] border border-[#EAEAEA] bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photos des plats</p>
+                        <p className="mt-1 text-sm text-[#111111]">{totalDishPhotoSlotsUsed}/3 photo(s)</p>
+                        <p className="mt-1 text-xs text-[#6B7280]">Recadrage carre obligatoire a l&apos;upload</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
                       <input
                         ref={dishFileInputRef}
                         type="file"
@@ -1444,53 +1582,66 @@ export default function ChefFormPage() {
                         multiple
                         onChange={handleDishPhotosChange}
                         className="hidden"
-                        disabled={allDishPhotos.length >= 3}
+                        disabled={isDishPhotoLimitReached}
                       />
-                      <button
-                        type="button"
-                        onClick={() => dishFileInputRef.current?.click()}
-                        disabled={allDishPhotos.length >= 3}
-                        className="mx-auto mb-2 inline-flex h-10 items-center rounded-[10px] border border-[#EAEAEA] px-4 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Glissez vos photos ici ou cliquez pour ajouter
-                      </button>
-                      <p className="text-xs text-[#6B7280]">JPG, PNG - 5MB max</p>
-                      {allDishPhotos.length >= 3 && <p className="mt-1 text-xs text-[#6B7280]">Maximum atteint</p>}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {dishPhotoSlots.map((photo, index) => {
+                          if (photo) {
+                            return (
+                            <div key={`${photo.url}-${index}`} className="group relative overflow-hidden rounded-[12px] border border-[#EAEAEA]">
+                              <img src={photo.url} alt={`Plat ${index + 1}`} className="aspect-square w-full object-cover" />
+                              <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/35" />
+                              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => setPrimaryDishIndex(index)}
+                                  className={`rounded px-2 py-1 text-xs ${primaryDishIndex === index ? 'bg-yellow-200 text-black' : 'bg-white/90 text-black'}`}
+                                >
+                                  ★ Principale
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (photo.kind === 'current') {
+                                      removeCurrentDishPhoto(index)
+                                    } else {
+                                      removePendingDishPhoto(index - currentDishPhotos.length)
+                                    }
+                                  }}
+                                  className="rounded bg-white/90 px-2 py-1 text-xs text-red-600"
+                                >
+                                  Supprimer
+                                </button>
+                              </div>
+                            </div>
+                            )
+                          }
+
+                          return (
+                            <button
+                              key={`empty-slot-${index}`}
+                              type="button"
+                              onClick={openDishFilePicker}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={handleDishSlotDrop}
+                              disabled={isDishPhotoLimitReached}
+                              className="group flex aspect-square w-full flex-col items-center justify-center rounded-[12px] border border-dashed border-[#EAEAEA] bg-[#FCFCFC] p-4 text-center transition hover:border-[#DADADA] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#EAEAEA] bg-white text-[#5F6368] transition group-hover:text-[#111111]">
+                                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+                                  <path d="M12 16V8" strokeLinecap="round" />
+                                  <path d="M8.5 11.5L12 8l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d="M5 16.5v1A1.5 1.5 0 006.5 19h11a1.5 1.5 0 001.5-1.5v-1" strokeLinecap="round" />
+                                </svg>
+                              </span>
+                              <span className="text-sm font-medium text-[#111111]">Ajouter une photo</span>
+                              <span className="mt-1 text-xs text-[#7A7A7A]">Glisser ou cliquer</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
-
-                  {allDishPhotos.length > 0 && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {allDishPhotos.map((photo, index) => (
-                        <div key={`${photo.url}-${index}`} className="group relative overflow-hidden rounded-[12px] border border-[#EAEAEA]">
-                          <img src={photo.url} alt={`Plat ${index + 1}`} className="aspect-square w-full object-cover" />
-                          <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/35" />
-                          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={() => setPrimaryDishIndex(index)}
-                              className={`rounded px-2 py-1 text-xs ${primaryDishIndex === index ? 'bg-yellow-200 text-black' : 'bg-white/90 text-black'}`}
-                            >
-                              ★ Principale
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (photo.kind === 'current') {
-                                  removeCurrentDishPhoto(index)
-                                } else {
-                                  removePendingDishPhoto(index - currentDishPhotos.length)
-                                }
-                              }}
-                              className="rounded bg-white/90 px-2 py-1 text-xs text-red-600"
-                            >
-                              🗑
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -1515,6 +1666,7 @@ export default function ChefFormPage() {
                     {isSaving || uploading ? 'Enregistrement...' : isEditing ? 'Enregistrer les modifications' : 'Créer le chef'}
                   </button>
                 </div>
+
               </section>
             )}
           </form>
@@ -1526,6 +1678,32 @@ export default function ChefFormPage() {
           {toast.message}
         </div>
       </div>
+      <AvatarCropper
+        isOpen={isCropperOpen}
+        imageSrc={cropSourceImage}
+        onClose={handleCropClose}
+        onSave={handleCropSave}
+        cropShape="round"
+        title="Recadrer l'image"
+        subtitle="Ajustez le cadrage pour la photo de profil"
+        outputFileName="avatar.webp"
+        outputSize={400}
+        outputQuality={0.8}
+        saveLabel="Valider"
+      />
+      <AvatarCropper
+        isOpen={isDishCropperOpen}
+        imageSrc={dishCropSourceImage}
+        onClose={handleDishCropClose}
+        onSave={handleDishCropSave}
+        cropShape="rect"
+        title="Recadrer la photo"
+        subtitle="Ce cadrage carre sera utilise pour l'affichage des plats"
+        outputFileName="dish-photo.webp"
+        outputSize={1200}
+        outputQuality={0.82}
+        saveLabel="Valider"
+      />
     </div>
   )
 }

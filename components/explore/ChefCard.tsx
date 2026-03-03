@@ -154,26 +154,26 @@ export function ChefCard({
       <div className={forceMobileStyle ? '' : 'md:hidden'}>
         <div className="relative w-full">
           <div
-            className={`w-full overflow-hidden rounded-t-xl bg-[#EFEFEF] ${compact ? 'h-[95px]' : 'h-[130px]'}`}
+            className="relative w-full overflow-hidden rounded-t-xl bg-[#EFEFEF] aspect-square"
           >
             {mobileHeroImage ? (
               (() => {
                 const isSupabase = mobileHeroImage.includes('supabase.co/storage')
-                const src = getOptimizedSupabaseImageUrl(mobileHeroImage, 400) ?? mobileHeroImage
-                const src300 = isSupabase ? getOptimizedSupabaseImageUrl(mobileHeroImage, 300) : null
+                const src = getOptimizedSupabaseImageUrl(mobileHeroImage, 400, 70, true) ?? mobileHeroImage
+                const src300 = isSupabase ? getOptimizedSupabaseImageUrl(mobileHeroImage, 300, 70, true) : null
                 return (
                   <img
                     src={src}
                     srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
                     sizes="(max-width: 768px) 300px, 400px"
                     alt={displayChefName}
-                    className="h-full w-full object-cover"
+                    className="absolute inset-0 h-full w-full object-cover object-center"
                     loading="lazy"
                   />
                 )
               })()
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-[#8A8A8A]">
                 {t('explore.photoUnavailable')}
               </div>
             )}
@@ -255,15 +255,15 @@ export function ChefCard({
         {chef.image ? (
           (() => {
             const isSupabase = chef.image.includes('supabase.co/storage')
-            const src = getOptimizedSupabaseImageUrl(chef.image, 400) ?? chef.image
-            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(chef.image, 300) : null
+            const src = getOptimizedSupabaseImageUrl(chef.image, 400, 70, true) ?? chef.image
+            const src300 = isSupabase ? getOptimizedSupabaseImageUrl(chef.image, 300, 70, true) : null
             return (
               <img
                 src={src}
                 srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
                 sizes="(max-width: 768px) 300px, 400px"
                 alt={displayChefName}
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                className="absolute inset-0 h-full w-full object-cover object-center"
                 loading="lazy"
               />
             )
