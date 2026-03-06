@@ -3,8 +3,8 @@ import { ExploreLayout } from '@/components/explore/ExploreLayout'
 import { ExploreChef } from '@/components/explore/types'
 import { getRegionBBoxBySlug, RegionBBox } from '@/lib/regions'
 
-// Revalider les données toutes les 60 secondes pour afficher les nouveaux chefs avec adresse
-export const revalidate = 60
+// Revalider les données toutes les 5 minutes (cache CDN plus long = chargement embed plus rapide)
+export const revalidate = 300
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value

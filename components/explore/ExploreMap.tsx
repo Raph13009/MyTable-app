@@ -421,6 +421,8 @@ function groupByPixelProximity<T extends { screenX: number; screenY: number }>(
 
 function isAbortLikeError(value: unknown): boolean {
   if (!value) return false
+  // DOMException AbortError (code 20)
+  if (typeof DOMException !== 'undefined' && value instanceof DOMException && value.name === 'AbortError') return true
   if (typeof value === 'string') {
     const lowered = value.toLowerCase()
     return (
@@ -430,10 +432,11 @@ function isAbortLikeError(value: unknown): boolean {
     )
   }
 
-  const maybeError = value as { name?: string; message?: string; cause?: unknown }
+  const maybeError = value as { name?: string; message?: string; cause?: unknown; code?: number }
   const name = String(maybeError.name || '').toLowerCase()
   const message = String(maybeError.message || '').toLowerCase()
-  if (name.includes('abort')) return true
+  if (name === 'aborterror' || name.includes('abort')) return true
+  if (maybeError.code === 20) return true // ABORT_ERR
   if (message.includes('signal is aborted') || message.includes('aborterror') || message.includes('aborted without reason')) {
     return true
   }
@@ -466,6 +469,11 @@ function ensureGlobalAbortSuppression() {
 
   window.addEventListener('unhandledrejection', onUnhandledRejection, { capture: true })
   window.addEventListener('error', onWindowError, { capture: true })
+}
+
+// Installer la suppression des AbortError dès le chargement du module (avant toute création de map)
+if (typeof window !== 'undefined') {
+  ensureGlobalAbortSuppression()
 }
 
 function buildRadiusPolygon(
@@ -1300,6 +1308,7 @@ export function ExploreMap({
         }
       } catch (error: unknown) {
         ;(map as any)._removed = true
+        // AbortError au cleanup est attendu (MapLibre/Signal) — on ignore silencieusement
         if (!isAbortLikeError(error)) {
           console.error('[ExploreMap] map cleanup error:', error)
         }
