@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailLayout } from '@/lib/email'
-import { sanitizeMessage, getBaseUrl } from '@/lib/utils'
+import { sanitizeMessage, escapeHtml, getBaseUrl } from '@/lib/utils'
 
 /**
  * API Route: Send message notification email
@@ -174,8 +174,8 @@ export async function POST(request: NextRequest) {
       // Continue anyway - we'll provide a fallback CTA
     }
 
-    // 5. Sanitize message content before including in email (mask emails and phone numbers)
-    const sanitizedMessageContent = sanitizeMessage(messageContent)
+    // 5. Sanitize message content before including in email (mask emails/phones + escape for HTML context)
+    const sanitizedMessageContent = escapeHtml(sanitizeMessage(messageContent))
     
     // 6. Créer le contenu de l'email avec CTA professionnel
     const loginUrl = `${baseUrl}/login?next=/chat/${conversationId}`

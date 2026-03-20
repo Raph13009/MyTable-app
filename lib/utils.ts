@@ -93,19 +93,33 @@ export function getBaseUrl(override?: string): string {
   return "http://localhost:3000"
 }
 
-export function sanitizeMessage(value: string): string {
-  const input = String(value ?? "")
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+}
 
-  // Basic escaping to avoid HTML/script injection in message rendering contexts.
-  const escaped = input
+export function escapeHtml(value: string): string {
+  return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+}
+
+export function sanitizeMessage(value: string): string {
+  const input = String(value ?? "")
+
+  // Decode pre-existing HTML entities (backward compat with old encoded messages in DB).
+  // React escapes text automatically, so HTML encoding is not needed for rendering.
+  const decoded = decodeHtmlEntities(input)
 
   // Mask personal contact data.
-  const maskedEmails = escaped.replace(
+  const maskedEmails = decoded.replace(
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
     "[email masqué]"
   )
