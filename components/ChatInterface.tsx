@@ -1728,13 +1728,31 @@ export default function ChatInterface({
                   )
                 }
                 
-                // Message normal - Messages envoyés (isOwn) en blanc à droite, messages reçus en jaune à gauche
+                const shouldAlignRight = isAdmin ? isClientMessage : isOwn
+                const bubbleClasses = isAdmin
+                  ? isClientMessage
+                    ? 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
+                    : isChefMessage
+                      ? 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-sm border border-gray-200 shadow-sm'
+                  : isOwn
+                    ? 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
+                    : 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
+                const contentClasses = isAdmin
+                  ? isChefMessage
+                    ? 'text-black font-medium'
+                    : 'text-gray-900'
+                  : isOwn
+                    ? 'text-gray-900'
+                    : 'text-black font-medium'
+
+                // Message normal - en admin, dissocier client et chef par rôle réel; ailleurs, conserver la logique expéditeur/récepteur existante
                 return (
                   <div
                     key={message.id}
-                    className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    className={`flex mb-3 ${shouldAlignRight ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${shouldAlignRight ? 'items-end' : 'items-start'}`}>
                       {/* Nom de l'expéditeur - discret */}
                       <span className="text-[10px] text-gray-400 mb-0.5 px-1.5">
                         {getParticipantName(message.sender_email)}
@@ -1742,16 +1760,10 @@ export default function ChatInterface({
                       
                       {/* Bulle de message */}
                       <div
-                        className={`rounded-2xl px-4 py-2.5 ${
-                          isOwn
-                            ? 'bg-white text-gray-900 rounded-br-sm border border-gray-300 shadow-md'
-                            : 'bg-[#FBCF03] text-black rounded-bl-sm shadow-md'
-                        }`}
+                        className={`rounded-2xl px-4 py-2.5 ${bubbleClasses}`}
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
-                        <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${
-                          isOwn ? 'text-gray-900' : 'text-black font-medium'
-                        }`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }}>
+                        <div className={`text-[15px] leading-relaxed whitespace-pre-wrap break-words ${contentClasses}`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }}>
                           {sanitizeMessage(message.content)}
                         </div>
                       </div>
