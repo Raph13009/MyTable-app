@@ -26,28 +26,40 @@ export interface EmailOptions {
   to: string
   subject: string
   html: string
+  /** Override expéditeur Resend (ex. tests avec onboarding@resend.dev) */
+  from?: string
 }
 
 /**
  * Abstraction pour l'envoi d'emails
  * Utilise Resend par défaut, mais peut être facilement remplacé par Make (webhook)
  */
-export async function sendEmail({ to, subject, html }: EmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html, from: fromOverride }: EmailOptions): Promise<void> {
   // Option 1: Utiliser Resend (actuel)
   if (process.env.EMAIL_PROVIDER === 'resend' || !process.env.EMAIL_PROVIDER) {
     try {
       const startTime = Date.now()
+      const from =
+        fromOverride ||
+        process.env.RESEND_FROM ||
+        'MyTable <contact@guidemytable.fr>'
       const response = await resend.emails.send({
-        from: 'MyTable <contact@guidemytable.fr>',
+        from,
         to,
         subject,
         html,
       })
       const duration = Date.now() - startTime
+      const res = response as { data?: { id?: string } | null; error?: { message?: string; name?: string } | null }
+      if (res.error) {
+        const msg = res.error.message || JSON.stringify(res.error)
+        console.error('[email] ❌ Resend API error:', res.error)
+        throw new Error(`Resend: ${msg}`)
+      }
       console.log('[email] ✅ Resend sent', {
         to,
         subject,
-        messageId: (response as any)?.id,
+        messageId: res.data?.id,
         durationMs: duration,
       })
     } catch (error) {
@@ -349,6 +361,7 @@ export const emailSubjects = {
   menuUpdated: 'Votre menu a été mis à jour',
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
   bookingRequestToChef: 'Nouvelle demande de réservation',
+  clientChatInactivityReminder: 'MyTable — Votre conversation vous attend',
   bookingReplacementRequestToChef: 'Remplacement prioritaire - demande de réservation',
   bookingReminderToChef: 'Relance - demande de réservation en attente',
   bookingNewToAdmin: 'Nouvelle demande de réservation',
@@ -387,10 +400,10 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
       detailsHtml += `<p><strong>Menu choisi :</strong> ${bookingDetails.menuName}</p>`
     }
     if (bookingDetails.menuPricePerPerson) {
-      detailsHtml += `<p><strong>Budget par personne :</strong> ${bookingDetails.menuPricePerPerson.toFixed(2)} €</p>`
+      detailsHtml += `<p><strong>Prix par personne (menu) :</strong> ${bookingDetails.menuPricePerPerson.toFixed(2)} €</p>`
     }
     if (bookingDetails.estimatedTotalPrice) {
-      detailsHtml += `<p><strong>Budget total estimé :</strong> ${bookingDetails.estimatedTotalPrice.toFixed(2)} €</p>`
+      detailsHtml += `<p><strong>Prix total de la prestation :</strong> ${bookingDetails.estimatedTotalPrice.toFixed(2)} €</p>`
     }
     if (bookingDetails.hasAllergies) {
       detailsHtml += `<p><strong>Allergies :</strong> ${bookingDetails.allergiesDetails || 'Oui'}</p>`
@@ -464,12 +477,31 @@ export const emailTemplates = {
     })
   },
 
-  bookingRequestToChef: (chefName: string, bookingDetails: any, acceptUrl: string, refuseUrl: string, baseUrl?: string) => {
+  bookingRequestToChef: (
+    chefName: string,
+    bookingDetails: any,
+    acceptUrl: string,
+    refuseUrl: string,
+    baseUrl?: string,
+    options?: { showFallbackPriority?: boolean }
+  ) => {
     const detailsHtml = buildBookingDetailsHtml(bookingDetails)
-    
+
+    const priorityBlock =
+      options?.showFallbackPriority === true
+        ? `
+      <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
+        <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
+          Vous êtes prioritaire pour cette demande pendant 6 heures ; après, elle sera attribuée à d'autres chefs.
+        </p>
+      </div>
+    `
+        : ''
+
     const content = `
       <p>Bonjour ${chefName},</p>
       <p>Vous avez reçu une nouvelle demande de ${bookingDetails.serviceTypeLabel?.toLowerCase() || 'réservation'} de la part de <strong>${bookingDetails.firstName} ${bookingDetails.lastName}</strong> :</p>
+      ${priorityBlock}
       ${detailsHtml}
       <p>Veuillez accepter ou refuser cette demande :</p>
     `
@@ -598,10 +630,14 @@ export const emailTemplates = {
   },
 
   bookingRefusedToClient: (clientFirstName: string, chefFirstName: string, baseUrl?: string) => {
+    const ctaUrl = `${getBaseUrl(baseUrl)}/`
     const content = `
       <p>Bonjour ${clientFirstName},</p>
       <p>Votre demande avec le Chef <strong>${chefFirstName}</strong> n'a malheureusement pas pu être acceptée, mais nous avons d'autres profils de Chefs talentueux qui pourraient parfaitement correspondre à votre expérience.</p>
       <p>Vous pouvez les découvrir ici :</p>
+      <div class="email-cta" style="margin-top: 12px; margin-bottom: 24px; text-align: center;">
+        <a href="${ctaUrl}" class="email-button-yellow">Découvrir les autres Chefs</a>
+      </div>
       <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
         Nous restons à votre disposition pour toute question,<br>
         À très vite autour de votre table !
@@ -613,11 +649,6 @@ export const emailTemplates = {
     return emailLayout({
       title: 'Votre demande MyTable - disponibilité du chef',
       content,
-      cta: {
-        text: 'Découvrir les autres Chefs',
-        url: 'https://guidemytable.fr/',
-        variant: 'yellow',
-      },
       baseUrl,
     })
   },
@@ -852,6 +883,24 @@ export const emailTemplates = {
       content,
       cta: {
         text: 'Se connecter pour voir le menu',
+        url: loginUrl,
+        variant: 'yellow',
+      },
+      baseUrl,
+    })
+  },
+
+  clientChatInactivityReminder: (clientFirstName: string, loginUrl: string, baseUrl?: string) => {
+    const content = `
+      <p>Bonjour ${clientFirstName},</p>
+      <p>Vous avez une conversation en attente sur MyTable.</p>
+      <p>Reconnectez-vous pour suivre l'échange avec votre chef.</p>
+    `
+    return emailLayout({
+      title: 'Votre conversation vous attend',
+      content,
+      cta: {
+        text: 'Se connecter au chat',
         url: loginUrl,
         variant: 'yellow',
       },

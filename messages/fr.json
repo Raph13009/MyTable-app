@@ -84,6 +84,9 @@
     "serviceTypeLabel": "Type de service",
     "firstName": "Prénom",
     "lastName": "Nom",
+    "fullName": "Nom",
+    "fullNamePlaceholder": "Ex: Jean Dupont",
+    "emailHelper": "Cette adresse mail vous permettra d’échanger directement avec le Chef, assurez-vous qu’elle soit correcte",
     "email": "Email",
     "confirmEmail": "Confirmer l'email",
     "phone": "Téléphone",
@@ -98,6 +101,9 @@
     "children_plural": "enfants",
     "city": "Ville",
     "postalCode": "Code postal",
+    "eventAddress": "Adresse de l’événement",
+    "eventAddressPlaceholder": "Ex : 12 rue des Lilas, 69002 Lyon",
+    "eventAddressHint": "Commencez à taper : suggestions France (Mapbox). Sinon, une ligne complète avec code postal (5 chiffres) suffit.",
     "budget": "Budget",
     "totalPrice": "Prix total",
     "mealTime": "Moment du repas",
@@ -136,7 +142,7 @@
     "notes": "Notes (optionnel)",
     "additionalInfo": "Informations complémentaires",
     "recommendedNearbyChefsTitle": "Maximisez vos chances d'avoir un chef disponible",
-    "recommendedNearbyChefsDescription": "Si votre chef est indisponible, nous transmettons automatiquement votre demande à des chefs qualifiés proches de vous.",
+    "recommendedNearbyChefsDescription": "Si votre chef est indisponible, nous transmettons automatiquement votre demande à des chefs qualifiés dans un rayon d’environ 100 km autour de l’adresse indiquée (ville et code postal).",
     "recommendedNearbyChefsMicrocopy": "Recommandé pour garantir votre réservation",
     "notesPlaceholder": "Toute information supplémentaire que vous souhaitez partager...",
     "acceptTerms": "J'accepte les",
@@ -218,6 +224,7 @@
     "errors": {
       "firstNameRequired": "Le prénom est requis",
       "lastNameRequired": "Le nom est requis",
+      "fullNameRequired": "Le nom est requis",
       "emailRequired": "L'email est requis",
       "emailInvalid": "Email invalide",
       "emailConfirmRequired": "La confirmation de l'email est requise",
@@ -231,7 +238,8 @@
       "guestsCountMin": "Le nombre de convives doit être au moins 1",
       "childrenCountMax": "Le nombre d'enfants ne peut pas être supérieur au nombre total de convives",
       "termsRequired": "Vous devez accepter les termes et conditions",
-      "missingRequiredFields": "Certains champs obligatoires sont manquants."
+      "missingRequiredFields": "Certains champs obligatoires sont manquants.",
+      "eventAddressInvalid": "Indiquez une adresse valide avec code postal (5 chiffres) ou choisissez une suggestion."
     },
     "validation": {
       "clientValidated": "Le client {{clientName}} a validé la réservation",

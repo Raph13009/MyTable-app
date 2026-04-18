@@ -84,6 +84,9 @@
     "serviceTypeLabel": "Service type",
     "firstName": "First name",
     "lastName": "Last name",
+    "fullName": "Name",
+    "fullNamePlaceholder": "E.g. Jean Dupont",
+    "emailHelper": "This email address lets you talk directly with the Chef — make sure it is correct.",
     "email": "Email",
     "confirmEmail": "Confirm email",
     "phone": "Phone",
@@ -98,6 +101,9 @@
     "children_plural": "children",
     "city": "City",
     "postalCode": "Postal code",
+    "eventAddress": "Event address",
+    "eventAddressPlaceholder": "E.g. 12 Rue des Lilas, 69002 Lyon",
+    "eventAddressHint": "Start typing for France suggestions (Mapbox). Or enter one line including a 5-digit postal code.",
     "budget": "Budget",
     "totalPrice": "Total Price",
     "mealTime": "Meal Time",
@@ -136,7 +142,7 @@
     "notes": "Notes (optional)",
     "additionalInfo": "Additional information",
     "recommendedNearbyChefsTitle": "Maximize your chances of having an available chef",
-    "recommendedNearbyChefsDescription": "If your chef is unavailable, we automatically send your request to qualified chefs near you.",
+    "recommendedNearbyChefsDescription": "If your chef is unavailable, we automatically send your request to qualified chefs within about 100 km of the address you entered (city and postal code).",
     "recommendedNearbyChefsMicrocopy": "Recommended to secure your booking",
     "notesPlaceholder": "Any additional information you would like to share...",
     "acceptTerms": "I accept the",
@@ -218,6 +224,7 @@
     "errors": {
       "firstNameRequired": "First name is required",
       "lastNameRequired": "Last name is required",
+      "fullNameRequired": "Name is required",
       "emailRequired": "Email is required",
       "emailInvalid": "Invalid email",
       "emailConfirmRequired": "Email confirmation is required",
@@ -231,7 +238,8 @@
       "guestsCountMin": "The number of guests must be at least 1",
       "childrenCountMax": "The number of children cannot exceed the total number of guests",
       "termsRequired": "You must accept the terms and conditions",
-      "missingRequiredFields": "Some required fields are missing."
+      "missingRequiredFields": "Some required fields are missing.",
+      "eventAddressInvalid": "Enter a valid address with a 5-digit postal code, or pick a suggestion."
     },
     "validation": {
       "clientValidated": "The client {{clientName}} has validated the reservation",

@@ -124,6 +124,7 @@ export interface Database {
           booking_date: string | null
           city: string
           postal_code: string
+          full_address: string | null
           guests_count: number
           children_count: number
           has_allergies: boolean
@@ -161,6 +162,7 @@ export interface Database {
           booking_date?: string | null
           city: string
           postal_code: string
+          full_address?: string | null
           guests_count: number
           children_count?: number
           has_allergies?: boolean
@@ -198,6 +200,7 @@ export interface Database {
           booking_date?: string | null
           city?: string
           postal_code?: string
+          full_address?: string | null
           guests_count?: number
           has_allergies?: boolean
           allergies_details?: string | null
@@ -230,18 +233,24 @@ export interface Database {
           booking_request_id: string | null
           created_at: string
           updated_at: string
+          client_last_chat_open_at: string | null
+          client_inactivity_reminder_sent_at: string | null
         }
         Insert: {
           id?: string
           booking_request_id?: string | null
           created_at?: string
           updated_at?: string
+          client_last_chat_open_at?: string | null
+          client_inactivity_reminder_sent_at?: string | null
         }
         Update: {
           id?: string
           booking_request_id?: string | null
           created_at?: string
           updated_at?: string
+          client_last_chat_open_at?: string | null
+          client_inactivity_reminder_sent_at?: string | null
         }
       }
       participants: {

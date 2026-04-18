@@ -39,9 +39,8 @@ test.describe('Booking Form - Timeout & Retry', () => {
     await page.click('button[type="submit"]')
     
     // Remplir la page 2
-    await page.waitForSelector('input[name="city"]')
-    await page.fill('input[name="city"]', 'Paris')
-    await page.fill('input[name="postalCode"]', '75001')
+    await page.waitForSelector('input[name="eventAddress"]')
+    await page.fill('input[name="eventAddress"]', '10 Rue de Rivoli, 75001 Paris')
     
     // Sélectionner une date (J+3)
     const minDate = new Date()
@@ -98,9 +97,8 @@ test.describe('Booking Form - Timeout & Retry', () => {
     await page.click('input[value="repas_domicile"]')
     await page.click('button[type="submit"]')
     
-    await page.waitForSelector('input[name="city"]')
-    await page.fill('input[name="city"]', 'Paris')
-    await page.fill('input[name="postalCode"]', '75001')
+    await page.waitForSelector('input[name="eventAddress"]')
+    await page.fill('input[name="eventAddress"]', '10 Rue de Rivoli, 75001 Paris')
     
     const minDate = new Date()
     minDate.setDate(minDate.getDate() + 3)
@@ -149,9 +147,8 @@ test.describe('Booking Form - Timeout & Retry', () => {
     await page.click('input[value="repas_domicile"]')
     await page.click('button[type="submit"]')
     
-    await page.waitForSelector('input[name="city"]')
-    await page.fill('input[name="city"]', 'Paris')
-    await page.fill('input[name="postalCode"]', '75001')
+    await page.waitForSelector('input[name="eventAddress"]')
+    await page.fill('input[name="eventAddress"]', '10 Rue de Rivoli, 75001 Paris')
     
     const minDate = new Date()
     minDate.setDate(minDate.getDate() + 3)
@@ -195,9 +192,8 @@ test.describe('Booking Form - Timeout & Retry', () => {
     await page.click('input[value="repas_domicile"]')
     await page.click('button[type="submit"]')
     
-    await page.waitForSelector('input[name="city"]')
-    await page.fill('input[name="city"]', 'Paris')
-    await page.fill('input[name="postalCode"]', '75001')
+    await page.waitForSelector('input[name="eventAddress"]')
+    await page.fill('input[name="eventAddress"]', '10 Rue de Rivoli, 75001 Paris')
     
     const minDate = new Date()
     minDate.setDate(minDate.getDate() + 3)

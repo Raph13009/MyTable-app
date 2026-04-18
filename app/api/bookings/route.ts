@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
+import { calculateBookingTotal } from '@/lib/bookingCalculations'
+import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
       mealTime,
       city,
       postalCode,
+      fullAddress: fullAddressRaw,
       guestsCount,
       childrenCount,
       periodDays,
@@ -78,8 +81,17 @@ export async function POST(request: NextRequest) {
       notes,
       fallbackEnabled: fallbackEnabledRaw,
       fallbackChefIds: fallbackChefIdsRaw,
+      clientLatitude: clientLatitudeRaw,
+      clientLongitude: clientLongitudeRaw,
       idempotencyToken,
     } = body
+    const fullAddress =
+      typeof fullAddressRaw === 'string' ? fullAddressRaw.trim() : ''
+
+    const firstNameTrim = typeof firstName === 'string' ? firstName.trim() : ''
+    const lastNameTrim = typeof lastName === 'string' ? lastName.trim() : ''
+    const clientDisplayName = [firstNameTrim, lastNameTrim].filter(Boolean).join(' ').trim()
+
     const normalizedCoursePricePerPerson = serviceType === 'cours_cuisine'
       ? normalizeBudgetSelection(budget, 'cours_cuisine')
       : null
@@ -95,8 +107,17 @@ export async function POST(request: NextRequest) {
       idempotencyToken: idempotencyToken?.substring(0, 20) + '...',
     })
 
-    // Validation basique
-    if (!chefId || !firstName || !lastName || !email || !phone || !serviceType || !city || !postalCode || !guestsCount) {
+    // Validation basique (nom : au moins prénom ou nom, après découpe côté client)
+    if (
+      !chefId ||
+      (!firstNameTrim && !lastNameTrim) ||
+      !email ||
+      !phone ||
+      !serviceType ||
+      !city ||
+      !postalCode ||
+      !guestsCount
+    ) {
       return NextResponse.json(
         { error: 'Tous les champs requis doivent être remplis' },
         { status: 400 }
@@ -211,23 +232,43 @@ export async function POST(request: NextRequest) {
 
     console.log(`[bookings:${requestId}] Chef found:`, (chef as any).name)
 
-    const chefPostalPrefix = String((chef as any).postal_code || '').replace(/\D/g, '').slice(0, 2)
+    const clientLatitude = parseClientCoord(clientLatitudeRaw)
+    const clientLongitude = parseClientCoord(clientLongitudeRaw)
     let validFallbackChefIds: string[] = []
 
-    if (dedupedFallbackChefIds.length > 0 && chefPostalPrefix.length === 2) {
-      const { data: nearbyFallbackChefs } = await supabase
+    if (dedupedFallbackChefIds.length > 0) {
+      if (
+        clientLatitude === null ||
+        clientLongitude === null ||
+        clientLatitude < -90 ||
+        clientLatitude > 90 ||
+        clientLongitude < -180 ||
+        clientLongitude > 180
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'Coordonnées du lieu de la prestation requises pour partager votre demande avec d’autres chefs à proximité',
+          },
+          { status: 400 }
+        )
+      }
+
+      const { data: fallbackChefRows } = await supabase
         .from('chefs')
-        .select('id, postal_code')
+        .select('id, latitude, longitude')
         .in('id', dedupedFallbackChefIds)
 
       const allowedIds = new Set(
-        (nearbyFallbackChefs || [])
-        .map((row: any) => ({
-          id: row.id as string,
-          postalPrefix: String(row.postal_code || '').replace(/\D/g, '').slice(0, 2),
-        }))
-        .filter((row) => row.postalPrefix === chefPostalPrefix)
-        .map((row) => row.id)
+        (fallbackChefRows || [])
+          .map((row: any) => {
+            const lat = Number(row.latitude)
+            const lon = Number(row.longitude)
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+            const km = haversineDistanceKm(clientLatitude, clientLongitude, lat, lon)
+            return km <= BOOKING_FALLBACK_RADIUS_KM ? (row.id as string) : null
+          })
+          .filter((id: string | null): id is string => typeof id === 'string')
       )
 
       validFallbackChefIds = dedupedFallbackChefIds.filter((id) => allowedIds.has(id))
@@ -304,16 +345,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Récupérer le menu si sélectionné
-    let menuName = null
+    // Récupérer le menu si sélectionné (nom + prix pour l’email chef et le total)
+    let menuName: string | null = null
+    let menuPricePerPerson: number | null = null
     if (menuId) {
       const { data: menu, error: menuError } = await supabase
         .from('menus')
-        .select('name')
+        .select('name, price')
         .eq('id', menuId)
         .single()
-      if (!menuError && menu && 'name' in menu) {
-        menuName = (menu as { name: string }).name || null
+      if (!menuError && menu && typeof menu === 'object') {
+        menuName = (menu as { name?: string }).name || null
+        const raw = (menu as { price?: unknown }).price
+        const parsed = typeof raw === 'number' ? raw : Number.parseFloat(String(raw ?? ''))
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          menuPricePerPerson = parsed
+        }
       }
     }
 
@@ -371,8 +418,8 @@ export async function POST(request: NextRequest) {
       const { data, error } = await (supabase as any).rpc('insert_booking_with_json_meal_options', {
         p_chef_id: chefId,
         p_conversation_id: conversationId,
-        p_first_name: firstName,
-        p_last_name: lastName,
+        p_first_name: firstNameTrim,
+        p_last_name: lastNameTrim,
         p_email: email,
         p_phone: phone,
         p_service_type: serviceType,
@@ -380,6 +427,7 @@ export async function POST(request: NextRequest) {
         p_meal_time: mealTime || null,
         p_city: city,
         p_postal_code: postalCode,
+        p_full_address: fullAddress || null,
         p_guests_count: parseInt(guestsCount),
         p_children_count: parseInt(childrenCount) || 0,
         p_period_days: periodDays || null,
@@ -403,8 +451,8 @@ export async function POST(request: NextRequest) {
         .insert({
           chef_id: chefId,
           conversation_id: conversationId,
-          first_name: firstName,
-          last_name: lastName,
+          first_name: firstNameTrim,
+          last_name: lastNameTrim,
           email,
           phone,
           service_type: serviceType,
@@ -412,6 +460,7 @@ export async function POST(request: NextRequest) {
           meal_time: mealTime || null,
           city,
           postal_code: postalCode,
+          full_address: fullAddress || null,
           guests_count: parseInt(guestsCount),
           children_count: parseInt(childrenCount) || 0,
           period_days: periodDays || null,
@@ -649,13 +698,14 @@ export async function POST(request: NextRequest) {
     }
 
     const bookingDetails: any = {
-      firstName,
-      lastName,
+      firstName: firstNameTrim,
+      lastName: lastNameTrim,
       phone,
       serviceType,
       serviceTypeLabel: getServiceTypeLabelLocalized(serviceType),
       city,
       postalCode,
+      fullAddress: fullAddress || null,
       guestsCount,
       childrenCount: parseInt(childrenCount) || 0,
       hasAllergies,
@@ -669,6 +719,14 @@ export async function POST(request: NextRequest) {
       bookingDetails.mealTime = mealTime || null
       bookingDetails.mealTimeLabel = mealTime === 'dejeuner' ? 'Déjeuner' : mealTime === 'diner' ? 'Dîner' : null
       bookingDetails.menuName = menuName || null
+      const safeGuestsRepas = Number.parseInt(String(guestsCount), 10) || 0
+      if (menuPricePerPerson !== null) {
+        bookingDetails.menuPricePerPerson = menuPricePerPerson
+        bookingDetails.estimatedTotalPrice = calculateBookingTotal('repas_domicile', {
+          menuPrice: menuPricePerPerson,
+          guestsCount: safeGuestsRepas,
+        })
+      }
     } else if (serviceType === 'cours_cuisine') {
       bookingDetails.bookingDate = bookingDate ? formatDateForDisplay(bookingDate, 'fr-FR') : null
       const safeGuestsCount = Number.parseInt(String(guestsCount), 10) || 0
@@ -703,7 +761,7 @@ export async function POST(request: NextRequest) {
       to: email,
       subject: emailSubjects.bookingConfirmationToClient,
       html: emailTemplates.bookingConfirmationToClient(
-        `${firstName} ${lastName}`,
+        clientDisplayName,
         (chef as any).name,
         baseUrl
       ),
@@ -718,7 +776,8 @@ export async function POST(request: NextRequest) {
         bookingDetails,
         acceptUrl,
         refuseUrl,
-        baseUrl
+        baseUrl,
+        { showFallbackPriority: fallbackEnabled }
       ),
     })
 
@@ -727,7 +786,7 @@ export async function POST(request: NextRequest) {
       to: 'contact@guidemytable.fr',
       subject: emailSubjects.bookingNewToAdmin,
       html: emailTemplates.bookingNewToAdmin(
-        `${firstName} ${lastName}`,
+        clientDisplayName,
         email,
         (chef as any).name,
         (chef as any).email || null,

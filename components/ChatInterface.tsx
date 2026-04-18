@@ -229,6 +229,16 @@ export default function ChatInterface({
     return role
   }
 
+  useEffect(() => {
+    if (!conversationId || !currentUser?.email || isAdmin) return
+    if (getParticipantRole(currentUser.email) !== 'client') return
+    void fetch('/api/conversations/client-visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId }),
+    }).catch(() => {})
+  }, [conversationId, currentUser?.email, isAdmin, participants])
+
   // Logs au montage du composant
   useEffect(() => {
     console.log('[ChatInterface] ========== COMPONENT MOUNTED ==========')
@@ -2060,7 +2070,10 @@ export default function ChatInterface({
                       ) : null}
                       <div>
                         <p className="text-xs text-gray-500 mb-0.5">Lieu</p>
-                        <p className="text-sm font-medium text-black">{bookingRequest.city} {bookingRequest.postal_code}</p>
+                        <p className="text-sm font-medium text-black">
+                          {(bookingRequest as { full_address?: string | null }).full_address?.trim() ||
+                            `${bookingRequest.city} ${bookingRequest.postal_code}`.trim()}
+                        </p>
                       </div>
                     </div>
                     <div>

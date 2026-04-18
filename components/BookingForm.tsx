@@ -18,6 +18,10 @@ import {
 } from '@/lib/dateUtils'
 import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
 import { trackEvent } from '@/lib/analytics/track'
+import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
+import { resolveBookingAddress } from '@/lib/bookingAddress'
+import { splitFullNameForBooking } from '@/lib/splitFullName'
+import { EventAddressAutocomplete } from '@/components/booking/EventAddressAutocomplete'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -29,7 +33,6 @@ interface BookingFormProps {
   chef: Chef
   chefName: string
   menus: Menu[]
-  nearbyChefs?: NearbyChef[]
 }
 
 type DatePickerMultiProps = {
@@ -189,7 +192,7 @@ const DatePickerMulti = ({ selectedDates, onDatesChange, minDate, locale }: Date
   )
 }
 
-export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }: BookingFormProps) {
+export default function BookingForm({ chef, chefName, menus }: BookingFormProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -212,16 +215,22 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
   const [isGuestsTotalAnimating, setIsGuestsTotalAnimating] = useState(false)
   const [activePriceInfo, setActivePriceInfo] = useState<'cours' | 'demeure' | null>(null)
   const globalErrorRef = useRef<HTMLDivElement>(null)
-  const chefPostalPrefix = (chef.postal_code || '').replace(/\D/g, '').slice(0, 2)
+  const nearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nearbyFetchAbortRef = useRef<AbortController | null>(null)
+  const step1AdvanceTimeoutRef = useRef<number | null>(null)
+  const step1AdvanceGenRef = useRef(0)
+  const [resolvedNearbyChefs, setResolvedNearbyChefs] = useState<NearbyChef[]>([])
+  const [nearbyChefsLoading, setNearbyChefsLoading] = useState(false)
+  const [clientMapCoords, setClientMapCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
-    emailConfirm: '',
     phone: '',
     serviceType: '' as ServiceType | '',
     bookingDate: '',
+    eventAddress: '',
+    fullAddress: '',
     city: '',
     postalCode: '',
     guestsCount: '2',
@@ -248,13 +257,13 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     setErrors({})
     setLoading(false)
     setFormData({
-      firstName: '',
-      lastName: '',
+      fullName: '',
       email: '',
-      emailConfirm: '',
       phone: '',
       serviceType: '' as ServiceType | '',
       bookingDate: '',
+      eventAddress: '',
+      fullAddress: '',
       city: '',
       postalCode: '',
       guestsCount: '2',
@@ -273,7 +282,111 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       shareWithNearbyChefs: false,
       nearbyChefIds: [],
     })
+    setResolvedNearbyChefs([])
+    setClientMapCoords(null)
+    setNearbyChefsLoading(false)
   }, [chef.id, menus])
+
+  useEffect(() => {
+    const resolved = resolveBookingAddress(formData)
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+
+    const clearList = () => {
+      setResolvedNearbyChefs([])
+      setNearbyChefsLoading(false)
+    }
+
+    if (!resolved || !mapboxToken) {
+      clearList()
+      if (!resolved) setClientMapCoords(null)
+      return
+    }
+
+    if (nearbyDebounceRef.current) clearTimeout(nearbyDebounceRef.current)
+
+    nearbyDebounceRef.current = setTimeout(async () => {
+      if (nearbyFetchAbortRef.current) nearbyFetchAbortRef.current.abort()
+      const controller = new AbortController()
+      nearbyFetchAbortRef.current = controller
+      setNearbyChefsLoading(true)
+
+      try {
+        let lat: number
+        let lng: number
+        if (clientMapCoords) {
+          lat = clientMapCoords.lat
+          lng = clientMapCoords.lng
+        } else {
+          const geoPath = `${encodeURIComponent(resolved.postalCode)} ${encodeURIComponent(resolved.city)}, France`
+          const geoRes = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${geoPath}.json?autocomplete=false&limit=1&language=fr&country=fr&types=place,postcode,address,locality,neighborhood&access_token=${mapboxToken}`,
+            { signal: controller.signal }
+          )
+          if (!geoRes.ok) throw new Error('geocode')
+          const geoJson = await geoRes.json()
+          const feature = geoJson?.features?.[0]
+          const center = feature?.center
+          if (!Array.isArray(center) || center.length < 2) {
+            setResolvedNearbyChefs([])
+            setClientMapCoords(null)
+            setNearbyChefsLoading(false)
+            return
+          }
+          lng = Number(center[0])
+          lat = Number(center[1])
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            setResolvedNearbyChefs([])
+            setClientMapCoords(null)
+            setNearbyChefsLoading(false)
+            return
+          }
+          setClientMapCoords({ lat, lng })
+        }
+
+        const nearbyRes = await fetch('/api/booking/nearby-chefs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientLatitude: lat,
+            clientLongitude: lng,
+            excludeChefId: chef.id,
+            radiusKm: BOOKING_FALLBACK_RADIUS_KM,
+          }),
+          signal: controller.signal,
+        })
+
+        if (!nearbyRes.ok) {
+          setResolvedNearbyChefs([])
+          setNearbyChefsLoading(false)
+          return
+        }
+        const payload = await nearbyRes.json()
+        const list = Array.isArray(payload?.chefs) ? (payload.chefs as NearbyChef[]) : []
+        setResolvedNearbyChefs(list)
+      } catch (e: unknown) {
+        const err = e as { name?: string }
+        if (err?.name === 'AbortError') return
+        setResolvedNearbyChefs([])
+        setClientMapCoords(null)
+      } finally {
+        setNearbyChefsLoading(false)
+      }
+    }, 400)
+
+    return () => {
+      if (nearbyDebounceRef.current) clearTimeout(nearbyDebounceRef.current)
+      if (nearbyFetchAbortRef.current) nearbyFetchAbortRef.current.abort()
+    }
+  }, [formData.eventAddress, formData.city, formData.postalCode, formData.fullAddress, chef.id, clientMapCoords])
+
+  useEffect(() => {
+    return () => {
+      if (step1AdvanceTimeoutRef.current) {
+        clearTimeout(step1AdvanceTimeoutRef.current)
+        step1AdvanceTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   // Scroll en haut lors du changement d'étape
   useEffect(() => {
@@ -347,7 +460,12 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       if (name === 'periodStartDate' && prev.periodEndDate && value && prev.periodEndDate < value) {
         newData.periodEndDate = ''
       }
-      
+
+      if (name === 'eventAddress') {
+        newData.nearbyChefIds = []
+        newData.shareWithNearbyChefs = false
+      }
+
       return newData
     })
 
@@ -386,13 +504,10 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     const newErrors: Record<string, string> = {}
     const missingFields: string[] = []
 
-    if (!formData.city.trim()) {
-      newErrors.city = 'La ville est requise'
-      missingFields.push('Ville')
-    }
-    if (!formData.postalCode.trim()) {
-      newErrors.postalCode = 'Le code postal est requis'
-      missingFields.push('Code postal')
+    const resolvedAddress = resolveBookingAddress(formData)
+    if (!resolvedAddress) {
+      newErrors.eventAddress = t('booking.errors.eventAddressInvalid')
+      missingFields.push(t('booking.eventAddress'))
     }
     if (!formData.guestsCount || parseInt(formData.guestsCount) < 1) {
       newErrors.guestsCount = t('booking.errors.guestsCountMin')
@@ -478,7 +593,11 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     }
 
     if (formData.shareWithNearbyChefs) {
-      if (formData.nearbyChefIds.length === 0) {
+      if (!clientMapCoords) {
+        newErrors.nearbyChefIds =
+          'Impossible de localiser votre adresse pour proposer des chefs à proximité. Vérifiez le code postal et la ville.'
+        missingFields.push('Localisation')
+      } else if (formData.nearbyChefIds.length === 0) {
         newErrors.nearbyChefIds = 'Veuillez sélectionner au moins un chef qualifié à proximité'
         missingFields.push('Chefs qualifiés à proximité')
       } else if (formData.nearbyChefIds.length > 3) {
@@ -500,15 +619,10 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
   const validatePage4 = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.firstName.trim()) newErrors.firstName = t('booking.errors.firstNameRequired')
-    if (!formData.lastName.trim()) newErrors.lastName = t('booking.errors.lastNameRequired')
+    if (!formData.fullName.trim()) newErrors.fullName = t('booking.errors.fullNameRequired')
     if (!formData.email.trim()) newErrors.email = t('booking.errors.emailRequired')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = t('booking.errors.emailInvalid')
-    }
-    if (!formData.emailConfirm.trim()) newErrors.emailConfirm = t('booking.errors.emailConfirmRequired')
-    else if (formData.email !== formData.emailConfirm) {
-      newErrors.emailConfirm = t('booking.errors.emailsDontMatch')
     }
     if (!formData.phone.trim()) newErrors.phone = t('booking.errors.phoneRequired')
     if (!acceptedTerms) newErrors.terms = t('booking.errors.termsRequired')
@@ -517,9 +631,39 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     return Object.keys(newErrors).length === 0
   }
 
+  const handleServiceTypeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value as ServiceType
+    setFormData((prev) => ({ ...prev, serviceType: value }))
+    setErrors((prev) => {
+      if (!prev.serviceType) return prev
+      const next = { ...prev }
+      delete next.serviceType
+      return next
+    })
+    setShowGlobalError(false)
+
+    if (step1AdvanceTimeoutRef.current) {
+      clearTimeout(step1AdvanceTimeoutRef.current)
+      step1AdvanceTimeoutRef.current = null
+    }
+    step1AdvanceGenRef.current += 1
+    const generation = step1AdvanceGenRef.current
+
+    step1AdvanceTimeoutRef.current = window.setTimeout(() => {
+      step1AdvanceTimeoutRef.current = null
+      if (step1AdvanceGenRef.current !== generation) return
+      setCurrentPage((prev) => (prev === 1 ? 2 : prev))
+    }, 200)
+  }
+
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault()
     if (currentPage === 1 && validatePage1()) {
+      if (step1AdvanceTimeoutRef.current) {
+        clearTimeout(step1AdvanceTimeoutRef.current)
+        step1AdvanceTimeoutRef.current = null
+      }
+      step1AdvanceGenRef.current += 1
       setCurrentPage(2)
       return
     }
@@ -611,15 +755,27 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         timestamp: new Date().toISOString(),
       })
 
-      // Exclure emailConfirm du body (c'est juste pour validation)
       const {
-        emailConfirm,
         periodStartDate,
         periodEndDate,
         shareWithNearbyChefs,
         nearbyChefIds,
-        ...bookingData
+        eventAddress,
+        fullAddress: _fullAddressForm,
+        fullName,
+        ...bookingRest
       } = formData
+
+      const { firstName, lastName } = splitFullNameForBooking(fullName)
+      const resolvedSubmit = resolveBookingAddress(formData)
+      const bookingData = {
+        ...bookingRest,
+        firstName,
+        lastName,
+        city: resolvedSubmit?.city ?? '',
+        postalCode: resolvedSubmit?.postalCode ?? '',
+        fullAddress: resolvedSubmit?.fullAddress ?? '',
+      }
       
       // Préparer les données selon le type de service
       let periodDays = null
@@ -652,6 +808,10 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
         totalPrice,
         fallbackEnabled: shareWithNearbyChefs,
         fallbackChefIds: shareWithNearbyChefs ? nearbyChefIds : [],
+        clientLatitude:
+          shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lat : null,
+        clientLongitude:
+          shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lng : null,
         idempotencyToken, // Token pour éviter les doublons
       }
 
@@ -947,6 +1107,55 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
     )
   }
 
+  const renderEventAddressField = (inputClassName?: string) => (
+    <div className="w-full">
+      <EventAddressAutocomplete
+        label={`${t('booking.eventAddress')} *`}
+        placeholder={t('booking.eventAddressPlaceholder')}
+        value={formData.eventAddress}
+        error={errors.eventAddress}
+        locale={locale}
+        inputClassName={inputClassName}
+        onChange={(v) => {
+          setFormData((prev) => ({
+            ...prev,
+            eventAddress: v,
+            city: '',
+            postalCode: '',
+            fullAddress: '',
+            nearbyChefIds: [],
+            shareWithNearbyChefs: false,
+          }))
+          setClientMapCoords(null)
+          setErrors((prev) => {
+            if (!prev.eventAddress) return prev
+            const next = { ...prev }
+            delete next.eventAddress
+            return next
+          })
+          if (showGlobalError) setShowGlobalError(false)
+        }}
+        onPick={(payload) => {
+          setFormData((prev) => ({
+            ...prev,
+            eventAddress: payload.fullAddress,
+            fullAddress: payload.fullAddress,
+            city: payload.city,
+            postalCode: payload.postalCode,
+          }))
+          setClientMapCoords({ lat: payload.latitude, lng: payload.longitude })
+          setErrors((prev) => {
+            if (!prev.eventAddress) return prev
+            const next = { ...prev }
+            delete next.eventAddress
+            return next
+          })
+        }}
+      />
+      <p className="mt-1.5 text-xs text-neutral-500">{t('booking.eventAddressHint')}</p>
+    </div>
+  )
+
   // Page 1: Type de service
   if (currentPage === 1) {
     return (
@@ -985,7 +1194,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   name="serviceType"
                   value={option.value}
                   checked={formData.serviceType === option.value}
-                  onChange={handleChange}
+                  onChange={handleServiceTypeSelect}
                   className="w-4.5 h-4.5 text-[#FBCF03] focus:ring-[#FBCF03]"
                 />
                 <span className="text-[17px] sm:text-lg md:text-lg font-medium text-neutral-900">{option.label}</span>
@@ -995,15 +1204,6 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
           {errors.serviceType && (
             <p className="text-red-500 text-sm -mt-2">{errors.serviceType}</p>
           )}
-        </div>
-
-        <div className="flex justify-end mt-auto pt-2 md:pt-1">
-          <Button 
-            type="submit" 
-            className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:brightness-105 font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            {t('booking.next')}
-          </Button>
         </div>
       </form>
     )
@@ -1050,30 +1250,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
 
             {renderGuestsModule()}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
-              <Input
-                label={`${t('booking.city')} *`}
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                error={errors.city}
-                required
-                autoComplete="address-level2"
-                inputMode="text"
-                className="py-2.5 sm:py-3 md:py-2"
-              />
-              <Input
-                label="Code postal *"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleChange}
-                error={errors.postalCode}
-                required
-                autoComplete="postal-code"
-                inputMode="numeric"
-                className="py-2.5 sm:py-3 md:py-2"
-              />
-            </div>
+            {renderEventAddressField('py-2.5 sm:py-3 md:py-2')}
 
             {menus.length > 0 && (
               <div className="w-full">
@@ -1110,28 +1287,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
             </div>
             {renderGuestsModule()}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label={`${t('booking.city')} *`}
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                error={errors.city}
-                required
-                autoComplete="address-level2"
-                inputMode="text"
-              />
-              <Input
-                label="Code postal *"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleChange}
-                error={errors.postalCode}
-                required
-                autoComplete="postal-code"
-                inputMode="numeric"
-              />
-            </div>
+            {renderEventAddressField()}
 
             <div className="w-full">
               <Select
@@ -1184,28 +1340,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
           <>
             {renderGuestsModule()}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label={`${t('booking.city')} *`}
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                error={errors.city}
-                required
-                autoComplete="address-level2"
-                inputMode="text"
-              />
-              <Input
-                label="Code postal *"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleChange}
-                error={errors.postalCode}
-                required
-                autoComplete="postal-code"
-                inputMode="numeric"
-              />
-            </div>
+            {renderEventAddressField()}
 
             {/* Calendrier multi-dates */}
             <div className="w-full">
@@ -1378,7 +1513,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
           />
         )}
 
-        {nearbyChefs.length > 0 && chefPostalPrefix.length === 2 && (
+        {(resolvedNearbyChefs.length > 0 || nearbyChefsLoading) && (
           <div className="space-y-4">
             <label
               htmlFor="share-nearby-chefs"
@@ -1393,6 +1528,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                   id="share-nearby-chefs"
                   type="checkbox"
                   checked={formData.shareWithNearbyChefs}
+                  disabled={nearbyChefsLoading || resolvedNearbyChefs.length === 0}
                   onChange={(e) =>
                     setFormData(prev => ({
                       ...prev,
@@ -1400,7 +1536,7 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                       nearbyChefIds: e.target.checked ? prev.nearbyChefIds : [],
                     }))
                   }
-                  className="mt-0.5 h-5 w-5 flex-shrink-0 rounded-md border border-neutral-300 accent-[#FBCF03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/40 focus-visible:ring-offset-1"
+                  className="mt-0.5 h-5 w-5 flex-shrink-0 rounded-md border border-neutral-300 accent-[#FBCF03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-describedby="share-nearby-chefs-description"
                 />
                 <div className="min-w-0">
@@ -1422,8 +1558,11 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
                 <p className="text-sm text-neutral-700 font-medium">
                   Sélection max: 3 chefs
                 </p>
+                {nearbyChefsLoading && resolvedNearbyChefs.length === 0 && (
+                  <p className="text-sm text-neutral-500">Chargement des suggestions à proximité de votre adresse…</p>
+                )}
                 <div className="space-y-2">
-                  {nearbyChefs.map((nearbyChef) => {
+                  {resolvedNearbyChefs.map((nearbyChef) => {
                     const selected = formData.nearbyChefIds.includes(nearbyChef.id)
                     const disabled = !selected && formData.nearbyChefIds.length >= 3
                     return (
@@ -1477,52 +1616,35 @@ export default function BookingForm({ chef, chefName, menus, nearbyChefs = [] }:
       {currentPage === 4 && (
         <div className={`px-1 sm:px-2 space-y-4 flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
           <h2 className="text-2xl font-bold text-black mb-2">{t('booking.personalInfo')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Input
-              label={`${t('booking.firstName')} *`}
-              name="firstName"
-              value={formData.firstName}
+              label={`${t('booking.fullName')} *`}
+              name="fullName"
+              value={formData.fullName}
               onChange={handleChange}
-              error={errors.firstName}
+              error={errors.fullName}
+              placeholder={t('booking.fullNamePlaceholder')}
               required
-              autoComplete="given-name"
-              inputMode="text"
-            />
-            <Input
-              label="Nom *"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              error={errors.lastName}
-              required
-              autoComplete="family-name"
+              autoComplete="name"
               inputMode="text"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label={`${t('booking.email')} *`}
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              error={errors.email}
-              required
-              autoComplete="email"
-              inputMode="email"
-            />
-            <Input
-              label={`${t('booking.confirmEmail')} *`}
-              type="email"
-              name="emailConfirm"
-              value={formData.emailConfirm}
-              onChange={handleChange}
-              error={errors.emailConfirm}
-              required
-              autoComplete="email"
-              inputMode="email"
-            />
+            <div className="md:col-span-2 space-y-1.5">
+              <Input
+                label={`${t('booking.email')} *`}
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                error={errors.email}
+                required
+                autoComplete="email"
+                inputMode="email"
+              />
+              <p className="text-xs text-neutral-500 leading-relaxed">{t('booking.emailHelper')}</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

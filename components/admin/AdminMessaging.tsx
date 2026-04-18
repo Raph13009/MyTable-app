@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDateForDisplay, parseDateFromDB } from '@/lib/dateUtils'
 
+/** Demandes toujours en pending dont la création date de plus de 6h (chef n’a pas répondu à temps). */
+const PENDING_NO_RESPONSE_HOURS = 6
+
+function isExpiredPendingNoResponse(bookingRequest?: {
+  status: string
+  created_at?: string
+} | null): boolean {
+  if (!bookingRequest || bookingRequest.status !== 'pending') return false
+  if (!bookingRequest.created_at) return false
+  const created = new Date(bookingRequest.created_at)
+  if (Number.isNaN(created.getTime())) return false
+  const cutoff = Date.now() - PENDING_NO_RESPONSE_HOURS * 60 * 60 * 1000
+  return created.getTime() <= cutoff
+}
+
 interface Conversation {
   id: string
   booking_request_id: string | null
@@ -12,6 +27,7 @@ interface Conversation {
   bookingRequest?: {
     id: string
     status: string
+    created_at?: string
     first_name: string
     last_name: string
     email: string
@@ -80,7 +96,9 @@ export default function AdminMessaging() {
 
     let matchesStatus = true
     if (statusFilter !== 'all') {
-      if (statusFilter === 'ongoing') {
+      if (statusFilter === 'expired') {
+        matchesStatus = isExpiredPendingNoResponse(conv.bookingRequest)
+      } else if (statusFilter === 'ongoing') {
         // "En cours" regroupe accepted et validated_by_client
         matchesStatus = conv.bookingRequest?.status === 'accepted' || 
                        conv.bookingRequest?.status === 'validated_by_client'
@@ -221,6 +239,7 @@ export default function AdminMessaging() {
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente paiement</option>
+                <option value="expired">Expiré</option>
                 <option value="ongoing">En cours</option>
                 <option value="completed">Confirmée</option>
                 <option value="cancelled">Annulée</option>
@@ -238,6 +257,7 @@ export default function AdminMessaging() {
           ) : (
             <div className="space-y-2 p-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-4 sm:space-y-0">
               {filteredConversations.map((conv) => {
+                const showExpiredBadge = isExpiredPendingNoResponse(conv.bookingRequest)
                 const statusInfo = conv.bookingRequest
                   ? getStatusInfo(conv.bookingRequest.status)
                   : null
@@ -350,6 +370,14 @@ export default function AdminMessaging() {
                           {statusInfo && (
                             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusInfo.badgeColor} sm:text-xs`}>
                               {statusInfo.label}
+                            </span>
+                          )}
+                          {showExpiredBadge && (
+                            <span
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-amber-600/40 bg-amber-50 text-amber-900 sm:text-xs"
+                              title={`Pending sans réponse du chef depuis plus de ${PENDING_NO_RESPONSE_HOURS} h`}
+                            >
+                              expiré
                             </span>
                           )}
                           

@@ -28,24 +28,12 @@ export default async function BookPage({ params }: PageProps) {
   }
 
   const typedChef = chef as Chef
-  const postalPrefix = (typedChef.postal_code || '').replace(/\D/g, '').slice(0, 2)
 
   const { data: menus } = await supabase
     .from('menus')
     .select('*')
     .eq('chef_id', typedChef.id)
     .order('name')
-
-  let nearbyChefs: Chef[] = []
-  if (postalPrefix.length === 2) {
-    const { data } = await supabase
-      .from('chefs')
-      .select('*')
-      .like('postal_code', `${postalPrefix}%`)
-      .neq('id', typedChef.id)
-      .limit(6)
-    nearbyChefs = (data || []) as Chef[]
-  }
 
   return (
     <div className="min-h-screen bg-[#FCFCFA]">
@@ -66,7 +54,7 @@ export default async function BookPage({ params }: PageProps) {
       {/* Contenu avec padding pour compenser la bannière fixe */}
       <div className="pt-20 sm:pt-24 md:pt-24">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
-          <BookingForm key={chefSlug} chef={typedChef} chefName={typedChef.name} menus={menus || []} nearbyChefs={nearbyChefs} />
+          <BookingForm key={chefSlug} chef={typedChef} chefName={typedChef.name} menus={menus || []} />
         </div>
       </div>
     </div>
