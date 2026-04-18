@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import AdminMessaging from '@/components/admin/AdminMessaging'
 import AdminChefs from '@/components/admin/AdminChefs'
 import AdminAnalytics from '@/components/admin/AdminAnalytics'
-import AdminContacts from '@/components/admin/AdminContacts'
+import AdminEmails from '@/components/admin/AdminEmails'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
 
@@ -20,7 +20,7 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeSection, setActiveSection] = useState<
-    'messaging' | 'chefs' | 'analytics' | 'contacts'
+    'messaging' | 'chefs' | 'analytics' | 'emails'
   >('chefs')
 
   useEffect(() => {
@@ -218,14 +218,14 @@ export default function AdminPage() {
               Messagerie
             </button>
             <button
-              onClick={() => setActiveSection('contacts')}
+              onClick={() => setActiveSection('emails')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeSection === 'contacts'
+                activeSection === 'emails'
                   ? 'border-[#FBCF03] text-black'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Contacts
+              E-mails
             </button>
             <button
               onClick={() => setActiveSection('analytics')}
@@ -248,8 +248,8 @@ export default function AdminPage() {
           <AdminMessaging />
         ) : activeSection === 'analytics' ? (
           <AdminAnalytics />
-        ) : activeSection === 'contacts' ? (
-          <AdminContacts />
+        ) : activeSection === 'emails' ? (
+          <AdminEmails />
         ) : (
           <AdminChefs />
         )}
