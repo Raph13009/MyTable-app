@@ -5,6 +5,7 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
 import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
+import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -64,9 +65,10 @@ export async function POST(request: NextRequest) {
       serviceType,
       bookingDate,
       mealTime,
-      city,
-      postalCode,
+      city: cityRaw,
+      postalCode: postalCodeRaw,
       fullAddress: fullAddressRaw,
+      eventAddress: eventAddressRaw,
       guestsCount,
       childrenCount,
       periodDays,
@@ -85,8 +87,26 @@ export async function POST(request: NextRequest) {
       clientLongitude: clientLongitudeRaw,
       idempotencyToken,
     } = body
-    const fullAddress =
-      typeof fullAddressRaw === 'string' ? fullAddressRaw.trim() : ''
+    const addrNorm = normalizeBookingAddressForDb({
+      city: cityRaw,
+      postalCode: postalCodeRaw,
+      fullAddress: fullAddressRaw,
+      eventAddress: eventAddressRaw,
+    })
+
+    if (!addrNorm) {
+      return NextResponse.json(
+        {
+          error:
+            'Adresse invalide : vérifiez la ville et le code postal (5 chiffres), ou une adresse complète avec code postal.',
+        },
+        { status: 400 }
+      )
+    }
+
+    const city = addrNorm.city
+    const postalCode = addrNorm.postalCode
+    const fullAddress = addrNorm.fullAddress
 
     const firstNameTrim = typeof firstName === 'string' ? firstName.trim() : ''
     const lastNameTrim = typeof lastName === 'string' ? lastName.trim() : ''

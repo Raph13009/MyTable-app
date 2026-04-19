@@ -53,3 +53,33 @@ export function resolveBookingAddress(fd: {
 
   return parseManualFrenchAddress(fd.eventAddress)
 }
+
+/**
+ * Côté API : garantit ville + code postal FR valides + libellé complet pour la DB.
+ * Utilise les mêmes règles que le formulaire (resolve + fallback saisie libre).
+ */
+export function normalizeBookingAddressForDb(input: {
+  city?: unknown
+  postalCode?: unknown
+  fullAddress?: unknown
+  eventAddress?: unknown
+}): BookingAddressFields | null {
+  const city = typeof input.city === 'string' ? input.city : ''
+  const postalCode = typeof input.postalCode === 'string' ? input.postalCode : ''
+  const fullAddress = typeof input.fullAddress === 'string' ? input.fullAddress : ''
+  const eventAddress =
+    typeof input.eventAddress === 'string' ? input.eventAddress : fullAddress
+
+  const resolved = resolveBookingAddress({
+    eventAddress,
+    city,
+    postalCode,
+    fullAddress,
+  })
+  if (resolved) return resolved
+
+  if (fullAddress.trim().length >= 4) {
+    return parseManualFrenchAddress(fullAddress.trim())
+  }
+  return null
+}

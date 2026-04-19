@@ -800,6 +800,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       const requestBody = {
         chefId: chef.id,
         ...bookingData,
+        eventAddress: formData.eventAddress,
         periodDays,
         budget,
         courseTopic,
