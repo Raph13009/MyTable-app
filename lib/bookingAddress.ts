@@ -4,6 +4,21 @@ export type BookingAddressFields = {
   fullAddress: string
 }
 
+/** Normalise les arrondissements FR : "Paris 15e Arrondissement" → "Paris", etc. */
+function normalizeFrenchCity(city: string, postalCode: string): string {
+  let next = city
+    .replace(/\s+\d{1,2}(?:er|re|e|ème|eme)\s+Arrondissement/gi, '')
+    .replace(/\s+Arrondissement\s*\d+/gi, '')
+    .trim()
+
+  if (/^\d{5}$/.test(postalCode)) {
+    if (postalCode.startsWith('75')) next = 'Paris'
+    else if (postalCode.startsWith('13')) next = 'Marseille'
+    else if (postalCode.startsWith('69')) next = 'Lyon'
+  }
+  return next
+}
+
 /**
  * Saisie manuelle : extrait code postal français (5 chiffres) et une commune utile depuis une seule ligne.
  */
@@ -45,13 +60,18 @@ export function resolveBookingAddress(fd: {
 
   if (structuredOk) {
     return {
-      city: fd.city.trim(),
+      city: normalizeFrenchCity(fd.city.trim(), cleanPostal),
       postalCode: cleanPostal,
       fullAddress: fd.fullAddress.trim(),
     }
   }
 
-  return parseManualFrenchAddress(fd.eventAddress)
+  const fallback = parseManualFrenchAddress(fd.eventAddress)
+  if (!fallback) return null
+  return {
+    ...fallback,
+    city: normalizeFrenchCity(fallback.city, fallback.postalCode),
+  }
 }
 
 /**
@@ -79,7 +99,12 @@ export function normalizeBookingAddressForDb(input: {
   if (resolved) return resolved
 
   if (fullAddress.trim().length >= 4) {
-    return parseManualFrenchAddress(fullAddress.trim())
+    const fallback = parseManualFrenchAddress(fullAddress.trim())
+    if (!fallback) return null
+    return {
+      ...fallback,
+      city: normalizeFrenchCity(fallback.city, fallback.postalCode),
+    }
   }
   return null
 }

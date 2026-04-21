@@ -19,6 +19,17 @@ function isExpiredPendingNoResponse(bookingRequest?: {
   return created.getTime() <= cutoff
 }
 
+/** Statut « effectif » affiché : une mission expirée (DB ou trop vieille) est toujours 'expired'. */
+function getEffectiveStatus(bookingRequest?: {
+  status: string
+  created_at?: string
+} | null): string | null {
+  if (!bookingRequest) return null
+  if (bookingRequest.status === 'expired') return 'expired'
+  if (isExpiredPendingNoResponse(bookingRequest)) return 'expired'
+  return bookingRequest.status
+}
+
 interface Conversation {
   id: string
   booking_request_id: string | null
@@ -96,18 +107,16 @@ export default function AdminMessaging() {
 
     let matchesStatus = true
     if (statusFilter !== 'all') {
+      const effective = getEffectiveStatus(conv.bookingRequest)
       if (statusFilter === 'expired') {
-        matchesStatus = isExpiredPendingNoResponse(conv.bookingRequest)
+        matchesStatus = effective === 'expired'
       } else if (statusFilter === 'ongoing') {
-        // "En cours" regroupe accepted et validated_by_client
-        matchesStatus = conv.bookingRequest?.status === 'accepted' || 
-                       conv.bookingRequest?.status === 'validated_by_client'
+        matchesStatus =
+          effective === 'accepted' || effective === 'validated_by_client'
       } else if (statusFilter === 'cancelled') {
-        // "Annulée" regroupe refused et cancelled
-        matchesStatus = conv.bookingRequest?.status === 'refused' || 
-                       conv.bookingRequest?.status === 'cancelled'
+        matchesStatus = effective === 'refused' || effective === 'cancelled'
       } else {
-        matchesStatus = conv.bookingRequest?.status === statusFilter
+        matchesStatus = effective === statusFilter
       }
     }
 
@@ -135,6 +144,12 @@ export default function AdminMessaging() {
           label: 'Terminée', 
           badgeColor: 'bg-green-100 text-green-700',
           dotColor: 'bg-green-500'
+        }
+      case 'expired':
+        return {
+          label: 'Expirée',
+          badgeColor: 'bg-amber-50 text-amber-900 border border-amber-600/40',
+          dotColor: 'bg-amber-500',
         }
       case 'refused':
       case 'cancelled':
@@ -257,10 +272,8 @@ export default function AdminMessaging() {
           ) : (
             <div className="space-y-2 p-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-4 sm:space-y-0">
               {filteredConversations.map((conv) => {
-                const showExpiredBadge = isExpiredPendingNoResponse(conv.bookingRequest)
-                const statusInfo = conv.bookingRequest
-                  ? getStatusInfo(conv.bookingRequest.status)
-                  : null
+                const effectiveStatus = getEffectiveStatus(conv.bookingRequest)
+                const statusInfo = effectiveStatus ? getStatusInfo(effectiveStatus) : null
                 
                 // Nom du chef depuis la table chefs (via chefName)
                 const chefName = conv.bookingRequest?.chefName || 'Chef'
@@ -368,16 +381,16 @@ export default function AdminMessaging() {
                           
                           {/* Statut badge */}
                           {statusInfo && (
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusInfo.badgeColor} sm:text-xs`}>
-                              {statusInfo.label}
-                            </span>
-                          )}
-                          {showExpiredBadge && (
                             <span
-                              className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-amber-600/40 bg-amber-50 text-amber-900 sm:text-xs"
-                              title={`Pending sans réponse du chef depuis plus de ${PENDING_NO_RESPONSE_HOURS} h`}
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusInfo.badgeColor} sm:text-xs`}
+                              title={
+                                effectiveStatus === 'expired' &&
+                                conv.bookingRequest?.status === 'pending'
+                                  ? `Pending sans réponse du chef depuis plus de ${PENDING_NO_RESPONSE_HOURS} h`
+                                  : undefined
+                              }
                             >
-                              expiré
+                              {statusInfo.label}
                             </span>
                           )}
                           

@@ -248,6 +248,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     notes: '',
     shareWithNearbyChefs: false,
     nearbyChefIds: [] as string[],
+    manualAddressMode: false,
   })
 
     // Réinitialiser le formulaire à chaque montage du composant
@@ -281,6 +282,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       notes: '',
       shareWithNearbyChefs: false,
       nearbyChefIds: [],
+      manualAddressMode: false,
     })
     setResolvedNearbyChefs([])
     setClientMapCoords(null)
@@ -1108,52 +1110,150 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     )
   }
 
+  const handleManualAddressToggle = (enabled: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      manualAddressMode: enabled,
+      eventAddress: '',
+      fullAddress: '',
+      city: '',
+      postalCode: '',
+      nearbyChefIds: [],
+      shareWithNearbyChefs: false,
+    }))
+    setClientMapCoords(null)
+    setErrors((prev) => {
+      if (!prev.eventAddress && !prev.city && !prev.postalCode) return prev
+      const next = { ...prev }
+      delete next.eventAddress
+      delete next.city
+      delete next.postalCode
+      return next
+    })
+  }
+
   const renderEventAddressField = (inputClassName?: string) => (
-    <div className="w-full">
-      <EventAddressAutocomplete
-        label={`${t('booking.eventAddress')} *`}
-        placeholder={t('booking.eventAddressPlaceholder')}
-        value={formData.eventAddress}
-        error={errors.eventAddress}
-        locale={locale}
-        inputClassName={inputClassName}
-        onChange={(v) => {
-          setFormData((prev) => ({
-            ...prev,
-            eventAddress: v,
-            city: '',
-            postalCode: '',
-            fullAddress: '',
-            nearbyChefIds: [],
-            shareWithNearbyChefs: false,
-          }))
-          setClientMapCoords(null)
-          setErrors((prev) => {
-            if (!prev.eventAddress) return prev
-            const next = { ...prev }
-            delete next.eventAddress
-            return next
-          })
-          if (showGlobalError) setShowGlobalError(false)
-        }}
-        onPick={(payload) => {
-          setFormData((prev) => ({
-            ...prev,
-            eventAddress: payload.fullAddress,
-            fullAddress: payload.fullAddress,
-            city: payload.city,
-            postalCode: payload.postalCode,
-          }))
-          setClientMapCoords({ lat: payload.latitude, lng: payload.longitude })
-          setErrors((prev) => {
-            if (!prev.eventAddress) return prev
-            const next = { ...prev }
-            delete next.eventAddress
-            return next
-          })
-        }}
-      />
-      <p className="mt-1.5 text-xs text-neutral-500">{t('booking.eventAddressHint')}</p>
+    <div className="w-full space-y-3">
+      {!formData.manualAddressMode ? (
+        <>
+          <EventAddressAutocomplete
+            label={`${t('booking.eventAddress')} *`}
+            placeholder={t('booking.eventAddressPlaceholder')}
+            value={formData.eventAddress}
+            error={errors.eventAddress}
+            locale={locale}
+            inputClassName={inputClassName}
+            onChange={(v) => {
+              setFormData((prev) => ({
+                ...prev,
+                eventAddress: v,
+                city: '',
+                postalCode: '',
+                fullAddress: '',
+                nearbyChefIds: [],
+                shareWithNearbyChefs: false,
+              }))
+              setClientMapCoords(null)
+              setErrors((prev) => {
+                if (!prev.eventAddress) return prev
+                const next = { ...prev }
+                delete next.eventAddress
+                return next
+              })
+              if (showGlobalError) setShowGlobalError(false)
+            }}
+            onPick={(payload) => {
+              setFormData((prev) => ({
+                ...prev,
+                eventAddress: payload.fullAddress,
+                fullAddress: payload.fullAddress,
+                city: payload.city,
+                postalCode: payload.postalCode,
+              }))
+              setClientMapCoords({ lat: payload.latitude, lng: payload.longitude })
+              setErrors((prev) => {
+                if (!prev.eventAddress) return prev
+                const next = { ...prev }
+                delete next.eventAddress
+                return next
+              })
+            }}
+          />
+          <p className="text-xs text-neutral-500">{t('booking.eventAddressHint')}</p>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3">
+          <Input
+            label={`${t('booking.cityLabel')} *`}
+            name="city"
+            value={formData.city}
+            placeholder={t('booking.cityPlaceholder')}
+            onChange={(e) => {
+              const v = e.target.value
+              setFormData((prev) => ({
+                ...prev,
+                city: v,
+                fullAddress: [v, prev.postalCode].filter(Boolean).join(' ').trim(),
+                eventAddress: [v, prev.postalCode].filter(Boolean).join(' ').trim(),
+                nearbyChefIds: [],
+                shareWithNearbyChefs: false,
+              }))
+              setClientMapCoords(null)
+              setErrors((prev) => {
+                if (!prev.city && !prev.eventAddress) return prev
+                const next = { ...prev }
+                delete next.city
+                delete next.eventAddress
+                return next
+              })
+            }}
+            error={errors.city}
+            className={inputClassName}
+            required
+          />
+          <Input
+            label={`${t('booking.postalCodeLabel')} *`}
+            name="postalCode"
+            value={formData.postalCode}
+            placeholder={t('booking.postalCodePlaceholder')}
+            inputMode="numeric"
+            maxLength={5}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 5)
+              setFormData((prev) => ({
+                ...prev,
+                postalCode: v,
+                fullAddress: [prev.city, v].filter(Boolean).join(' ').trim(),
+                eventAddress: [prev.city, v].filter(Boolean).join(' ').trim(),
+                nearbyChefIds: [],
+                shareWithNearbyChefs: false,
+              }))
+              setClientMapCoords(null)
+              setErrors((prev) => {
+                if (!prev.postalCode && !prev.eventAddress) return prev
+                const next = { ...prev }
+                delete next.postalCode
+                delete next.eventAddress
+                return next
+              })
+            }}
+            error={errors.postalCode}
+            className={inputClassName}
+            required
+          />
+        </div>
+      )}
+      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={formData.manualAddressMode}
+          onChange={(e) => handleManualAddressToggle(e.target.checked)}
+          className="h-4 w-4 rounded border border-neutral-300 accent-[#FBCF03]"
+        />
+        <span className="text-xs text-neutral-600">
+          {t('booking.addressCityOnlyToggle')}
+        </span>
+      </label>
     </div>
   )
 
@@ -1545,7 +1645,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                     {t('booking.recommendedNearbyChefsTitle')}
                   </p>
                   <p id="share-nearby-chefs-description" className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
-                    {t('booking.recommendedNearbyChefsDescription')}
+                    {t('booking.recommendedNearbyChefsDescriptionPart1')}
+                    <span className="underline decoration-black/60 underline-offset-2">
+                      {t('booking.recommendedNearbyChefsDescriptionPart2')}
+                    </span>
                   </p>
                   <p className="mt-2 text-xs font-medium text-neutral-500">
                     {t('booking.recommendedNearbyChefsMicrocopy')}

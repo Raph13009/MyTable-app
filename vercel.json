@@ -11,6 +11,10 @@
     {
       "path": "/api/check-client-chat-inactivity",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/expire-stale-bookings",
+      "schedule": "0 12 * * *"
     }
   ]
 }
