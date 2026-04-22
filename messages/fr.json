@@ -103,7 +103,6 @@
     "postalCode": "Code postal",
     "eventAddress": "Adresse de l’événement",
     "eventAddressPlaceholder": "Ex : 12 rue des Lilas, 69002 Lyon",
-    "eventAddressHint": "Commencez à taper : suggestions France (Mapbox). Sinon, une ligne complète avec code postal (5 chiffres) suffit.",
     "budget": "Budget",
     "totalPrice": "Prix total",
     "mealTime": "Moment du repas",

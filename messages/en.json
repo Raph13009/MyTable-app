@@ -103,7 +103,6 @@
     "postalCode": "Postal code",
     "eventAddress": "Event address",
     "eventAddressPlaceholder": "E.g. 12 Rue des Lilas, 69002 Lyon",
-    "eventAddressHint": "Start typing for France suggestions (Mapbox). Or enter one line including a 5-digit postal code.",
     "budget": "Budget",
     "totalPrice": "Total Price",
     "mealTime": "Meal Time",

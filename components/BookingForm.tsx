@@ -1179,7 +1179,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
               })
             }}
           />
-          <p className="text-xs text-neutral-500">{t('booking.eventAddressHint')}</p>
         </>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3">
