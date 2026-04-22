@@ -76,47 +76,25 @@ export async function POST(request: NextRequest) {
         } as any)
     }
 
-    // Envoyer une notification email au client avec un magic link
+    // Envoyer une notification email simple et professionnelle au client.
+    // Pas de magic link ici (évite un double email + dépendance au rate-limit Supabase);
+    // le client se connectera via /login comme d'habitude.
     const clientEmail = (bookingRequest as any).email?.toLowerCase().trim()
     if (clientEmail) {
       try {
         const baseUrl = getBaseUrl()
-        const redirectUrl = `${baseUrl}/auth/callback?next=/chat/${(conversation as any)?.id || '/dashboard'}`
-        
-        // Générer un magic link pour le client
-        const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-          email: clientEmail,
-          options: {
-            emailRedirectTo: redirectUrl,
-            shouldCreateUser: false, // Client should already exist
-          },
-        })
+        const clientFirstName = (bookingRequest as any).first_name?.trim() || 'Bonjour'
+        const chefName = (bookingRequest as any).chefs?.name?.trim() || 'Votre chef'
+        const loginUrl = `${baseUrl}/login?next=/chat/${(conversation as any)?.id || ''}`
 
-        if (otpError) {
-          console.error('[booking-menu] Error sending magic link to client:', otpError)
-          // Si l'utilisateur n'existe pas, essayer avec shouldCreateUser: true
-          if (otpError.message?.includes('not found') || otpError.message?.includes('does not exist')) {
-            await supabaseAdmin.auth.signInWithOtp({
-              email: clientEmail,
-              options: {
-                emailRedirectTo: redirectUrl,
-                shouldCreateUser: true,
-              },
-            })
-          }
-        }
-
-        // Envoyer l'email de notification via Resend
-        const clientName = `${(bookingRequest as any).first_name || ''} ${(bookingRequest as any).last_name || ''}`.trim() || 'Client'
-        const loginUrl = `${baseUrl}/login?next=/chat/${(conversation as any)?.id || '/dashboard'}`
-        
         await sendEmail({
           to: clientEmail,
           subject: emailSubjects.menuUpdated,
-          html: emailTemplates.menuUpdated(clientName, loginUrl, baseUrl),
+          html: emailTemplates.menuUpdated(clientFirstName, chefName, loginUrl, baseUrl),
         })
+        console.log('[booking-menu] ✅ Notification email sent to client:', clientEmail)
       } catch (emailError) {
-        console.error('[booking-menu] Error sending notification email:', emailError)
+        console.error('[booking-menu] ❌ Error sending notification email:', emailError)
         // Ne pas faire échouer la requête si l'email échoue
       }
     }

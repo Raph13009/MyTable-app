@@ -1,5 +1,5 @@
 import { Resend } from 'resend'
-import { getBaseUrl } from './utils'
+import { getBaseUrl, escapeHtml } from './utils'
 import { getBudgetGlobalLabel, getValidationMessage, getBookingValidatedToChefSubject } from './i18n/constants'
 
 /**
@@ -872,17 +872,19 @@ export const emailTemplates = {
     })
   },
 
-  menuUpdated: (clientName: string, loginUrl: string, baseUrl?: string) => {
+  menuUpdated: (clientFirstName: string, chefName: string, loginUrl: string, baseUrl?: string) => {
+    const safeFirstName = escapeHtml(clientFirstName)
+    const safeChefName = escapeHtml(chefName)
     const content = `
-      <p>Bonjour ${clientName},</p>
-      <p>Votre menu pour votre évènement a été mis à jour.</p>
-      <p>Connectez-vous pour le consulter.</p>
+      <p>Bonjour ${safeFirstName},</p>
+      <p><strong>${safeChefName}</strong> vient de mettre à jour le menu de votre évènement sur MyTable.</p>
+      <p>Connectez-vous à votre espace pour consulter la proposition et échanger avec votre chef si besoin.</p>
     `
     return emailLayout({
-      title: 'Menu mis à jour',
+      title: 'Votre menu a été mis à jour',
       content,
       cta: {
-        text: 'Se connecter pour voir le menu',
+        text: 'Consulter mon menu',
         url: loginUrl,
         variant: 'yellow',
       },
