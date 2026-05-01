@@ -133,6 +133,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Rayon de disponibilité invalide' }, { status: 400 })
     }
 
+    const normalizedEmail = email.toLowerCase().trim()
+
+    // Anti-double-submit serveur : si un chef avec cet email existe déjà, on renvoie une 409
+    // explicite. Le front a un guard mais ça protège des clics rapides / requêtes concurrentes.
+    {
+      const { data: existingChef } = await supabaseAdmin
+        .from('chefs')
+        .select('id, name, slug')
+        .ilike('email', normalizedEmail)
+        .maybeSingle()
+      if (existingChef) {
+        return NextResponse.json(
+          {
+            error: 'Un chef avec cet email existe déjà',
+            existingChef,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     const uniqueSlug = await ensureUniqueChefSlug(supabaseAdmin, slug)
 
     // Créer le chef
@@ -143,7 +164,7 @@ export async function POST(request: NextRequest) {
         slug: uniqueSlug,
         name,
         last_name: normalizedLastName || null,
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         phone: phone || null,
         address: normalizedAddress || null,
         latitude: normalizedLatitude,
@@ -169,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     // Créer l'utilisateur auth
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       email_confirm: true,
     })
 

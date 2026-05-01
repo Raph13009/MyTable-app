@@ -300,27 +300,20 @@ export async function POST(request: NextRequest) {
       : null
 
     // Vérifier l'idempotence AVANT de créer la conversation
-    // On utilise une combinaison email + chefId + bookingDate + serviceType comme clé unique
+    //
+    // Deux passes :
+    //  1. Strict : même chef_id (cas d'un double-clic sur "Envoyer" pour le même chef)
+    //  2. Cross-chef : même client + même date + même service + même ville, INITIAL uniquement
+    //     (fallback_previous_booking_id IS NULL) — détecte les doubles soumissions sur des chefs
+    //     différents qui généreraient deux chaînes fallback parallèles pour le même évènement.
+    //  Les bookings issus du fallback automatique (fallback_previous_booking_id NOT NULL) sont
+    //  toujours exclus du dédoublonnage car ils sont créés légitimement par le système.
     if (idempotencyToken) {
       console.log(`[bookings:${requestId}] Checking idempotency for token:`, idempotencyToken.substring(0, 20) + '...')
-      
+
       const normalizedEmail = email.toLowerCase().trim()
-      let idempotencyQuery = supabase
-        .from('booking_requests')
-        .select('id, conversation_id, status, created_at, booking_date')
-        .eq('chef_id', chefId)
-        .eq('email', normalizedEmail)
-        .eq('service_type', serviceType)
-      
-      // Pour repas_domicile, ajouter la condition sur booking_date
-      if (serviceType === 'repas_domicile' && bookingDate) {
-        idempotencyQuery = idempotencyQuery.eq('booking_date', bookingDate)
-      }
-      
-      const { data: existingBooking, error: checkError } = await idempotencyQuery
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const IDEMPOTENCY_WINDOW_MS = 30 * 60 * 1000 // 30 min
+      const cutoffIso = new Date(Date.now() - IDEMPOTENCY_WINDOW_MS).toISOString()
 
       type ExistingBooking = {
         id: string
@@ -328,40 +321,78 @@ export async function POST(request: NextRequest) {
         status: string
         created_at: string
         booking_date: string | null
+        chef_id: string | null
       } | null
 
-      const typedExistingBooking = existingBooking as ExistingBooking
+      // ---------- Passe 1 : même chef ----------
+      let strictQuery = supabase
+        .from('booking_requests')
+        .select('id, conversation_id, status, created_at, booking_date, chef_id')
+        .eq('chef_id', chefId)
+        .eq('email', normalizedEmail)
+        .eq('service_type', serviceType)
+        .gte('created_at', cutoffIso)
+      if (serviceType === 'repas_domicile' && bookingDate) {
+        strictQuery = strictQuery.eq('booking_date', bookingDate)
+      }
+      const { data: strictBooking, error: strictErr } = await strictQuery
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      console.log(`[bookings:${requestId}] Idempotency check result:`, {
-        found: !!typedExistingBooking,
-        bookingId: typedExistingBooking?.id,
-        age: typedExistingBooking ? Date.now() - new Date(typedExistingBooking.created_at).getTime() : null,
-      })
+      if (strictErr) {
+        console.error(`[bookings:${requestId}] Idempotency strict check error:`, strictErr)
+      } else if (strictBooking) {
+        const existing = strictBooking as ExistingBooking
+        console.log(`[bookings:${requestId}] Duplicate booking detected (same chef)`, {
+          existingBookingId: existing!.id,
+          age: Date.now() - new Date(existing!.created_at).getTime(),
+        })
+        return NextResponse.json({
+          success: true,
+          bookingRequestId: existing!.id,
+          conversationId: existing!.conversation_id,
+          isDuplicate: true,
+        })
+      }
 
-      if (checkError) {
-        console.error(`[bookings:${requestId}] Error checking idempotency:`, checkError)
-      } else if (typedExistingBooking) {
-        // Vérifier si la réservation a été créée récemment (dans les 5 dernières minutes)
-        const bookingAge = Date.now() - new Date(typedExistingBooking.created_at).getTime()
-        const fiveMinutes = 5 * 60 * 1000
-        
-        if (bookingAge < fiveMinutes) {
-          console.log(`[bookings:${requestId}] Duplicate booking detected (idempotency)`, {
-            existingBookingId: typedExistingBooking.id,
-            age: bookingAge,
-            conversationId: typedExistingBooking.conversation_id,
-            serviceType,
-            bookingDate: typedExistingBooking.booking_date,
-          })
-          
-          // Retourner le même résultat que si la création avait réussi
-          return NextResponse.json({
-            success: true,
-            bookingRequestId: typedExistingBooking.id,
-            conversationId: typedExistingBooking.conversation_id,
-            isDuplicate: true,
-          })
-        }
+      // ---------- Passe 2 : cross-chef (même client + date + service + ville) ----------
+      // Un client ne devrait jamais déclencher deux chaînes fallback indépendantes pour le
+      // même évènement à quelques minutes d'écart : on bloque silencieusement et on lui rend
+      // la réservation existante.
+      let crossQuery = supabase
+        .from('booking_requests')
+        .select('id, conversation_id, status, created_at, booking_date, chef_id')
+        .eq('email', normalizedEmail)
+        .eq('service_type', serviceType)
+        .ilike('city', city)
+        .is('fallback_previous_booking_id', null)
+        .gte('created_at', cutoffIso)
+      if (serviceType === 'repas_domicile' && bookingDate) {
+        crossQuery = crossQuery.eq('booking_date', bookingDate)
+      }
+      const { data: crossBooking, error: crossErr } = await crossQuery
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (crossErr) {
+        console.error(`[bookings:${requestId}] Idempotency cross-chef check error:`, crossErr)
+      } else if (crossBooking) {
+        const existing = crossBooking as ExistingBooking
+        console.warn(`[bookings:${requestId}] Duplicate booking detected (cross-chef, same client/date/service)`, {
+          existingBookingId: existing!.id,
+          existingChefId: existing!.chef_id,
+          newChefId: chefId,
+          age: Date.now() - new Date(existing!.created_at).getTime(),
+        })
+        return NextResponse.json({
+          success: true,
+          bookingRequestId: existing!.id,
+          conversationId: existing!.conversation_id,
+          isDuplicate: true,
+          duplicateReason: 'cross_chef',
+        })
       }
     }
 
@@ -552,7 +583,8 @@ export async function POST(request: NextRequest) {
         // Si l'utilisateur existe déjà, on le récupère
         if (createClientError.message.includes('already registered') || createClientError.message.includes('already exists')) {
           const { data: users } = await supabase.auth.admin.listUsers()
-          const existingUser = users?.users.find(u => u.email === email)
+          const lookupClientEmail = email.toLowerCase().trim()
+          const existingUser = users?.users.find(u => (u.email || '').toLowerCase().trim() === lookupClientEmail)
           if (existingUser) {
             clientUserId = existingUser.id
           }
@@ -570,7 +602,8 @@ export async function POST(request: NextRequest) {
     let chefUserId: string | null = null
     try {
       const { data: users } = await supabase.auth.admin.listUsers()
-      const existingChefUser = users?.users.find(u => u.email === (chef as any).email)
+      const lookupChefEmail = ((chef as any).email || '').toLowerCase().trim()
+      const existingChefUser = users?.users.find(u => (u.email || '').toLowerCase().trim() === lookupChefEmail)
       if (existingChefUser) {
         chefUserId = existingChefUser.id
       }
