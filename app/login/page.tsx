@@ -10,9 +10,12 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  const [info, setInfo] = useState('')
+  const [resetSent, setResetSent] = useState(false)
   const supabase = createClient()
 
   // Gérer les tokens dans le hash (magic link Supabase) - PRIORITAIRE - EXÉCUTER EN PREMIER
@@ -271,75 +274,132 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setInfo('')
+    setResetSent(false)
     setLoading(true)
 
+    const normalizedEmail = email.toLowerCase().trim()
+    const next = searchParams.get('next') || '/dashboard'
+
     try {
-      console.log('[Login] ========== STARTING LOGIN PROCESS ==========')
-      
       // Se déconnecter d'abord si un autre compte est connecté
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       if (currentUser) {
         const normalizedCurrentEmail = currentUser.email?.toLowerCase().trim()
-        const normalizedNewEmail = email.toLowerCase().trim()
-        
-        if (normalizedCurrentEmail !== normalizedNewEmail) {
-          console.log('[Login] ⚠️  Different email detected - signing out current user first...')
+        if (normalizedCurrentEmail !== normalizedEmail) {
+          console.log('[Login] Different email detected - signing out current user first')
           await supabase.auth.signOut()
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 300))
         }
       }
-      
-      // Vérifier si l'utilisateur existe dans auth.users
-      const { data: { user: existingUser }, error: checkError } = await supabase.auth.getUser()
-      
-      // Envoyer le magic link
-      const normalizedEmail = email.toLowerCase().trim()
-      const next = searchParams.get('next') || '/dashboard'
+
+      // === Cas 1 : connexion par mot de passe ===
+      if (password.trim()) {
+        console.log('[Login] Signing in with password for', normalizedEmail)
+        const { data, error: pwError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        })
+
+        if (pwError) {
+          console.error('[Login] Password sign-in error:', pwError.message)
+          // Message lisible : "Invalid login credentials" → soit pas de mdp, soit mauvais
+          if (pwError.message?.toLowerCase().includes('invalid login credentials')) {
+            setError(
+              "Email ou mot de passe incorrect. Si vous n'avez jamais défini de mot de passe, cliquez sur \"Mot de passe oublié / Définir mon mot de passe\" ci-dessous."
+            )
+          } else if (pwError.message?.toLowerCase().includes('email not confirmed')) {
+            setError("Votre email n'est pas confirmé. Demandez un lien de connexion pour activer votre compte.")
+          } else {
+            setError(`Erreur lors de la connexion : ${pwError.message}`)
+          }
+          setLoading(false)
+          return
+        }
+
+        if (data.session && data.user) {
+          console.log('[Login] Password sign-in success for', data.user.email)
+          await new Promise(resolve => setTimeout(resolve, 200))
+          window.location.href = next
+          return
+        }
+
+        setError('La session n\'a pas pu être créée. Réessayez.')
+        setLoading(false)
+        return
+      }
+
+      // === Cas 2 : magic link (mdp vide) ===
       const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
-      
+
       console.log('[Login] Sending magic link to:', normalizedEmail)
-      console.log('[Login] Redirect URL:', redirectUrl)
-      
       setSending(true)
       setLoading(false)
-      
-      console.log('[Login] ========== CALLING signInWithOtp ==========')
-      console.log('[Login] Email:', normalizedEmail)
-      console.log('[Login] Redirect URL:', redirectUrl)
-      console.log('[Login] Options:', {
-        emailRedirectTo: redirectUrl,
-        shouldCreateUser: true,
-      })
-      
-      const { data: otpData, error: authError } = await supabase.auth.signInWithOtp({
+
+      const { error: authError } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
         options: {
           emailRedirectTo: redirectUrl,
-          shouldCreateUser: true, // Créer l'utilisateur s'il n'existe pas
+          shouldCreateUser: true,
         },
       })
 
-      console.log('[Login] ========== signInWithOtp RESULT ==========')
-      console.log('[Login] OTP data:', otpData)
-      console.log('[Login] Auth error:', authError)
-      console.log('[Login] Magic link sent:', !authError)
-
       if (authError) {
-        console.error('[Login] ❌ Error sending magic link:', authError.message)
-        console.error('[Login] Error code:', authError.status)
-        console.error('[Login] Full error:', JSON.stringify(authError, null, 2))
+        console.error('[Login] Error sending magic link:', authError.message)
         setSending(false)
         setLoading(false)
         throw authError
       }
 
-      console.log('[Login] ✅ Magic link sent successfully')
-      console.log('[Login] Note: Supabase envoie automatiquement l\'email. Vérifiez votre boîte de réception et les spams.')
+      console.log('[Login] Magic link sent successfully')
     } catch (err: any) {
       console.error('[Login] Error:', err)
       setError(err.message || 'Une erreur est survenue')
       setLoading(false)
       setSending(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    setError('')
+    setInfo('')
+    setResetSent(false)
+
+    const normalizedEmail = email.toLowerCase().trim()
+    if (!normalizedEmail) {
+      setError('Entrez d\'abord votre email pour recevoir le lien.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      const next = searchParams.get('next') || '/dashboard'
+      // On passe par /auth/callback pour échanger le code, puis on redirige vers /auth/reset-password
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+        `/auth/reset-password?next=${encodeURIComponent(next)}`
+      )}`
+
+      console.log('[Login] Sending password reset email to', normalizedEmail)
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo,
+      })
+
+      if (resetError) {
+        console.error('[Login] Reset password error:', resetError.message)
+        setError(`Impossible d'envoyer l'email : ${resetError.message}`)
+        setLoading(false)
+        return
+      }
+
+      setResetSent(true)
+      setInfo(
+        'Email envoyé ! Cliquez sur le lien reçu pour définir votre mot de passe. Pensez à vérifier vos spams.'
+      )
+      setLoading(false)
+    } catch (err: any) {
+      console.error('[Login] Forgot password exception:', err)
+      setError(err.message || 'Une erreur est survenue')
+      setLoading(false)
     }
   }
 
@@ -366,7 +426,7 @@ export default function LoginPage() {
             Connexion
           </h1>
           <p className="text-gray-600 mb-6">
-            Entrez votre email pour recevoir un lien de connexion
+            Entrez votre email et votre mot de passe, ou laissez le mot de passe vide pour recevoir un lien magique.
           </p>
             </>
           )}
@@ -380,11 +440,28 @@ export default function LoginPage() {
               placeholder="votre@email.com"
               required
               disabled={loading || sending}
+              autoComplete="email"
+            />
+
+            <Input
+              label="Mot de passe (laisser vide pour recevoir un lien magique)"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={loading || sending}
+              autoComplete="current-password"
             />
 
             {error && (
               <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
                 <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {info && (
+              <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
+                <p className="text-blue-700 text-sm">{info}</p>
               </div>
             )}
 
@@ -404,8 +481,25 @@ export default function LoginPage() {
               disabled={loading || sending || !email.trim()}
               className="w-full"
             >
-              {sending ? 'Envoi en cours...' : loading ? 'Vérification...' : 'Recevoir le lien de connexion'}
+              {sending
+                ? 'Envoi en cours...'
+                : loading
+                ? 'Vérification...'
+                : password.trim()
+                ? 'Se connecter'
+                : 'Recevoir le lien de connexion'}
             </Button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading || sending || resetSent}
+                className="text-sm text-gray-600 hover:text-black underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Mot de passe oublié / Définir mon mot de passe
+              </button>
+            </div>
           </form>
         </div>
       </div>
