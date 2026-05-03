@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -97,88 +95,101 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white border-2 border-gray-300 rounded-lg p-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-black mb-2">
             Définir mon mot de passe
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 text-sm">
             {userEmail
-              ? `Choisissez un mot de passe pour le compte ${userEmail}.`
+              ? `Choisissez un mot de passe pour ${userEmail}.`
               : 'Choisissez un mot de passe pour votre compte.'}
           </p>
+        </div>
 
-          {checkingSession ? (
-            <div className="text-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FBCF03] mx-auto mb-3"></div>
-              <p className="text-gray-600 text-sm">Vérification du lien…</p>
-            </div>
-          ) : !hasSession ? (
-            <>
-              {error && (
-                <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-4">
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              )}
-              <Button
-                type="button"
-                onClick={() => router.push('/login')}
-                className="w-full"
-              >
-                Retour à la connexion
-              </Button>
-            </>
-          ) : success ? (
-            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
-              <p className="text-green-700 text-sm font-medium mb-1">
-                ✓ Mot de passe enregistré !
-              </p>
-              <p className="text-green-600 text-xs">
-                Redirection en cours…
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Nouveau mot de passe"
+        {checkingSession ? (
+          <div className="text-center py-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FBCF03] mx-auto mb-3"></div>
+            <p className="text-gray-600 text-sm">Vérification du lien…</p>
+          </div>
+        ) : !hasSession ? (
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => router.push('/login')}
+              className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors"
+            >
+              Retour à la connexion
+            </button>
+          </>
+        ) : success ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm font-medium text-green-700 mb-1">
+              ✓ Mot de passe enregistré !
+            </p>
+            <p className="text-xs text-green-600">
+              Redirection en cours…
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Nouveau mot de passe
+              </label>
+              <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
                 placeholder="Au moins 8 caractères"
                 required
                 minLength={8}
                 disabled={loading}
                 autoComplete="new-password"
               />
-              <Input
-                label="Confirmer le mot de passe"
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                Confirmer le mot de passe
+              </label>
+              <input
+                id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
                 placeholder="Retapez le mot de passe"
                 required
                 minLength={8}
                 disabled={loading}
                 autoComplete="new-password"
               />
+            </div>
 
-              {error && (
-                <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
-              <Button
-                type="submit"
-                disabled={loading || !password || !confirmPassword}
-                className="w-full"
-              >
-                {loading ? 'Enregistrement…' : 'Enregistrer mon mot de passe'}
-              </Button>
-            </form>
-          )}
-        </div>
+            <button
+              type="submit"
+              disabled={loading || !password || !confirmPassword}
+              className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Enregistrement…' : 'Enregistrer mon mot de passe'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )

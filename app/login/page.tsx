@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -407,101 +405,112 @@ export default function LoginPage() {
   const isProcessingMagicLink = loading && typeof window !== 'undefined' && window.location.hash.includes('access_token')
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white border-2 border-gray-300 rounded-lg p-8">
-          {isProcessingMagicLink ? (
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FBCF03] mx-auto mb-4"></div>
-              <h1 className="text-2xl font-bold text-black mb-2">
-                Connexion en cours...
-              </h1>
-              <p className="text-gray-600 mb-6">
-                Veuillez patienter pendant que nous vous connectons
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        {isProcessingMagicLink ? (
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FBCF03] mx-auto mb-4"></div>
+            <h1 className="text-2xl font-bold text-black mb-2">
+              Connexion en cours...
+            </h1>
+            <p className="text-gray-600">
+              Veuillez patienter pendant que nous vous connectons
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold text-black mb-2">Connexion</h1>
+              <p className="text-gray-600 text-sm">
+                Entrez votre email et votre mot de passe.<br />
+                Sans mot de passe, vous recevrez un lien de connexion par email.
               </p>
             </div>
-          ) : (
-            <>
-          <h1 className="text-2xl font-bold text-black mb-2">
-            Connexion
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Entrez votre email et votre mot de passe, ou laissez le mot de passe vide pour recevoir un lien magique.
-          </p>
-            </>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              required
-              disabled={loading || sending}
-              autoComplete="email"
-            />
-
-            <Input
-              label="Mot de passe (laisser vide pour recevoir un lien magique)"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={loading || sending}
-              autoComplete="current-password"
-            />
-
-            {error && (
-              <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-                <p className="text-red-700 text-sm">{error}</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
+                  placeholder="votre@email.com"
+                  required
+                  disabled={loading || sending}
+                  autoComplete="email"
+                />
               </div>
-            )}
 
-            {info && (
-              <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
-                <p className="text-blue-700 text-sm">{info}</p>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mot de passe <span className="text-gray-400 font-normal">(facultatif)</span>
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
+                  placeholder="••••••••"
+                  disabled={loading || sending}
+                  autoComplete="current-password"
+                />
               </div>
-            )}
 
-            {sending && (
-              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
-                <p className="text-green-700 text-sm font-medium mb-2">
-                  ✓ Lien de connexion envoyé !
-                </p>
-                <p className="text-green-600 text-xs">
-                  Vérifiez votre boîte de réception et vos spams. Le lien expire dans 1 heure.
-                </p>
-              </div>
-            )}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
 
-            <Button
-              type="submit"
-              disabled={loading || sending || !email.trim()}
-              className="w-full"
-            >
-              {sending
-                ? 'Envoi en cours...'
-                : loading
-                ? 'Vérification...'
-                : password.trim()
-                ? 'Se connecter'
-                : 'Recevoir le lien de connexion'}
-            </Button>
+              {info && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">{info}</p>
+                </div>
+              )}
 
-            <div className="text-center pt-2">
+              {sending && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-green-700 mb-1">
+                    ✓ Lien de connexion envoyé !
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Vérifiez votre boîte de réception et vos spams. Le lien expire dans 1 heure.
+                  </p>
+                </div>
+              )}
+
               <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={loading || sending || resetSent}
-                className="text-sm text-gray-600 hover:text-black underline disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+                disabled={loading || sending || !email.trim()}
+                className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Mot de passe oublié / Définir mon mot de passe
+                {sending
+                  ? 'Envoi en cours...'
+                  : loading
+                  ? 'Connexion...'
+                  : password.trim()
+                  ? 'Connexion'
+                  : 'Recevoir le lien de connexion'}
               </button>
-            </div>
-          </form>
-        </div>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loading || sending || resetSent}
+                  className="text-sm text-gray-600 hover:text-black underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Mot de passe oublié / Définir mon mot de passe
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )
