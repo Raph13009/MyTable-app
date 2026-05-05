@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       chefId,
       firstName,
       lastName,
-      email,
+      email: emailFromBody,
       phone,
       serviceType,
       bookingDate,
@@ -86,7 +87,15 @@ export async function POST(request: NextRequest) {
       clientLatitude: clientLatitudeRaw,
       clientLongitude: clientLongitudeRaw,
       idempotencyToken,
+      password: passwordFromBody,
     } = body
+
+    // Lire la session depuis les cookies (utilisateur déjà connecté)
+    const serverClient = await createClient()
+    const { data: { user: sessionUser } } = await serverClient.auth.getUser()
+
+    // L'email utilisé pour la réservation : priorité à la session, sinon le body
+    const email = (sessionUser?.email ?? emailFromBody ?? '').toLowerCase().trim()
     const addrNorm = normalizeBookingAddressForDb({
       city: cityRaw,
       postalCode: postalCodeRaw,
@@ -570,29 +579,33 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', bookingRequestId)
 
-    // Créer l'utilisateur auth pour le CLIENT uniquement (chaque client est différent)
+    // Créer ou récupérer l'utilisateur auth pour le CLIENT
     let clientUserId: string | null = null
     try {
-      // Essayer de créer l'utilisateur (créera une erreur si existe déjà)
-      const { data: newClientUser, error: createClientError } = await supabase.auth.admin.createUser({
-        email: email,
-        email_confirm: true,
-      })
-
-      if (createClientError) {
-        // Si l'utilisateur existe déjà, on le récupère
-        if (createClientError.message.includes('already registered') || createClientError.message.includes('already exists')) {
-          const { data: users } = await supabase.auth.admin.listUsers()
-          const lookupClientEmail = email.toLowerCase().trim()
-          const existingUser = users?.users.find(u => (u.email || '').toLowerCase().trim() === lookupClientEmail)
-          if (existingUser) {
-            clientUserId = existingUser.id
-          }
-        } else {
-          console.error('Error creating client user:', createClientError)
+      if (sessionUser) {
+        // Utilisateur déjà connecté : utiliser son ID existant
+        clientUserId = sessionUser.id
+      } else {
+        // Créer un nouveau compte avec mot de passe si fourni
+        const createPayload: any = {
+          email,
+          email_confirm: true, // pas d'email de confirmation
         }
-      } else if (newClientUser?.user) {
-        clientUserId = newClientUser.user.id
+        if (passwordFromBody && typeof passwordFromBody === 'string' && passwordFromBody.length >= 8) {
+          createPayload.password = passwordFromBody
+        }
+
+        const { data: newClientUser, error: createClientError } = await supabase.auth.admin.createUser(createPayload)
+
+        if (createClientError) {
+          if (createClientError.message.includes('already registered') || createClientError.message.includes('already exists')) {
+            // Email déjà utilisé → renvoyer une erreur explicite au client
+            return NextResponse.json({ error: 'email_exists', message: 'Un compte existe déjà avec cet email.' }, { status: 409 })
+          }
+          console.error('Error creating client user:', createClientError)
+        } else if (newClientUser?.user) {
+          clientUserId = newClientUser.user.id
+        }
       }
     } catch (error) {
       console.error('Error checking/creating client user:', error)

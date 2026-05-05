@@ -559,7 +559,7 @@ export default function ChatInterface({
     } else {
       console.log('[ChatInterface] Signed out successfully')
       // Rediriger vers la page de login
-      window.location.href = `/chat/${conversationId}/login`
+      window.location.href = `/login?next=/chat/${conversationId}`
     }
   }
 
