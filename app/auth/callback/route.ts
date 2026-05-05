@@ -187,7 +187,8 @@ export async function GET(request: NextRequest) {
       }
       
       if (conversationId) {
-        const redirectUrl = new URL(`/chat/${conversationId}/login`, request.url)
+        const redirectUrl = new URL('/login', request.url)
+        redirectUrl.searchParams.set('next', `/chat/${conversationId}`)
         redirectUrl.searchParams.set('error', 'auth_failed')
         redirectUrl.searchParams.set('details', error.message || 'Erreur lors de l\'échange du code')
         console.log('[auth/callback] Redirecting to login with error:', redirectUrl.toString())
@@ -229,7 +230,8 @@ export async function GET(request: NextRequest) {
       }
       
       if (conversationId) {
-        const redirectUrl = new URL(`/chat/${conversationId}/login`, request.url)
+        const redirectUrl = new URL('/login', request.url)
+        redirectUrl.searchParams.set('next', `/chat/${conversationId}`)
         redirectUrl.searchParams.set('error', 'auth_failed')
         redirectUrl.searchParams.set('details', 'Session créée mais utilisateur introuvable')
         console.log('[auth/callback] Redirecting to login:', redirectUrl.toString())

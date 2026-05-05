@@ -22,6 +22,7 @@ import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
 import { resolveBookingAddress } from '@/lib/bookingAddress'
 import { splitFullNameForBooking } from '@/lib/splitFullName'
 import { EventAddressAutocomplete } from '@/components/booking/EventAddressAutocomplete'
+import { createClient } from '@/lib/supabase/client'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
 type Menu = Database['public']['Tables']['menus']['Row']
@@ -222,6 +223,20 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   const [resolvedNearbyChefs, setResolvedNearbyChefs] = useState<NearbyChef[]>([])
   const [nearbyChefsLoading, setNearbyChefsLoading] = useState(false)
   const [clientMapCoords, setClientMapCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [currentUser, setCurrentUser] = useState<any | null>(null)
+  const [userLoading, setUserLoading] = useState(true)
+  const [isLoginMode, setIsLoginMode] = useState(false)
+  const [accountEmail, setAccountEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [accountError, setAccountError] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -250,6 +265,14 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     nearbyChefIds: [] as string[],
     manualAddressMode: false,
   })
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUser(user)
+      setUserLoading(false)
+    })
+  }, [])
 
     // Réinitialiser le formulaire à chaque montage du composant
   useEffect(() => {
@@ -622,13 +645,28 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     const newErrors: Record<string, string> = {}
 
     if (!formData.fullName.trim()) newErrors.fullName = t('booking.errors.fullNameRequired')
-    if (!formData.email.trim()) newErrors.email = t('booking.errors.emailRequired')
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = t('booking.errors.emailInvalid')
-    }
     if (!formData.phone.trim()) newErrors.phone = t('booking.errors.phoneRequired')
     if (!acceptedTerms) newErrors.terms = t('booking.errors.termsRequired')
 
+    setErrors(prev => ({ ...prev, ...newErrors }))
+    return Object.keys(newErrors).length === 0
+  }
+
+  const validatePage5 = () => {
+    if (currentUser) return true
+    const newErrors: Record<string, string> = {}
+    if (isLoginMode) {
+      if (!loginEmail.trim()) newErrors.loginEmail = 'Email requis'
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) newErrors.loginEmail = 'Email invalide'
+      if (!loginPassword) newErrors.loginPassword = 'Mot de passe requis'
+    } else {
+      if (!accountEmail.trim()) newErrors.accountEmail = 'Email requis'
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail.trim())) newErrors.accountEmail = 'Email invalide'
+      if (!password) newErrors.password = 'Mot de passe requis'
+      else if (password.length < 8) newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères'
+      if (!confirmPassword) newErrors.confirmPassword = 'Confirmation requise'
+      else if (password !== confirmPassword) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas'
+    }
     setErrors(prev => ({ ...prev, ...newErrors }))
     return Object.keys(newErrors).length === 0
   }
@@ -678,6 +716,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       setCurrentPage(4)
       return
     }
+    if (currentPage === 4 && validatePage4()) {
+      if (needsAccountStep) {
+        setCurrentPage(5)
+        return
+      }
+      // Logged in (or still loading): submit directly
+      handleSubmit(e)
+      return
+    }
 
     if (currentPage === 3) {
       setShowGlobalError(true)
@@ -712,8 +759,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false, loggedInUser?: any) => {
     e.preventDefault()
+
+    const effectiveUser = loggedInUser ?? currentUser
 
     if (!validatePage1()) {
       setCurrentPage(1)
@@ -735,6 +784,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       return
     }
 
+    if (!effectiveUser && !validatePage5()) {
+      return
+    }
+
     // Masquer l'erreur globale si la validation passe
     setShowGlobalError(false)
 
@@ -747,6 +800,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
 
     setLoading(true)
     setSubmissionError(null)
+
+    const emailForBooking = effectiveUser?.email ?? accountEmail.trim().toLowerCase()
+    const passwordForBooking = (!effectiveUser && !isLoginMode) ? password : undefined
 
     try {
       console.log('[BookingForm] Starting booking submission', {
@@ -765,6 +821,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         eventAddress,
         fullAddress: _fullAddressForm,
         fullName,
+        email: _emailFromForm,
         ...bookingRest
       } = formData
 
@@ -772,6 +829,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       const resolvedSubmit = resolveBookingAddress(formData)
       const bookingData = {
         ...bookingRest,
+        email: emailForBooking,
         firstName,
         lastName,
         city: resolvedSubmit?.city ?? '',
@@ -799,7 +857,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         budget = null // Ne pas utiliser budget pour mise_en_demeure, utiliser totalPrice
       }
 
-      const requestBody = {
+      const requestBody: Record<string, any> = {
         chefId: chef.id,
         ...bookingData,
         eventAddress: formData.eventAddress,
@@ -815,7 +873,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lat : null,
         clientLongitude:
           shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lng : null,
-        idempotencyToken, // Token pour éviter les doublons
+        idempotencyToken,
+      }
+      if (passwordForBooking) {
+        requestBody.password = passwordForBooking
       }
 
       console.log('[BookingForm] Sending booking request', {
@@ -845,10 +906,17 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       const data = await response.json()
 
       if (!response.ok) {
+        // Email déjà existant : basculer vers le mode connexion
+        if (data.error === 'email_exists') {
+          setAccountError('Un compte existe déjà avec cet email. Veuillez vous connecter.')
+          setIsLoginMode(true)
+          setLoginEmail(accountEmail.trim().toLowerCase())
+          setLoading(false)
+          return
+        }
         // Vérifier si c'est une erreur de doublon (idempotence)
-        if (response.status === 409 || data.error?.includes('déjà') || data.error?.includes('already')) {
+        if (data.isDuplicate) {
           console.log('[BookingForm] Duplicate booking detected, redirecting to confirmation')
-          // Si c'est un doublon, considérer comme succès et rediriger
           router.push('/booking-confirmation')
           return
         }
@@ -913,6 +981,36 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     handleSubmit(e, true)
   }
 
+  const handleLogin = async () => {
+    setLoginError('')
+    const loginErrors: Record<string, string> = {}
+    if (!loginEmail.trim()) loginErrors.loginEmail = 'Email requis'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) loginErrors.loginEmail = 'Email invalide'
+    if (!loginPassword) loginErrors.loginPassword = 'Mot de passe requis'
+    if (Object.keys(loginErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...loginErrors }))
+      return
+    }
+    setLoginLoading(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim().toLowerCase(),
+        password: loginPassword,
+      })
+      if (error) {
+        setLoginError('Email ou mot de passe incorrect')
+        return
+      }
+      setCurrentUser(data.user)
+      // Passer l'user directement pour éviter le délai de mise à jour du state React
+      const syntheticEvent = { preventDefault: () => {} } as React.FormEvent
+      await handleSubmit(syntheticEvent, false, data.user)
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
   const menuOptions = menus.map(menu => ({
     value: menu.id,
     label: `${menu.name}${menu.price ? ` - ${menu.price}€` : ''}`,
@@ -951,13 +1049,16 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     { value: 'mise_en_demeure', label: t('booking.serviceType.mise_en_demeure') },
   ]
 
+  const needsAccountStep = !currentUser && !userLoading
   const stepLabels = [
     t('booking.formStepper.serviceType'),
     t('booking.formStepper.serviceDetails'),
     t('booking.formStepper.additionalInfo'),
     t('booking.formStepper.personalInfo'),
+    ...(needsAccountStep ? ['Mon compte'] : []),
   ]
   const totalSteps = stepLabels.length
+  const lastPage = totalSteps
 
   const goToStep = (targetStep: number) => {
     if (targetStep < 1 || targetStep > totalSteps) return
@@ -1309,9 +1410,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     )
   }
 
-  // Pages 2, 3, 4
+  // Pages 2, 3, 4, 5
   return (
-    <form onSubmit={currentPage === 4 ? handleSubmit : handleNext} className="space-y-4 min-h-[70vh] flex flex-col">
+    <form onSubmit={currentPage === lastPage ? handleSubmit : handleNext} className="space-y-4 min-h-[70vh] flex flex-col">
       {renderStepper()}
 
       {currentPage === 2 && (
@@ -1734,23 +1835,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2 space-y-1.5">
-              <Input
-                label={`${t('booking.email')} *`}
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                error={errors.email}
-                required
-                autoComplete="email"
-                inputMode="email"
-              />
-              <p className="text-xs text-neutral-500 leading-relaxed">{t('booking.emailHelper')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Téléphone *"
               type="tel"
@@ -1797,7 +1881,158 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         </div>
       )}
 
-      {currentPage === 4 && errors.submit && (
+      {currentPage === 5 && needsAccountStep && (
+        <div className={`px-1 sm:px-2 space-y-4 flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+          {isLoginMode ? (
+            <>
+              <h2 className="text-2xl font-bold text-black mb-1">Connectez-vous</h2>
+              <p className="text-sm text-neutral-500 mb-2">Utilisez votre compte existant pour envoyer votre demande.</p>
+              {accountError && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+                  {accountError}
+                </div>
+              )}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={e => { setLoginEmail(e.target.value); setLoginError(''); setErrors(prev => { const n = { ...prev }; delete n.loginEmail; return n }) }}
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="votre@email.com"
+                    className={`w-full rounded-xl border px-4 py-3 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.loginEmail ? 'border-red-400' : 'border-neutral-300'}`}
+                  />
+                  {errors.loginEmail && <p className="text-red-500 text-sm mt-1">{errors.loginEmail}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Mot de passe *</label>
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPassword}
+                      onChange={e => { setLoginPassword(e.target.value); setLoginError(''); setErrors(prev => { const n = { ...prev }; delete n.loginPassword; return n }) }}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className={`w-full rounded-xl border px-4 py-3 pr-11 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.loginPassword ? 'border-red-400' : 'border-neutral-300'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                      aria-label={showLoginPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showLoginPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                  {errors.loginPassword && <p className="text-red-500 text-sm mt-1">{errors.loginPassword}</p>}
+                </div>
+                {loginError && (
+                  <p className="text-red-500 text-sm">{loginError}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsLoginMode(false); setAccountError(''); setLoginError(''); setErrors(prev => { const n = { ...prev }; delete n.loginEmail; delete n.loginPassword; return n }) }}
+                className="text-sm text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+              >
+                Pas encore de compte ? Créer un compte
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-black mb-1">Créez votre compte</h2>
+              <p className="text-sm text-neutral-500 mb-2">Pour suivre votre réservation et échanger avec votre chef.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={accountEmail}
+                    onChange={e => { setAccountEmail(e.target.value); setAccountError(''); setErrors(prev => { const n = { ...prev }; delete n.accountEmail; return n }) }}
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="votre@email.com"
+                    className={`w-full rounded-xl border px-4 py-3 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.accountEmail ? 'border-red-400' : 'border-neutral-300'}`}
+                  />
+                  {errors.accountEmail && <p className="text-red-500 text-sm mt-1">{errors.accountEmail}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Mot de passe * <span className="font-normal text-neutral-400">(8 caractères min.)</span></label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => { setPassword(e.target.value); setErrors(prev => { const n = { ...prev }; delete n.password; return n }) }}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      className={`w-full rounded-xl border px-4 py-3 pr-11 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.password ? 'border-red-400' : 'border-neutral-300'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Confirmer le mot de passe *</label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={e => { setConfirmPassword(e.target.value); setErrors(prev => { const n = { ...prev }; delete n.confirmPassword; return n }) }}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      className={`w-full rounded-xl border px-4 py-3 pr-11 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.confirmPassword ? 'border-red-400' : 'border-neutral-300'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                      aria-label={showConfirmPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showConfirmPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
+                </div>
+                {accountError && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+                    {accountError}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsLoginMode(true); setAccountError(''); setErrors(prev => { const n = { ...prev }; delete n.accountEmail; delete n.password; delete n.confirmPassword; return n }) }}
+                className="text-sm text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+              >
+                J&apos;ai déjà un compte
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {currentPage === lastPage && errors.submit && (
         <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
           <p className="text-red-500 font-medium mb-2">{errors.submit}</p>
           {submissionError?.canRetry && (
@@ -1818,7 +2053,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         </div>
       )}
 
-      {currentPage === 4 && submissionError && !errors.submit && (
+      {currentPage === lastPage && submissionError && !errors.submit && (
         <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4">
           <p className="text-amber-800 font-medium mb-2">{submissionError.message}</p>
           {submissionError.canRetry && (
@@ -1848,27 +2083,49 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           </div>
         )}
         <div className="w-full flex flex-col items-center gap-2">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {currentPage === 4 ? (
-              loading ? (
-                <span className="flex items-center gap-2">
+          {/* En mode login (step 5), on utilise un bouton dédié qui login puis soumet */}
+          {currentPage === 5 && isLoginMode && needsAccountStep ? (
+            <button
+              type="button"
+              onClick={handleLogin}
+              disabled={loginLoading || loading}
+              className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loginLoading || loading ? (
+                <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {t('common.loading')}
+                  Connexion en cours…
                 </span>
               ) : (
-                t('booking.submit')
-              )
-            ) : (
-              t('booking.next')
-            )}
-          </Button>
+                'Se connecter et envoyer'
+              )}
+            </button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {currentPage === lastPage ? (
+                loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {t('common.loading')}
+                  </span>
+                ) : (
+                  t('booking.submit')
+                )
+              ) : (
+                t('booking.next')
+              )}
+            </Button>
+          )}
 
           <button
             type="button"
