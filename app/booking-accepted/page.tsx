@@ -30,19 +30,17 @@ export default function BookingAcceptedPage() {
           {isChef ? 'Réservation acceptée !' : 'Réservation acceptée !'}
         </h1>
         <p className="text-gray-600 mb-8">
-          {isChef 
-            ? 'Un lien de connexion a été envoyé à votre adresse email. Vérifiez votre boîte de réception et cliquez sur le lien pour accéder au chat.'
+          {isChef
+            ? 'Vous avez bien accepté la réservation. Connectez-vous pour accéder à la messagerie et finaliser les détails avec votre client.'
             : 'Vous avez bien accepté la réservation. Vous pouvez maintenant vous connecter pour accéder au chat.'
           }
         </p>
-        {!isChef && (
         <Button
           onClick={() => router.push('/login')}
           className="min-w-[200px]"
         >
-          Aller à la page de connexion
+          Se connecter
         </Button>
-        )}
       </div>
     </div>
   )
