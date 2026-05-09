@@ -637,18 +637,19 @@ export const emailTemplates = {
     })
   },
 
-  bookingAcceptedToClient: (clientName: string, chefFirstName: string, chefLastName: string, chatUrl: string, baseUrl?: string) => {
+  bookingAcceptedToClient: (clientName: string, chefFirstName: string, chefLastName: string, _chatUrl: string, baseUrl?: string) => {
+    const loginUrl = baseUrl ? `${baseUrl}/login` : '/login'
     const content = `
       <p>Bonjour ${clientName},</p>
       <p>Excellente nouvelle ! Votre demande de réservation a été acceptée par le Chef <strong>${chefFirstName} ${chefLastName}</strong>.</p>
-      <p>Vous pouvez dès maintenant échanger avec votre chef depuis votre espace de conversation.</p>
+      <p>Connectez-vous pour échanger avec votre chef depuis votre espace de conversation.</p>
     `
     return emailLayout({
       title: 'Réservation acceptée',
       content,
       cta: {
-        text: 'Accéder à ma conversation',
-        url: chatUrl,
+        text: 'Se connecter',
+        url: loginUrl,
         variant: 'yellow',
       },
       baseUrl,
