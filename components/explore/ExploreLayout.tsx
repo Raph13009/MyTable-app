@@ -69,7 +69,7 @@ const EMBEDDED_BASE_PATH = '/explore2'
 export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSlug: initialFocusedRegionSlug = null, embedded = false }: ExploreLayoutProps) {
   const router = useRouter()
   const { t, locale } = useTranslation()
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('list')
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
   const isMobile = useIsMobile()
   const [pinnedChefId, setPinnedChefId] = useState<string | null>(null)
   const [hoveredChefId, setHoveredChefId] = useState<string | null>(null)
