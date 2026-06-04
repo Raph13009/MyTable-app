@@ -67,6 +67,8 @@ export async function createNextFallbackBooking(
     email: currentBooking.email,
     phone: currentBooking.phone,
     booking_date: currentBooking.booking_date,
+    is_date_flexible: currentBooking.is_date_flexible || false,
+    alternative_dates: Array.isArray(currentBooking.alternative_dates) ? currentBooking.alternative_dates : [],
     city: currentBooking.city,
     postal_code: currentBooking.postal_code,
     guests_count: currentBooking.guests_count,
@@ -182,6 +184,10 @@ export async function createNextFallbackBooking(
     hasAllergies: currentBooking.has_allergies || false,
     allergiesDetails: currentBooking.allergies_details || '',
     notes: currentBooking.notes || '',
+    isDateFlexible: Boolean(currentBooking.is_date_flexible),
+    alternativeDates: Array.isArray(currentBooking.alternative_dates)
+      ? currentBooking.alternative_dates.map((d: string) => formatDateForDisplay(d, 'fr-FR'))
+      : [],
   }
 
   let selectedMenuName: string | null = null

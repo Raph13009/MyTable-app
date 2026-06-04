@@ -122,6 +122,9 @@ export interface Database {
           email: string
           phone: string
           booking_date: string | null
+          is_date_flexible: boolean
+          alternative_dates: Json | null
+          confirmed_date: string | null
           city: string
           postal_code: string
           full_address: string | null
@@ -160,6 +163,9 @@ export interface Database {
           email: string
           phone: string
           booking_date?: string | null
+          is_date_flexible?: boolean
+          alternative_dates?: Json | null
+          confirmed_date?: string | null
           city: string
           postal_code: string
           full_address?: string | null
@@ -198,6 +204,9 @@ export interface Database {
           email?: string
           phone?: string
           booking_date?: string | null
+          is_date_flexible?: boolean
+          alternative_dates?: Json | null
+          confirmed_date?: string | null
           city?: string
           postal_code?: string
           full_address?: string | null

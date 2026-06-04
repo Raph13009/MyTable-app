@@ -363,6 +363,17 @@ export const emailSubjects = {
  * Templates d'emails
  */
 function buildBookingDetailsHtml(bookingDetails: any): string {
+  // Mention de flexibilité de date (repas à domicile / cours de cuisine)
+  const renderDateFlexibility = (): string => {
+    if (bookingDetails.isDateFlexible) {
+      const allDates = [bookingDetails.bookingDate, ...(Array.isArray(bookingDetails.alternativeDates) ? bookingDetails.alternativeDates : [])]
+        .filter(Boolean)
+      const datesList = allDates.length > 0 ? ` : ${allDates.join(' ou ')}` : ''
+      return `<p><strong>Flexibilité :</strong> Le client est flexible sur la date${datesList}</p>`
+    }
+    return `<p><strong>Flexibilité :</strong> Le client n'est pas flexible sur la date</p>`
+  }
+
   // Construire les détails selon le type de service
   let detailsHtml = `
     <div class="email-details">
@@ -377,6 +388,7 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.bookingDate) {
       detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
     }
+    detailsHtml += renderDateFlexibility()
     if (bookingDetails.mealTimeLabel) {
       detailsHtml += `<p><strong>Moment du repas :</strong> ${bookingDetails.mealTimeLabel}</p>`
     }
@@ -396,6 +408,7 @@ function buildBookingDetailsHtml(bookingDetails: any): string {
     if (bookingDetails.bookingDate) {
       detailsHtml += `<p><strong>Date :</strong> ${bookingDetails.bookingDate}</p>`
     }
+    detailsHtml += renderDateFlexibility()
     const coursePricePerPerson = Number(bookingDetails.budgetPerPerson ?? bookingDetails.budget)
     const hasCoursePricePerPerson = Number.isFinite(coursePricePerPerson) && coursePricePerPerson > 0
     if (hasCoursePricePerPerson) {

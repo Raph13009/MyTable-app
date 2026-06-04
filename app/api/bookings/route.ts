@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
       phone,
       serviceType,
       bookingDate,
+      isDateFlexible: isDateFlexibleRaw,
+      alternativeDates: alternativeDatesRaw,
       mealTime,
       city: cityRaw,
       postalCode: postalCodeRaw,
@@ -127,6 +129,19 @@ export async function POST(request: NextRequest) {
     const normalizedHomeChefPricePerPerson = serviceType === 'mise_en_demeure'
       ? normalizeBudgetSelection(totalPrice, 'mise_en_demeure')
       : null
+
+    // Flexibilité de date : uniquement pour repas à domicile et cours de cuisine.
+    // On ne garde que des dates valides (YYYY-MM-DD), distinctes de la date principale, max 3.
+    const supportsDateFlexibility =
+      serviceType === 'repas_domicile' || serviceType === 'cours_cuisine'
+    const isDateFlexible = supportsDateFlexibility && Boolean(isDateFlexibleRaw)
+    const alternativeDates: string[] = isDateFlexible && Array.isArray(alternativeDatesRaw)
+      ? [...new Set(
+          alternativeDatesRaw
+            .filter((d: unknown): d is string => typeof d === 'string' && isValidDateString(d))
+            .filter((d: string) => d !== bookingDate)
+        )].slice(0, 3)
+      : []
 
     console.log(`[bookings:${requestId}] Request data:`, {
       chefId,
@@ -517,6 +532,8 @@ export async function POST(request: NextRequest) {
           phone,
           service_type: serviceType,
           booking_date: bookingDate || null,
+          is_date_flexible: isDateFlexible,
+          alternative_dates: alternativeDates,
           meal_time: mealTime || null,
           city,
           postal_code: postalCode,
@@ -778,6 +795,12 @@ export async function POST(request: NextRequest) {
       allergiesDetails: allergiesDetails || '',
       notes: notes || '',
     }
+
+    // Flexibilité de date (repas_domicile / cours_cuisine) pour l'email chef
+    bookingDetails.isDateFlexible = isDateFlexible
+    bookingDetails.alternativeDates = isDateFlexible
+      ? alternativeDates.map((d) => formatDateForDisplay(d, 'fr-FR'))
+      : []
 
     // Ajouter les champs spécifiques selon le type de service
     if (serviceType === 'repas_domicile') {

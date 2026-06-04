@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
         chef_id,
         service_type,
         booking_date,
+        is_date_flexible,
+        alternative_dates,
         meal_time,
         city,
         postal_code,
@@ -251,6 +253,10 @@ export async function GET(request: NextRequest) {
           hasAllergies: booking.has_allergies,
           allergiesDetails: booking.allergies_details || '',
           notes: booking.notes || '',
+          isDateFlexible: Boolean(booking.is_date_flexible),
+          alternativeDates: Array.isArray(booking.alternative_dates)
+            ? booking.alternative_dates.map((d: string) => formatDateForDisplay(d, 'fr-FR'))
+            : [],
         }
 
         if (serviceType === 'repas_domicile') {

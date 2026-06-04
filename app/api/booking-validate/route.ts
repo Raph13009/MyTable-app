@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getBaseUrl } from '@/lib/utils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
+import { isValidDateString } from '@/lib/dateUtils'
 
 /**
  * API Route pour finaliser une réservation (client uniquement)
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
-    const { bookingRequestId } = await request.json()
+    const { bookingRequestId, confirmedDate: confirmedDateRaw } = await request.json()
     if (!bookingRequestId) {
       return NextResponse.json({ error: 'bookingRequestId requis' }, { status: 400 })
     }
@@ -46,19 +47,46 @@ export async function POST(request: NextRequest) {
 
     // Vérifier que le statut est 'accepted'
     if ((bookingRequest as any).status !== 'accepted') {
-      return NextResponse.json({ 
-        error: 'La réservation doit être acceptée par le chef avant d\'être validée' 
+      return NextResponse.json({
+        error: 'La réservation doit être acceptée par le chef avant d\'être validée'
       }, { status: 400 })
     }
 
-    // Mettre à jour le statut
+    // Déterminer la date finale retenue (pour la facturation).
+    // Si le client était flexible, il choisit parmi la date principale + les dates alternatives.
+    const originalBookingDate = (bookingRequest as any).booking_date as string | null
+    const altDates: string[] = Array.isArray((bookingRequest as any).alternative_dates)
+      ? (bookingRequest as any).alternative_dates
+      : []
+    const isDateFlexible = Boolean((bookingRequest as any).is_date_flexible)
+
+    let effectiveBookingDate = originalBookingDate
+    if (typeof confirmedDateRaw === 'string' && isValidDateString(confirmedDateRaw)) {
+      const allowedDates = [originalBookingDate, ...altDates].filter(Boolean) as string[]
+      // En flexible, n'autoriser que les dates proposées ; sinon ignorer une date non sollicitée
+      if (isDateFlexible && allowedDates.length > 0 && !allowedDates.includes(confirmedDateRaw)) {
+        return NextResponse.json({
+          error: 'La date confirmée doit faire partie des dates proposées',
+        }, { status: 400 })
+      }
+      effectiveBookingDate = confirmedDateRaw
+    }
+
+    // Mettre à jour le statut + la date finale retenue
+    const updatePayload: Record<string, any> = {
+      status: 'validated_by_client',
+      confirmed_date: effectiveBookingDate,
+      updated_at: new Date().toISOString(),
+    }
+    // Aligner booking_date sur la date retenue pour cohérence facturation / affichage
+    if (effectiveBookingDate && effectiveBookingDate !== originalBookingDate) {
+      updatePayload.booking_date = effectiveBookingDate
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from('booking_requests')
       // @ts-expect-error - Supabase type inference issue
-      .update({ 
-        status: 'validated_by_client',
-        updated_at: new Date().toISOString(),
-      } as any)
+      .update(updatePayload as any)
       .eq('id', bookingRequestId)
 
     if (updateError) {
@@ -158,8 +186,8 @@ export async function POST(request: NextRequest) {
         })
       }
     } else {
-      // Pour les autres types de service, utiliser booking_date
-      bookingDate = formatDateForDisplay((bookingRequest as any).booking_date, 'fr-FR', {
+      // Pour les autres types de service, utiliser la date finale retenue
+      bookingDate = formatDateForDisplay(effectiveBookingDate, 'fr-FR', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

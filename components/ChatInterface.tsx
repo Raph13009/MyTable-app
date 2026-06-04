@@ -177,6 +177,7 @@ export default function ChatInterface({
   const [bookingStatus, setBookingStatus] = useState<string | null>(bookingRequest?.status || null)
   const [processingAction, setProcessingAction] = useState(false)
   const [showFinalizeModal, setShowFinalizeModal] = useState(false)
+  const [confirmedDate, setConfirmedDate] = useState<string>(bookingRequest?.booking_date || '')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [guestsCount, setGuestsCount] = useState(bookingRequest?.guests_count || 1)
@@ -1083,6 +1084,8 @@ export default function ChatInterface({
       bookingRequestId: bookingRequest.id,
       serviceType: bookingRequest?.service_type,
     })
+    // Réinitialiser la date confirmée sur la date principale à chaque ouverture
+    setConfirmedDate(bookingRequest?.confirmed_date || bookingRequest?.booking_date || '')
     setShowFinalizeModal(true)
   }
 
@@ -1092,11 +1095,23 @@ export default function ChatInterface({
       return
     }
 
+    const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
+
+    // Si le client était flexible, une date finale doit être sélectionnée (hors mise_en_demeure)
+    const needsDateConfirmation =
+      !isMiseEnDemeure &&
+      Boolean(bookingRequest?.is_date_flexible) &&
+      Array.isArray(bookingRequest?.alternative_dates) &&
+      bookingRequest.alternative_dates.length > 0
+    if (needsDateConfirmation && !confirmedDate) {
+      alert('Veuillez sélectionner la date finale retenue.')
+      return
+    }
+
     setProcessingAction(true)
     setShowFinalizeModal(false)
-    
+
     try {
-      const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
       const endpoint = isMiseEnDemeure
         ? '/api/booking-finalize-clicked'
         : '/api/booking-validate'
@@ -1108,6 +1123,7 @@ export default function ChatInterface({
         },
         body: JSON.stringify({
           bookingRequestId: bookingRequest.id,
+          ...(isMiseEnDemeure ? {} : { confirmedDate: confirmedDate || null }),
         }),
       })
 
@@ -2527,11 +2543,11 @@ export default function ChatInterface({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Date</span>
                     <span className="font-medium text-black">
-                      {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
-                        day: 'numeric', 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
+                      {formatDateForDisplay(
+                        (bookingRequest.is_date_flexible && confirmedDate) ? confirmedDate : bookingRequest.booking_date,
+                        locale === 'en' ? 'en-US' : 'fr-FR',
+                        { day: 'numeric', month: 'long', year: 'numeric' }
+                      )}
                     </span>
                   </div>
                   {bookingRequest.meal_time && (
@@ -2569,8 +2585,56 @@ export default function ChatInterface({
                 </div>
               )}
 
+              {/* Choix de la date finale si le client était flexible */}
+              {bookingRequest?.service_type !== 'mise_en_demeure' &&
+                bookingRequest?.is_date_flexible &&
+                Array.isArray(bookingRequest?.alternative_dates) &&
+                bookingRequest.alternative_dates.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-black mb-1">
+                    {t('booking.finalizeChooseDateTitle')}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {t('booking.finalizeChooseDateHint')}
+                  </p>
+                  <div className="space-y-2">
+                    {[bookingRequest.booking_date, ...bookingRequest.alternative_dates]
+                      .filter((d: string | null): d is string => Boolean(d))
+                      .map((dateStr: string) => {
+                        const isSelected = confirmedDate === dateStr
+                        return (
+                          <button
+                            key={dateStr}
+                            type="button"
+                            onClick={() => setConfirmedDate(dateStr)}
+                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm transition-colors ${
+                              isSelected
+                                ? 'border-[#FBCF03] bg-[#FBCF03]/10 font-semibold text-black'
+                                : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                            }`}
+                          >
+                            <span>
+                              {formatDateForDisplay(dateStr, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            {isSelected && (
+                              <svg className="w-5 h-5 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm text-gray-600 mb-6">
-                {bookingRequest?.service_type === 'mise_en_demeure' 
+                {bookingRequest?.service_type === 'mise_en_demeure'
                   ? 'En confirmant, vous indiquez que vous êtes prêt à finaliser votre réservation. Un lien de paiement vous sera envoyé par email dans les prochaines 24 heures.'
                   : 'En confirmant, vous validez cette réservation. Un lien de paiement vous sera envoyé dans les 24 heures.'}
               </p>
