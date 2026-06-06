@@ -57,7 +57,44 @@
     "password": "Mot de passe",
     "sendMagicLink": "Envoyer le lien de connexion",
     "magicLinkSent": "Lien de connexion envoyé ! Vérifiez votre boîte mail.",
-    "checkingEmail": "Vérification de votre email..."
+    "checkingEmail": "Vérification de votre email...",
+    "emailPlaceholder": "votre@email.com",
+    "loginPageTitle": "Connexion",
+    "loginPageSubtitle": "Entrez votre email et votre mot de passe pour accéder à votre compte.",
+    "submitting": "Connexion…",
+    "forgotPassword": "Mot de passe oublié / Créer un mot de passe",
+    "forgotPasswordEnterEmail": "Entrez d'abord votre email pour recevoir le lien.",
+    "resetEmailSent": "Email envoyé ! Cliquez sur le lien reçu pour définir votre mot de passe. Pensez à vérifier vos spams.",
+    "resetEmailSendError": "Impossible d'envoyer l'email : {{message}}",
+    "invalidCredentials": "Email ou mot de passe incorrect. Si vous n'avez jamais défini de mot de passe, cliquez sur \"Mot de passe oublié\" ci-dessous.",
+    "emailNotConfirmed": "Votre email n'est pas encore confirmé.",
+    "loginError": "Erreur lors de la connexion : {{message}}",
+    "sessionNotCreated": "La session n'a pas pu être créée. Réessayez.",
+    "linkExpired": "Le lien a expiré ou est invalide.",
+    "authFailed": "Erreur lors de la connexion. Veuillez réessayer.",
+    "genericError": "Une erreur est survenue",
+    "hashProcessingTitle": "Connexion en cours…",
+    "hashProcessingSubtitle": "Veuillez patienter pendant que nous vous connectons",
+    "resetPasswordTitle": "Définir mon mot de passe",
+    "resetPasswordSubtitleWithEmail": "Choisissez un mot de passe pour {{email}}.",
+    "resetPasswordSubtitle": "Choisissez un mot de passe pour votre compte.",
+    "resetPasswordCheckingLink": "Vérification du lien…",
+    "resetPasswordLinkInvalid": "Le lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.",
+    "resetPasswordLinkExpired": "Lien expiré ou invalide. Retournez sur la page de connexion pour en demander un nouveau.",
+    "resetPasswordBackToLogin": "Retour à la connexion",
+    "resetPasswordSuccessTitle": "Mot de passe enregistré !",
+    "resetPasswordSuccessRedirect": "Redirection en cours…",
+    "resetPasswordNewPassword": "Nouveau mot de passe",
+    "resetPasswordConfirmPassword": "Confirmer le mot de passe",
+    "resetPasswordPlaceholder": "Au moins 8 caractères",
+    "resetPasswordConfirmPlaceholder": "Retapez le mot de passe",
+    "resetPasswordMinLength": "Le mot de passe doit contenir au moins 8 caractères.",
+    "resetPasswordMismatch": "Les mots de passe ne correspondent pas.",
+    "resetPasswordUpdateError": "Erreur : {{message}}",
+    "resetPasswordSaving": "Enregistrement…",
+    "resetPasswordSaveButton": "Enregistrer mon mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe"
   },
   "dashboard": {
     "title": "Messages",
@@ -249,8 +286,23 @@
       "serviceType": "Type de service",
       "serviceDetails": "Détails prestation",
       "additionalInfo": "Infos complémentaires",
-      "personalInfo": "Infos perso"
+      "personalInfo": "Infos perso",
+      "account": "Mon compte"
     },
+    "account": {
+      "loginTitle": "Connectez-vous",
+      "loginSubtitle": "Utilisez votre compte existant pour envoyer votre demande.",
+      "createTitle": "Créez votre compte",
+      "createSubtitle": "Pour suivre votre réservation et échanger avec votre chef.",
+      "switchToSignup": "Pas encore de compte ? Créer un compte",
+      "switchToLogin": "J'ai déjà un compte",
+      "connectAndSubmit": "Se connecter et envoyer",
+      "connecting": "Connexion en cours…",
+      "passwordMinHint": "(8 caractères min.)",
+      "confirmPasswordLabel": "Confirmer le mot de passe *"
+    },
+    "retry": "Réessayer",
+    "retryAttempts": "({{count}}/2 tentatives)",
     "errors": {
       "firstNameRequired": "Le prénom est requis",
       "lastNameRequired": "Le nom est requis",
@@ -269,7 +321,14 @@
       "childrenCountMax": "Le nombre d'enfants ne peut pas être supérieur au nombre total de convives",
       "termsRequired": "Vous devez accepter les termes et conditions",
       "missingRequiredFields": "Certains champs obligatoires sont manquants.",
-      "eventAddressInvalid": "Indiquez une adresse valide avec code postal (5 chiffres) ou choisissez une suggestion."
+      "eventAddressInvalid": "Indiquez une adresse valide avec code postal (5 chiffres) ou choisissez une suggestion.",
+      "passwordRequired": "Mot de passe requis",
+      "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères",
+      "confirmRequired": "Confirmation requise",
+      "passwordsDontMatch": "Les mots de passe ne correspondent pas",
+      "invalidLoginCredentials": "Email ou mot de passe incorrect",
+      "emailExists": "Un compte existe déjà avec cet email. Veuillez vous connecter.",
+      "genericError": "Une erreur est survenue"
     },
     "validation": {
       "clientValidated": "Le client {{clientName}} a validé la réservation",
@@ -291,7 +350,10 @@
     "findDetails": "Retrouvez les détails de votre évènement dans",
     "createMenu": "Vous pouvez dès à présent créer un menu adapté aux demandes du client depuis l'onglet \"Menu\".",
     "finalizeReservation": "Pour confirmer définitivement votre réservation, appuyez sur",
-    "bookingRefusedReadonly": "Mission refusée : cette conversation est en lecture seule."
+    "bookingRefusedReadonly": "Mission refusée : cette conversation est en lecture seule.",
+    "chefPendingDecisionHint": "Acceptez ou refusez la demande pour écrire au client.",
+    "acceptRequest": "Accepter",
+    "refuseRequest": "Refuser"
   },
   "helper": {
     "chef": {

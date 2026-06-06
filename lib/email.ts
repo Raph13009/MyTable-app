@@ -350,6 +350,7 @@ export const emailSubjects = {
   bookingReminderToChef: 'Relance - demande de réservation en attente',
   bookingNewToAdmin: 'Nouvelle demande de réservation',
   bookingRefusedToClient: 'Votre demande MyTable - disponibilité du chef',
+  bookingRefusedNearbyChefsToClient: 'D’autres Chefs à proximité pour votre prestation',
   bookingAcceptedToClient: 'Réservation acceptée',
   bookingAcceptedToChef: 'Réservation acceptée',
   bookingValidatedToClient: 'Votre réservation est confirmée – paiement à venir',
@@ -635,8 +636,8 @@ export const emailTemplates = {
   bookingRefusedToClient: (clientFirstName: string, chefFirstName: string, baseUrl?: string) => {
     const ctaUrl = `${getBaseUrl(baseUrl)}/`
     const content = `
-      <p>Bonjour ${clientFirstName},</p>
-      <p>Votre demande avec le Chef <strong>${chefFirstName}</strong> n'a malheureusement pas pu être acceptée, mais nous avons d'autres profils de Chefs talentueux qui pourraient parfaitement correspondre à votre expérience.</p>
+      <p>Bonjour ${escapeHtml(clientFirstName)},</p>
+      <p>Votre demande avec le Chef <strong>${escapeHtml(chefFirstName)}</strong> n'a malheureusement pas pu être acceptée, mais nous avons d'autres profils de Chefs talentueux qui pourraient parfaitement correspondre à votre expérience.</p>
       <p>Vous pouvez les découvrir ici :</p>
       <div class="email-cta" style="margin-top: 12px; margin-bottom: 24px; text-align: center;">
         <a href="${ctaUrl}" class="email-button-yellow">Découvrir les autres Chefs</a>
@@ -651,6 +652,54 @@ export const emailTemplates = {
     `
     return emailLayout({
       title: 'Votre demande MyTable - disponibilité du chef',
+      content,
+      baseUrl,
+    })
+  },
+
+  bookingRefusedNearbyChefsToClient: (
+    clientFirstName: string,
+    chefFirstName: string,
+    nearbyChefs: Array<{ name: string; profileUrl: string; cuisineStyle: string | null }>,
+    baseUrl?: string
+  ) => {
+    const exploreUrl = `${getBaseUrl(baseUrl)}/explore`
+    const chefsListHtml = nearbyChefs
+      .map((chef) => {
+        const styleLine = chef.cuisineStyle
+          ? `<p style="margin: 4px 0 0; font-size: 13px; color: #666;">${escapeHtml(chef.cuisineStyle)}</p>`
+          : ''
+        return `
+          <div style="margin-bottom: 16px; padding: 14px 16px; border: 1px solid #e8e8e8; border-radius: 8px;">
+            <p style="margin: 0; font-weight: 600;">${escapeHtml(chef.name)}</p>
+            ${styleLine}
+            <p style="margin: 10px 0 0;">
+              <a href="${chef.profileUrl}" class="email-button-yellow" style="display: inline-block; text-decoration: none;">Voir le profil et réserver</a>
+            </p>
+          </div>
+        `
+      })
+      .join('')
+
+    const content = `
+      <p>Bonjour ${escapeHtml(clientFirstName)},</p>
+      <p>Votre demande avec le Chef <strong>${escapeHtml(chefFirstName)}</strong> n'a malheureusement pas pu être acceptée.</p>
+      <p>Bonne nouvelle : d'autres Chefs exercent à proximité du lieu de votre prestation et pourraient vous accompagner. Voici ${nearbyChefs.length === 1 ? 'une suggestion' : 'quelques suggestions'} :</p>
+      ${chefsListHtml}
+      <p style="margin-top: 20px;">Vous pouvez aussi parcourir tous les profils disponibles :</p>
+      <div class="email-cta" style="margin-top: 12px; margin-bottom: 24px; text-align: center;">
+        <a href="${exploreUrl}" class="email-button-yellow">Découvrir les autres Chefs</a>
+      </div>
+      <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
+        Nous restons à votre disposition pour toute question,<br>
+        À très vite autour de votre table !
+      </p>
+      <p style="margin-top: 8px; font-size: 13px; color: #666; font-style: italic;">
+        L'équipe MyTable
+      </p>
+    `
+    return emailLayout({
+      title: 'D’autres Chefs à proximité',
       content,
       baseUrl,
     })

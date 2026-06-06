@@ -141,8 +141,16 @@ export default function ChatInterface({
     content: sanitizeMessage(msg.content || '')
   }))
   const [messages, setMessages] = useState<Message[]>(sanitizedInitialMessages)
+  const sanitizedBookingNotes = bookingRequest?.notes
+    ? sanitizeMessage(bookingRequest.notes)
+    : null
+  const showBookingNotesInSidebar = Boolean(
+    sanitizedBookingNotes &&
+    !messages.some((m) => m.content === sanitizedBookingNotes)
+  )
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [decisionLoading, setDecisionLoading] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [duplicateMessages, setDuplicateMessages] = useState<Set<string>>(new Set())
   const [isInitializing, setIsInitializing] = useState(true)
@@ -409,6 +417,9 @@ export default function ChatInterface({
     if (bookingStatus === 'refused') {
       return
     }
+    if (getCurrentUserRole() === 'chef' && bookingStatus === 'pending') {
+      return
+    }
 
     const rawContent = newMessage.trim()
     const sanitizedContent = sanitizeMessage(rawContent)
@@ -573,7 +584,43 @@ export default function ChatInterface({
 
   const isChef = currentUserRole === 'chef'
   const isClient = currentUserRole === 'client'
+  const chefMustRespondToRequest = isChef && bookingStatus === 'pending'
   const isReplacementBooking = Boolean((bookingRequest as any)?.fallback_previous_booking_id)
+
+  const handleChefDecision = async (action: 'accept' | 'refuse') => {
+    if (!bookingRequest?.id || decisionLoading) return
+
+    const confirmed =
+      action === 'accept' ||
+      window.confirm('Refuser cette demande ? Le client sera notifié.')
+    if (!confirmed) return
+
+    setDecisionLoading(true)
+    try {
+      const response = await fetch('/api/booking-decision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingRequestId: bookingRequest.id,
+          action,
+        }),
+      })
+
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(body?.error || 'Erreur lors du traitement de la demande')
+      }
+
+      setBookingStatus(body.status)
+      if (bookingRequest) {
+        (bookingRequest as any).status = body.status
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Erreur lors du traitement de la demande')
+    } finally {
+      setDecisionLoading(false)
+    }
+  }
   
   console.log('[ChatInterface] Role check:', {
     currentUserRole,
@@ -1811,8 +1858,35 @@ export default function ChatInterface({
         </div>
       </div>
 
+      {/* Chef : décision requise avant d'écrire au client */}
+      {!isBookingCancelled && !isBookingRefused && !isAdmin && chefMustRespondToRequest && (
+        <div className="flex-shrink-0 bg-amber-50/60 border-t border-amber-100/80 px-4 sm:px-6 py-3.5 pb-safe">
+          <p className="text-xs text-amber-900/80 text-center mb-2.5">
+            {t('chat.chefPendingDecisionHint')}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleChefDecision('accept')}
+              disabled={decisionLoading}
+              className="px-4 py-2 rounded-full bg-[#FBCF03] text-black text-sm font-medium hover:bg-[#FBCF03]/90 disabled:opacity-50 transition-colors"
+            >
+              {t('chat.acceptRequest')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleChefDecision('refuse')}
+              disabled={decisionLoading}
+              className="px-4 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {t('chat.refuseRequest')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input - Style moderne premium (désactivé si réservation annulée/refusée ou si admin) */}
-      {!isBookingCancelled && !isBookingRefused && !isAdmin && (
+      {!isBookingCancelled && !isBookingRefused && !isAdmin && !chefMustRespondToRequest && (
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
         <form onSubmit={(e) => {
           e.preventDefault()
@@ -2228,10 +2302,10 @@ export default function ChatInterface({
                         <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.allergies_details}</p>
                       </div>
                     )}
-                    {bookingRequest.notes && (
+                    {showBookingNotesInSidebar && (
                       <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">{t('booking.notes')}</p>
-                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.notes}</p>
+                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{sanitizedBookingNotes}</p>
                       </div>
                     )}
                   </div>

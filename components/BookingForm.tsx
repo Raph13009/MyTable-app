@@ -731,16 +731,16 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     if (currentUser) return true
     const newErrors: Record<string, string> = {}
     if (isLoginMode) {
-      if (!loginEmail.trim()) newErrors.loginEmail = 'Email requis'
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) newErrors.loginEmail = 'Email invalide'
-      if (!loginPassword) newErrors.loginPassword = 'Mot de passe requis'
+      if (!loginEmail.trim()) newErrors.loginEmail = t('booking.errors.emailRequired')
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) newErrors.loginEmail = t('booking.errors.emailInvalid')
+      if (!loginPassword) newErrors.loginPassword = t('booking.errors.passwordRequired')
     } else {
-      if (!accountEmail.trim()) newErrors.accountEmail = 'Email requis'
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail.trim())) newErrors.accountEmail = 'Email invalide'
-      if (!password) newErrors.password = 'Mot de passe requis'
-      else if (password.length < 8) newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères'
-      if (!confirmPassword) newErrors.confirmPassword = 'Confirmation requise'
-      else if (password !== confirmPassword) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas'
+      if (!accountEmail.trim()) newErrors.accountEmail = t('booking.errors.emailRequired')
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail.trim())) newErrors.accountEmail = t('booking.errors.emailInvalid')
+      if (!password) newErrors.password = t('booking.errors.passwordRequired')
+      else if (password.length < 8) newErrors.password = t('booking.errors.passwordMinLength')
+      if (!confirmPassword) newErrors.confirmPassword = t('booking.errors.confirmRequired')
+      else if (password !== confirmPassword) newErrors.confirmPassword = t('booking.errors.passwordsDontMatch')
     }
     setErrors(prev => ({ ...prev, ...newErrors }))
     return Object.keys(newErrors).length === 0
@@ -952,10 +952,8 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         alternativeDates,
         fallbackEnabled: shareWithNearbyChefs,
         fallbackChefIds: shareWithNearbyChefs ? nearbyChefIds : [],
-        clientLatitude:
-          shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lat : null,
-        clientLongitude:
-          shareWithNearbyChefs && clientMapCoords ? clientMapCoords.lng : null,
+        clientLatitude: clientMapCoords?.lat ?? null,
+        clientLongitude: clientMapCoords?.lng ?? null,
         idempotencyToken,
       }
       if (passwordForBooking) {
@@ -991,7 +989,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       if (!response.ok) {
         // Email déjà existant : basculer vers le mode connexion
         if (data.error === 'email_exists') {
-          setAccountError('Un compte existe déjà avec cet email. Veuillez vous connecter.')
+          setAccountError(t('booking.errors.emailExists'))
           setIsLoginMode(true)
           setLoginEmail(accountEmail.trim().toLowerCase())
           setLoading(false)
@@ -1003,7 +1001,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           router.push('/booking-confirmation')
           return
         }
-        throw new Error(data.error || 'Une erreur est survenue')
+        throw new Error(data.error || t('booking.errors.genericError'))
       }
 
       console.log('[BookingForm] Booking created successfully', {
@@ -1067,9 +1065,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   const handleLogin = async () => {
     setLoginError('')
     const loginErrors: Record<string, string> = {}
-    if (!loginEmail.trim()) loginErrors.loginEmail = 'Email requis'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) loginErrors.loginEmail = 'Email invalide'
-    if (!loginPassword) loginErrors.loginPassword = 'Mot de passe requis'
+    if (!loginEmail.trim()) loginErrors.loginEmail = t('booking.errors.emailRequired')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) loginErrors.loginEmail = t('booking.errors.emailInvalid')
+    if (!loginPassword) loginErrors.loginPassword = t('booking.errors.passwordRequired')
     if (Object.keys(loginErrors).length > 0) {
       setErrors(prev => ({ ...prev, ...loginErrors }))
       return
@@ -1082,7 +1080,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         password: loginPassword,
       })
       if (error) {
-        setLoginError('Email ou mot de passe incorrect')
+        setLoginError(t('booking.errors.invalidLoginCredentials'))
         return
       }
       setCurrentUser(data.user)
@@ -1248,7 +1246,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     t('booking.formStepper.serviceDetails'),
     t('booking.formStepper.additionalInfo'),
     t('booking.formStepper.personalInfo'),
-    ...(needsAccountStep ? ['Mon compte'] : []),
+    ...(needsAccountStep ? [t('booking.formStepper.account')] : []),
   ]
   const totalSteps = stepLabels.length
   const lastPage = totalSteps
@@ -2086,8 +2084,8 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         <div className={`px-1 sm:px-2 space-y-4 flex-1 transition-all duration-200 ease-out ${isStepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
           {isLoginMode ? (
             <>
-              <h2 className="text-2xl font-bold text-black mb-1">Connectez-vous</h2>
-              <p className="text-sm text-neutral-500 mb-2">Utilisez votre compte existant pour envoyer votre demande.</p>
+              <h2 className="text-2xl font-bold text-black mb-1">{t('booking.account.loginTitle')}</h2>
+              <p className="text-sm text-neutral-500 mb-2">{t('booking.account.loginSubtitle')}</p>
               {accountError && (
                 <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
                   {accountError}
@@ -2095,20 +2093,20 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
               )}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Email *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">{t('booking.email')} *</label>
                   <input
                     type="email"
                     value={loginEmail}
                     onChange={e => { setLoginEmail(e.target.value); setLoginError(''); setErrors(prev => { const n = { ...prev }; delete n.loginEmail; return n }) }}
                     autoComplete="email"
                     inputMode="email"
-                    placeholder="votre@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     className={`w-full rounded-xl border px-4 py-3 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.loginEmail ? 'border-red-400' : 'border-neutral-300'}`}
                   />
                   {errors.loginEmail && <p className="text-red-500 text-sm mt-1">{errors.loginEmail}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Mot de passe *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">{t('auth.password')} *</label>
                   <div className="relative">
                     <input
                       type={showLoginPassword ? 'text' : 'password'}
@@ -2122,7 +2120,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                       type="button"
                       onClick={() => setShowLoginPassword(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                      aria-label={showLoginPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-label={showLoginPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                     >
                       {showLoginPassword ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
@@ -2142,29 +2140,29 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                 onClick={() => { setIsLoginMode(false); setAccountError(''); setLoginError(''); setErrors(prev => { const n = { ...prev }; delete n.loginEmail; delete n.loginPassword; return n }) }}
                 className="text-sm text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
               >
-                Pas encore de compte ? Créer un compte
+                {t('booking.account.switchToSignup')}
               </button>
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-black mb-1">Créez votre compte</h2>
-              <p className="text-sm text-neutral-500 mb-2">Pour suivre votre réservation et échanger avec votre chef.</p>
+              <h2 className="text-2xl font-bold text-black mb-1">{t('booking.account.createTitle')}</h2>
+              <p className="text-sm text-neutral-500 mb-2">{t('booking.account.createSubtitle')}</p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Email *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">{t('booking.email')} *</label>
                   <input
                     type="email"
                     value={accountEmail}
                     onChange={e => { setAccountEmail(e.target.value); setAccountError(''); setErrors(prev => { const n = { ...prev }; delete n.accountEmail; return n }) }}
                     autoComplete="email"
                     inputMode="email"
-                    placeholder="votre@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     className={`w-full rounded-xl border px-4 py-3 text-[15px] placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#FBCF03]/20 focus:border-[#FBCF03] ${errors.accountEmail ? 'border-red-400' : 'border-neutral-300'}`}
                   />
                   {errors.accountEmail && <p className="text-red-500 text-sm mt-1">{errors.accountEmail}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Mot de passe * <span className="font-normal text-neutral-400">(8 caractères min.)</span></label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">{t('auth.password')} * <span className="font-normal text-neutral-400">{t('booking.account.passwordMinHint')}</span></label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -2178,7 +2176,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                     >
                       {showPassword ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
@@ -2190,7 +2188,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                   {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Confirmer le mot de passe *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">{t('booking.account.confirmPasswordLabel')}</label>
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
@@ -2204,7 +2202,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                       type="button"
                       onClick={() => setShowConfirmPassword(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                      aria-label={showConfirmPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-label={showConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                     >
                       {showConfirmPassword ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
@@ -2226,7 +2224,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                 onClick={() => { setIsLoginMode(true); setAccountError(''); setErrors(prev => { const n = { ...prev }; delete n.accountEmail; delete n.password; delete n.confirmPassword; return n }) }}
                 className="text-sm text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
               >
-                J&apos;ai déjà un compte
+                {t('booking.account.switchToLogin')}
               </button>
             </>
           )}
@@ -2250,10 +2248,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                 disabled={loading}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Réessayer
+                {t('booking.retry')}
               </button>
               <span className="text-sm text-red-600">
-                ({retryCount}/2 tentatives)
+                {t('booking.retryAttempts', { count: retryCount })}
               </span>
             </div>
           )}
@@ -2271,10 +2269,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                 disabled={loading}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Réessayer
+                {t('booking.retry')}
               </button>
               <span className="text-sm text-amber-700">
-                ({retryCount}/2 tentatives)
+                {t('booking.retryAttempts', { count: retryCount })}
               </span>
             </div>
           )}
@@ -2304,10 +2302,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Connexion en cours…
+                  {t('booking.account.connecting')}
                 </span>
               ) : (
-                'Se connecter et envoyer'
+                t('booking.account.connectAndSubmit')
               )}
             </button>
           ) : (

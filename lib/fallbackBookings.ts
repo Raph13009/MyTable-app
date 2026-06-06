@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
-import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
+import { generateDecisionToken, hashToken, getBaseUrl, sanitizeBookingNotes } from '@/lib/utils'
+import { insertBookingNotesAsFirstMessage } from '@/lib/bookingConversation'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getServiceTypeLabel } from '@/lib/i18n/constants'
 import { formatDateForDisplay } from '@/lib/dateUtils'
@@ -113,6 +114,7 @@ export async function createNextFallbackBooking(
 
   const normalizedClientEmail = (currentBooking.email || '').toLowerCase().trim()
   const normalizedChefEmail = (nextChef.email || '').toLowerCase().trim()
+  const sanitizedNotes = sanitizeBookingNotes(currentBooking.notes)
 
   await supabase
     .from('participants')
@@ -130,6 +132,13 @@ export async function createNextFallbackBooking(
         user_id: null,
       },
     ] as any)
+
+  await insertBookingNotesAsFirstMessage(
+    supabase,
+    conversation.id,
+    normalizedClientEmail,
+    sanitizedNotes
+  )
 
   const acceptToken = generateDecisionToken()
   const refuseToken = generateDecisionToken()

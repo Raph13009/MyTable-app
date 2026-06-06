@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslation } from '@/hooks/useTranslation'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -22,6 +23,7 @@ function EyeIcon({ open }: { open: boolean }) {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -54,7 +56,7 @@ export default function LoginPage() {
 
       if (setErr || !data.session) {
         console.error('[Login] Hash session error:', setErr?.message)
-        setError('Le lien a expiré ou est invalide.')
+        setError(t('auth.linkExpired'))
         setHashProcessing(false)
         return
       }
@@ -68,7 +70,7 @@ export default function LoginPage() {
     }
 
     handleIncomingHash()
-  }, [supabase, searchParams])
+  }, [supabase, searchParams, t])
 
   // Pré-remplir l'email si présent dans l'URL
   useEffect(() => {
@@ -81,9 +83,9 @@ export default function LoginPage() {
     const urlError = searchParams.get('error')
     const errorDetails = searchParams.get('details')
     if (urlError === 'auth_failed') {
-      setError(errorDetails || 'Erreur lors de la connexion. Veuillez réessayer.')
+      setError(errorDetails || t('auth.authFailed'))
     }
-  }, [searchParams])
+  }, [searchParams, t])
 
   // Si déjà connecté, rediriger
   useEffect(() => {
@@ -133,13 +135,11 @@ export default function LoginPage() {
         console.error('[Login] Sign-in error:', pwError.message)
         const msg = pwError.message?.toLowerCase() || ''
         if (msg.includes('invalid login credentials')) {
-          setError(
-            "Email ou mot de passe incorrect. Si vous n'avez jamais défini de mot de passe, cliquez sur \"Mot de passe oublié\" ci-dessous."
-          )
+          setError(t('auth.invalidCredentials'))
         } else if (msg.includes('email not confirmed')) {
-          setError("Votre email n'est pas encore confirmé.")
+          setError(t('auth.emailNotConfirmed'))
         } else {
-          setError(`Erreur lors de la connexion : ${pwError.message}`)
+          setError(t('auth.loginError', { message: pwError.message }))
         }
         setLoading(false)
         return
@@ -151,11 +151,11 @@ export default function LoginPage() {
         return
       }
 
-      setError("La session n'a pas pu être créée. Réessayez.")
+      setError(t('auth.sessionNotCreated'))
       setLoading(false)
     } catch (err: any) {
       console.error('[Login] Exception:', err)
-      setError(err.message || 'Une erreur est survenue')
+      setError(err.message || t('auth.genericError'))
       setLoading(false)
     }
   }
@@ -166,7 +166,7 @@ export default function LoginPage() {
 
     const normalizedEmail = email.toLowerCase().trim()
     if (!normalizedEmail) {
-      setError("Entrez d'abord votre email pour recevoir le lien.")
+      setError(t('auth.forgotPasswordEnterEmail'))
       return
     }
 
@@ -182,18 +182,16 @@ export default function LoginPage() {
       })
 
       if (resetError) {
-        setError(`Impossible d'envoyer l'email : ${resetError.message}`)
+        setError(t('auth.resetEmailSendError', { message: resetError.message }))
         setLoading(false)
         return
       }
 
       setResetSent(true)
-      setInfo(
-        'Email envoyé ! Cliquez sur le lien reçu pour définir votre mot de passe. Pensez à vérifier vos spams.'
-      )
+      setInfo(t('auth.resetEmailSent'))
       setLoading(false)
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue')
+      setError(err.message || t('auth.genericError'))
       setLoading(false)
     }
   }
@@ -204,22 +202,22 @@ export default function LoginPage() {
         {hashProcessing ? (
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FBCF03] mx-auto mb-4"></div>
-            <h1 className="text-2xl font-bold text-black mb-2">Connexion en cours…</h1>
-            <p className="text-gray-600">Veuillez patienter pendant que nous vous connectons</p>
+            <h1 className="text-2xl font-bold text-black mb-2">{t('auth.hashProcessingTitle')}</h1>
+            <p className="text-gray-600">{t('auth.hashProcessingSubtitle')}</p>
           </div>
         ) : (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-black mb-2">Connexion</h1>
+              <h1 className="text-2xl font-bold text-black mb-2">{t('auth.loginPageTitle')}</h1>
               <p className="text-gray-600 text-sm">
-                Entrez votre email et votre mot de passe pour accéder à votre compte.
+                {t('auth.loginPageSubtitle')}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
+                  {t('auth.email')}
                 </label>
                 <input
                   id="email"
@@ -227,7 +225,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
-                  placeholder="votre@email.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   required
                   disabled={loading}
                   autoComplete="email"
@@ -236,7 +234,7 @@ export default function LoginPage() {
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Mot de passe
+                  {t('auth.password')}
                 </label>
                 <div className="relative">
                   <input
@@ -255,6 +253,7 @@ export default function LoginPage() {
                     onClick={() => setShowPassword(v => !v)}
                     className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
                     tabIndex={-1}
+                    aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
                     <EyeIcon open={showPassword} />
                   </button>
@@ -278,7 +277,7 @@ export default function LoginPage() {
                 disabled={loading || !email.trim() || !password}
                 className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Connexion…' : 'Connexion'}
+                {loading ? t('auth.submitting') : t('auth.login')}
               </button>
 
               <div className="text-center pt-1">
@@ -288,7 +287,7 @@ export default function LoginPage() {
                   disabled={loading || resetSent}
                   className="text-sm text-gray-600 hover:text-black underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Mot de passe oublié / Créer un mot de passe
+                  {t('auth.forgotPassword')}
                 </button>
               </div>
             </form>

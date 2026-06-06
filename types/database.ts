@@ -128,6 +128,8 @@ export interface Database {
           city: string
           postal_code: string
           full_address: string | null
+          event_latitude: number | null
+          event_longitude: number | null
           guests_count: number
           children_count: number
           has_allergies: boolean
@@ -169,6 +171,8 @@ export interface Database {
           city: string
           postal_code: string
           full_address?: string | null
+          event_latitude?: number | null
+          event_longitude?: number | null
           guests_count: number
           children_count?: number
           has_allergies?: boolean
@@ -210,6 +214,8 @@ export interface Database {
           city?: string
           postal_code?: string
           full_address?: string | null
+          event_latitude?: number | null
+          event_longitude?: number | null
           guests_count?: number
           has_allergies?: boolean
           allergies_details?: string | null

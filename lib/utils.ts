@@ -133,6 +133,12 @@ export function sanitizeMessage(value: string): string {
   return maskedPhones.trim().slice(0, 4000)
 }
 
+export function sanitizeBookingNotes(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? "").trim()
+  if (!trimmed) return null
+  return sanitizeMessage(trimmed)
+}
+
 export async function verifyToken(rawToken: string, expectedHash: string): Promise<boolean> {
   if (!rawToken || !expectedHash) return false
 
