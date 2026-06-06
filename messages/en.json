@@ -37,6 +37,7 @@
     "viewChef": "View {{name}}",
     "fallbackChefName": "Chef",
     "outOfRange": "Out of range",
+    "selectedOnMap": "On the map",
     "noChefInArea": "No chef in this area",
     "overCount": "Over {{count}} {{label}}",
     "chefsAvailableInZone": "{{count}} chefs available in this area",

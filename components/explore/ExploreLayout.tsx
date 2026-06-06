@@ -125,6 +125,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   const searchAbortRef = useRef<AbortController | null>(null)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mobileSheetScrollRef = useRef<HTMLDivElement | null>(null)
+  const desktopListScrollRef = useRef<HTMLDivElement | null>(null)
   const sheetDragRef = useRef<{ startY: number; startTranslate: number; hasMoved: boolean } | null>(null)
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const [mobileSheetSnap, setMobileSheetSnap] = useState<'bottom' | 'mid' | 'full'>('bottom')
@@ -193,6 +194,14 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     return [pinned, ...rest]
   }, [isMobile, embedded, pinnedChefId, orderedVisibleChefs])
 
+  const desktopListChefs = useMemo(() => {
+    if (!pinnedChefId) return orderedVisibleChefs
+    const pinned = orderedVisibleChefs.find((c) => c.id === pinnedChefId)
+    if (!pinned) return orderedVisibleChefs
+    const rest = orderedVisibleChefs.filter((c) => c.id !== pinnedChefId)
+    return [pinned, ...rest]
+  }, [pinnedChefId, orderedVisibleChefs])
+
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow
     const previousHtmlOverflow = document.documentElement.style.overflow
@@ -224,6 +233,11 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     if (!isMobile) return
     setViewMode('map')
   }, [isMobile])
+
+  useEffect(() => {
+    if (isMobile || viewMode !== 'list' || !pinnedChefId) return
+    desktopListScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [pinnedChefId, viewMode, isMobile])
 
   useEffect(() => {
     setFocusedRegionSlug(initialFocusedRegionSlug)
@@ -813,18 +827,19 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 }`}
               >
                 <div
+                  ref={desktopListScrollRef}
                   className={`explore-scroll explore-scroll--hidden h-full overflow-y-auto px-4 pb-10 pt-5 sm:px-6 lg:px-8 ${
                     viewMode === 'map' ? 'invisible' : 'visible'
                   }`}
                 >
                   <ChefList
-                    chefs={orderedVisibleChefs}
+                    chefs={desktopListChefs}
                     onChefHover={handleChefHover}
                     highlightedChefId={selectedChefId}
                     outOfRangeChefIds={outOfRangeChefIdsSet}
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
-                    forceMobileCardStyle
+                    horizontal
                     breakOutOfIframe={embedded}
                   />
                 </div>
