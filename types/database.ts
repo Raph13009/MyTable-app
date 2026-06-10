@@ -122,9 +122,14 @@ export interface Database {
           email: string
           phone: string
           booking_date: string | null
+          is_date_flexible: boolean
+          alternative_dates: Json | null
+          confirmed_date: string | null
           city: string
           postal_code: string
           full_address: string | null
+          event_latitude: number | null
+          event_longitude: number | null
           guests_count: number
           children_count: number
           has_allergies: boolean
@@ -160,9 +165,14 @@ export interface Database {
           email: string
           phone: string
           booking_date?: string | null
+          is_date_flexible?: boolean
+          alternative_dates?: Json | null
+          confirmed_date?: string | null
           city: string
           postal_code: string
           full_address?: string | null
+          event_latitude?: number | null
+          event_longitude?: number | null
           guests_count: number
           children_count?: number
           has_allergies?: boolean
@@ -198,9 +208,14 @@ export interface Database {
           email?: string
           phone?: string
           booking_date?: string | null
+          is_date_flexible?: boolean
+          alternative_dates?: Json | null
+          confirmed_date?: string | null
           city?: string
           postal_code?: string
           full_address?: string | null
+          event_latitude?: number | null
+          event_longitude?: number | null
           guests_count?: number
           has_allergies?: boolean
           allergies_details?: string | null

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslation } from '@/hooks/useTranslation'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -22,6 +23,7 @@ function EyeIcon({ open }: { open: boolean }) {
 export default function ResetPasswordPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useTranslation()
   const supabase = createClient()
 
   const [password, setPassword] = useState('')
@@ -55,7 +57,7 @@ export default function ResetPasswordPage() {
           })
           if (setErr) {
             console.error('[ResetPassword] setSession error:', setErr.message)
-            setError('Le lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.')
+            setError(t('auth.resetPasswordLinkInvalid'))
             setCheckingSession(false)
             return
           }
@@ -66,7 +68,7 @@ export default function ResetPasswordPage() {
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        setError('Lien expiré ou invalide. Retournez sur la page de connexion pour en demander un nouveau.')
+        setError(t('auth.resetPasswordLinkExpired'))
         setCheckingSession(false)
         return
       }
@@ -77,18 +79,18 @@ export default function ResetPasswordPage() {
     }
 
     checkSession()
-  }, [supabase])
+  }, [supabase, t])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères.')
+      setError(t('auth.resetPasswordMinLength'))
       return
     }
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas.')
+      setError(t('auth.resetPasswordMismatch'))
       return
     }
 
@@ -97,7 +99,7 @@ export default function ResetPasswordPage() {
 
     if (updateError) {
       console.error('[ResetPassword] updateUser error:', updateError.message)
-      setError(`Erreur : ${updateError.message}`)
+      setError(t('auth.resetPasswordUpdateError', { message: updateError.message }))
       setLoading(false)
       return
     }
@@ -116,19 +118,19 @@ export default function ResetPasswordPage() {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-black mb-2">
-            Définir mon mot de passe
+            {t('auth.resetPasswordTitle')}
           </h1>
           <p className="text-gray-600 text-sm">
             {userEmail
-              ? `Choisissez un mot de passe pour ${userEmail}.`
-              : 'Choisissez un mot de passe pour votre compte.'}
+              ? t('auth.resetPasswordSubtitleWithEmail', { email: userEmail })
+              : t('auth.resetPasswordSubtitle')}
           </p>
         </div>
 
         {checkingSession ? (
           <div className="text-center py-6">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FBCF03] mx-auto mb-3"></div>
-            <p className="text-gray-600 text-sm">Vérification du lien…</p>
+            <p className="text-gray-600 text-sm">{t('auth.resetPasswordCheckingLink')}</p>
           </div>
         ) : !hasSession ? (
           <>
@@ -142,23 +144,23 @@ export default function ResetPasswordPage() {
               onClick={() => router.push('/login')}
               className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors"
             >
-              Retour à la connexion
+              {t('auth.resetPasswordBackToLogin')}
             </button>
           </>
         ) : success ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <p className="text-sm font-medium text-green-700 mb-1">
-              ✓ Mot de passe enregistré !
+              ✓ {t('auth.resetPasswordSuccessTitle')}
             </p>
             <p className="text-xs text-green-600">
-              Redirection en cours…
+              {t('auth.resetPasswordSuccessRedirect')}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Nouveau mot de passe
+                {t('auth.resetPasswordNewPassword')}
               </label>
               <div className="relative">
                 <input
@@ -167,7 +169,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
-                  placeholder="Au moins 8 caractères"
+                  placeholder={t('auth.resetPasswordPlaceholder')}
                   required
                   minLength={8}
                   disabled={loading}
@@ -178,6 +180,7 @@ export default function ResetPasswordPage() {
                   onClick={() => setShowPassword(v => !v)}
                   className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
+                  aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                 >
                   <EyeIcon open={showPassword} />
                 </button>
@@ -186,7 +189,7 @@ export default function ResetPasswordPage() {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirmer le mot de passe
+                {t('auth.resetPasswordConfirmPassword')}
               </label>
               <div className="relative">
                 <input
@@ -195,7 +198,7 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FBCF03] focus:border-transparent outline-none"
-                  placeholder="Retapez le mot de passe"
+                  placeholder={t('auth.resetPasswordConfirmPlaceholder')}
                   required
                   minLength={8}
                   disabled={loading}
@@ -206,6 +209,7 @@ export default function ResetPasswordPage() {
                   onClick={() => setShowConfirm(v => !v)}
                   className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
+                  aria-label={showConfirm ? t('auth.hidePassword') : t('auth.showPassword')}
                 >
                   <EyeIcon open={showConfirm} />
                 </button>
@@ -223,7 +227,7 @@ export default function ResetPasswordPage() {
               disabled={loading || !password || !confirmPassword}
               className="w-full bg-[#FBCF03] text-black font-semibold py-2.5 rounded-lg hover:bg-[#E6BA00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Enregistrement…' : 'Enregistrer mon mot de passe'}
+              {loading ? t('auth.resetPasswordSaving') : t('auth.resetPasswordSaveButton')}
             </button>
           </form>
         )}

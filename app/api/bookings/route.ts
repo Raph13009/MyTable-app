@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { generateDecisionToken, hashToken, getBaseUrl } from '@/lib/utils'
+import { generateDecisionToken, hashToken, getBaseUrl, sanitizeBookingNotes } from '@/lib/utils'
+import { insertBookingNotesAsFirstMessage } from '@/lib/bookingConversation'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
 import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
+import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -65,6 +67,8 @@ export async function POST(request: NextRequest) {
       phone,
       serviceType,
       bookingDate,
+      isDateFlexible: isDateFlexibleRaw,
+      alternativeDates: alternativeDatesRaw,
       mealTime,
       city: cityRaw,
       postalCode: postalCodeRaw,
@@ -96,6 +100,7 @@ export async function POST(request: NextRequest) {
 
     // L'email utilisé pour la réservation : priorité à la session, sinon le body
     const email = (sessionUser?.email ?? emailFromBody ?? '').toLowerCase().trim()
+    const sanitizedNotes = sanitizeBookingNotes(notes)
     const addrNorm = normalizeBookingAddressForDb({
       city: cityRaw,
       postalCode: postalCodeRaw,
@@ -117,6 +122,23 @@ export async function POST(request: NextRequest) {
     const postalCode = addrNorm.postalCode
     const fullAddress = addrNorm.fullAddress
 
+    let eventLatitude = parseClientCoord(clientLatitudeRaw)
+    let eventLongitude = parseClientCoord(clientLongitudeRaw)
+    if (
+      (eventLatitude === null || eventLongitude === null) &&
+      (fullAddress || (city && postalCode))
+    ) {
+      const geocoded = await geocodeBookingAddress({
+        fullAddress,
+        city,
+        postalCode,
+      })
+      if (geocoded) {
+        eventLatitude = geocoded.latitude
+        eventLongitude = geocoded.longitude
+      }
+    }
+
     const firstNameTrim = typeof firstName === 'string' ? firstName.trim() : ''
     const lastNameTrim = typeof lastName === 'string' ? lastName.trim() : ''
     const clientDisplayName = [firstNameTrim, lastNameTrim].filter(Boolean).join(' ').trim()
@@ -127,6 +149,19 @@ export async function POST(request: NextRequest) {
     const normalizedHomeChefPricePerPerson = serviceType === 'mise_en_demeure'
       ? normalizeBudgetSelection(totalPrice, 'mise_en_demeure')
       : null
+
+    // Flexibilité de date : uniquement pour repas à domicile et cours de cuisine.
+    // On ne garde que des dates valides (YYYY-MM-DD), distinctes de la date principale, max 3.
+    const supportsDateFlexibility =
+      serviceType === 'repas_domicile' || serviceType === 'cours_cuisine'
+    const isDateFlexible = supportsDateFlexibility && Boolean(isDateFlexibleRaw)
+    const alternativeDates: string[] = isDateFlexible && Array.isArray(alternativeDatesRaw)
+      ? [...new Set(
+          alternativeDatesRaw
+            .filter((d: unknown): d is string => typeof d === 'string' && isValidDateString(d))
+            .filter((d: string) => d !== bookingDate)
+        )].slice(0, 3)
+      : []
 
     console.log(`[bookings:${requestId}] Request data:`, {
       chefId,
@@ -499,7 +534,7 @@ export async function POST(request: NextRequest) {
         p_has_allergies: hasAllergies || false,
         p_allergies_details: hasAllergies ? allergiesDetails : null,
         p_menu_id: menuId || null,
-        p_notes: notes || null,
+        p_notes: sanitizedNotes,
         p_status: 'pending'
       })
       bookingRequest = data
@@ -517,10 +552,14 @@ export async function POST(request: NextRequest) {
           phone,
           service_type: serviceType,
           booking_date: bookingDate || null,
+          is_date_flexible: isDateFlexible,
+          alternative_dates: alternativeDates,
           meal_time: mealTime || null,
           city,
           postal_code: postalCode,
           full_address: fullAddress || null,
+          event_latitude: eventLatitude,
+          event_longitude: eventLongitude,
           guests_count: parseInt(guestsCount),
           children_count: parseInt(childrenCount) || 0,
           period_days: periodDays || null,
@@ -532,7 +571,7 @@ export async function POST(request: NextRequest) {
           has_allergies: hasAllergies || false,
           allergies_details: hasAllergies ? allergiesDetails : null,
           menu_id: menuId || null,
-          notes: notes || null,
+          notes: sanitizedNotes,
           request_sent_at: new Date().toISOString(),
           fallback_enabled: fallbackEnabled,
           fallback_next_chef_ids: validFallbackChefIds,
@@ -572,6 +611,8 @@ export async function POST(request: NextRequest) {
       .from('booking_requests') as any)
       .update({
         request_sent_at: new Date().toISOString(),
+        event_latitude: eventLatitude,
+        event_longitude: eventLongitude,
         fallback_enabled: fallbackEnabled,
         fallback_next_chef_ids: validFallbackChefIds,
         fallback_group_id: fallbackEnabled ? bookingRequestId : null,
@@ -724,6 +765,8 @@ export async function POST(request: NextRequest) {
     console.log('[bookings] Verification query - error:', verifyError)
     console.log('[bookings] ========== PARTICIPANTS CREATION DONE ==========')
 
+    await insertBookingNotesAsFirstMessage(supabase, conversationId, email, sanitizedNotes)
+
     // Générer les tokens pour accept/refuse
     const acceptToken = generateDecisionToken()
     const refuseToken = generateDecisionToken()
@@ -776,8 +819,14 @@ export async function POST(request: NextRequest) {
       childrenCount: parseInt(childrenCount) || 0,
       hasAllergies,
       allergiesDetails: allergiesDetails || '',
-      notes: notes || '',
+      notes: sanitizedNotes || '',
     }
+
+    // Flexibilité de date (repas_domicile / cours_cuisine) pour l'email chef
+    bookingDetails.isDateFlexible = isDateFlexible
+    bookingDetails.alternativeDates = isDateFlexible
+      ? alternativeDates.map((d) => formatDateForDisplay(d, 'fr-FR'))
+      : []
 
     // Ajouter les champs spécifiques selon le type de service
     if (serviceType === 'repas_domicile') {

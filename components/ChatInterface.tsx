@@ -141,8 +141,16 @@ export default function ChatInterface({
     content: sanitizeMessage(msg.content || '')
   }))
   const [messages, setMessages] = useState<Message[]>(sanitizedInitialMessages)
+  const sanitizedBookingNotes = bookingRequest?.notes
+    ? sanitizeMessage(bookingRequest.notes)
+    : null
+  const showBookingNotesInSidebar = Boolean(
+    sanitizedBookingNotes &&
+    !messages.some((m) => m.content === sanitizedBookingNotes)
+  )
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [decisionLoading, setDecisionLoading] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [duplicateMessages, setDuplicateMessages] = useState<Set<string>>(new Set())
   const [isInitializing, setIsInitializing] = useState(true)
@@ -177,6 +185,7 @@ export default function ChatInterface({
   const [bookingStatus, setBookingStatus] = useState<string | null>(bookingRequest?.status || null)
   const [processingAction, setProcessingAction] = useState(false)
   const [showFinalizeModal, setShowFinalizeModal] = useState(false)
+  const [confirmedDate, setConfirmedDate] = useState<string>(bookingRequest?.booking_date || '')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [guestsCount, setGuestsCount] = useState(bookingRequest?.guests_count || 1)
@@ -408,6 +417,9 @@ export default function ChatInterface({
     if (bookingStatus === 'refused') {
       return
     }
+    if (getCurrentUserRole() === 'chef' && bookingStatus === 'pending') {
+      return
+    }
 
     const rawContent = newMessage.trim()
     const sanitizedContent = sanitizeMessage(rawContent)
@@ -572,7 +584,43 @@ export default function ChatInterface({
 
   const isChef = currentUserRole === 'chef'
   const isClient = currentUserRole === 'client'
+  const chefMustRespondToRequest = isChef && bookingStatus === 'pending'
   const isReplacementBooking = Boolean((bookingRequest as any)?.fallback_previous_booking_id)
+
+  const handleChefDecision = async (action: 'accept' | 'refuse') => {
+    if (!bookingRequest?.id || decisionLoading) return
+
+    const confirmed =
+      action === 'accept' ||
+      window.confirm('Refuser cette demande ? Le client sera notifié.')
+    if (!confirmed) return
+
+    setDecisionLoading(true)
+    try {
+      const response = await fetch('/api/booking-decision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingRequestId: bookingRequest.id,
+          action,
+        }),
+      })
+
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(body?.error || 'Erreur lors du traitement de la demande')
+      }
+
+      setBookingStatus(body.status)
+      if (bookingRequest) {
+        (bookingRequest as any).status = body.status
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Erreur lors du traitement de la demande')
+    } finally {
+      setDecisionLoading(false)
+    }
+  }
   
   console.log('[ChatInterface] Role check:', {
     currentUserRole,
@@ -1083,6 +1131,8 @@ export default function ChatInterface({
       bookingRequestId: bookingRequest.id,
       serviceType: bookingRequest?.service_type,
     })
+    // Réinitialiser la date confirmée sur la date principale à chaque ouverture
+    setConfirmedDate(bookingRequest?.confirmed_date || bookingRequest?.booking_date || '')
     setShowFinalizeModal(true)
   }
 
@@ -1092,11 +1142,23 @@ export default function ChatInterface({
       return
     }
 
+    const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
+
+    // Si le client était flexible, une date finale doit être sélectionnée (hors mise_en_demeure)
+    const needsDateConfirmation =
+      !isMiseEnDemeure &&
+      Boolean(bookingRequest?.is_date_flexible) &&
+      Array.isArray(bookingRequest?.alternative_dates) &&
+      bookingRequest.alternative_dates.length > 0
+    if (needsDateConfirmation && !confirmedDate) {
+      alert('Veuillez sélectionner la date finale retenue.')
+      return
+    }
+
     setProcessingAction(true)
     setShowFinalizeModal(false)
-    
+
     try {
-      const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
       const endpoint = isMiseEnDemeure
         ? '/api/booking-finalize-clicked'
         : '/api/booking-validate'
@@ -1108,6 +1170,7 @@ export default function ChatInterface({
         },
         body: JSON.stringify({
           bookingRequestId: bookingRequest.id,
+          ...(isMiseEnDemeure ? {} : { confirmedDate: confirmedDate || null }),
         }),
       })
 
@@ -1795,8 +1858,35 @@ export default function ChatInterface({
         </div>
       </div>
 
+      {/* Chef : décision requise avant d'écrire au client */}
+      {!isBookingCancelled && !isBookingRefused && !isAdmin && chefMustRespondToRequest && (
+        <div className="flex-shrink-0 bg-amber-50/60 border-t border-amber-100/80 px-4 sm:px-6 py-3.5 pb-safe">
+          <p className="text-xs text-amber-900/80 text-center mb-2.5">
+            {t('chat.chefPendingDecisionHint')}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleChefDecision('accept')}
+              disabled={decisionLoading}
+              className="px-4 py-2 rounded-full bg-[#FBCF03] text-black text-sm font-medium hover:bg-[#FBCF03]/90 disabled:opacity-50 transition-colors"
+            >
+              {t('chat.acceptRequest')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleChefDecision('refuse')}
+              disabled={decisionLoading}
+              className="px-4 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {t('chat.refuseRequest')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input - Style moderne premium (désactivé si réservation annulée/refusée ou si admin) */}
-      {!isBookingCancelled && !isBookingRefused && !isAdmin && (
+      {!isBookingCancelled && !isBookingRefused && !isAdmin && !chefMustRespondToRequest && (
       <div className="flex-shrink-0 bg-white border-t border-gray-300/50 pb-safe">
         <form onSubmit={(e) => {
           e.preventDefault()
@@ -2212,10 +2302,10 @@ export default function ChatInterface({
                         <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.allergies_details}</p>
                       </div>
                     )}
-                    {bookingRequest.notes && (
+                    {showBookingNotesInSidebar && (
                       <div className="pt-2.5 border-t border-gray-300">
                         <p className="text-xs text-gray-500 mb-0.5">{t('booking.notes')}</p>
-                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{bookingRequest.notes}</p>
+                        <p className="text-sm text-black leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">{sanitizedBookingNotes}</p>
                       </div>
                     )}
                   </div>
@@ -2527,11 +2617,11 @@ export default function ChatInterface({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Date</span>
                     <span className="font-medium text-black">
-                      {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
-                        day: 'numeric', 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
+                      {formatDateForDisplay(
+                        (bookingRequest.is_date_flexible && confirmedDate) ? confirmedDate : bookingRequest.booking_date,
+                        locale === 'en' ? 'en-US' : 'fr-FR',
+                        { day: 'numeric', month: 'long', year: 'numeric' }
+                      )}
                     </span>
                   </div>
                   {bookingRequest.meal_time && (
@@ -2569,8 +2659,56 @@ export default function ChatInterface({
                 </div>
               )}
 
+              {/* Choix de la date finale si le client était flexible */}
+              {bookingRequest?.service_type !== 'mise_en_demeure' &&
+                bookingRequest?.is_date_flexible &&
+                Array.isArray(bookingRequest?.alternative_dates) &&
+                bookingRequest.alternative_dates.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-black mb-1">
+                    {t('booking.finalizeChooseDateTitle')}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {t('booking.finalizeChooseDateHint')}
+                  </p>
+                  <div className="space-y-2">
+                    {[bookingRequest.booking_date, ...bookingRequest.alternative_dates]
+                      .filter((d: string | null): d is string => Boolean(d))
+                      .map((dateStr: string) => {
+                        const isSelected = confirmedDate === dateStr
+                        return (
+                          <button
+                            key={dateStr}
+                            type="button"
+                            onClick={() => setConfirmedDate(dateStr)}
+                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm transition-colors ${
+                              isSelected
+                                ? 'border-[#FBCF03] bg-[#FBCF03]/10 font-semibold text-black'
+                                : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                            }`}
+                          >
+                            <span>
+                              {formatDateForDisplay(dateStr, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            {isSelected && (
+                              <svg className="w-5 h-5 text-[#FBCF03]" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm text-gray-600 mb-6">
-                {bookingRequest?.service_type === 'mise_en_demeure' 
+                {bookingRequest?.service_type === 'mise_en_demeure'
                   ? 'En confirmant, vous indiquez que vous êtes prêt à finaliser votre réservation. Un lien de paiement vous sera envoyé par email dans les prochaines 24 heures.'
                   : 'En confirmant, vous validez cette réservation. Un lien de paiement vous sera envoyé dans les 24 heures.'}
               </p>

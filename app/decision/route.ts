@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { createNextFallbackBooking, expireOtherPendingInFallbackGroup } from '@/lib/fallbackBookings'
+import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
 
 
 export const dynamic = 'force-dynamic'
@@ -115,19 +116,14 @@ export async function GET(request: NextRequest) {
 
       // Extraire le prénom du chef (premier mot du nom)
       const chefFirstName = chef ? ((chef as any).name?.split(' ')[0] || (chef as any).name) : 'Chef'
-      const clientFirstName = bookingRequest.first_name || ''
 
       if (!fallbackDispatched) {
-        // Envoyer email au client uniquement si aucun chef fallback n'a été contacté
-        await sendEmail({
-          to: bookingRequest.email,
-          subject: emailSubjects.bookingRefusedToClient,
-          html: emailTemplates.bookingRefusedToClient(
-            clientFirstName,
-            chefFirstName,
-            baseUrl
-          ),
-        })
+        await sendBookingRefusedClientEmail(
+          supabase as any,
+          bookingRequest,
+          chefFirstName,
+          baseUrl
+        )
       }
 
       // Rediriger vers une page de confirmation explicite

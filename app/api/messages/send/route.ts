@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Vérifier que l'utilisateur fait partie de la conversation
     const { data: participants, error: participantsError } = await supabaseAdmin
       .from('participants')
-      .select('email')
+      .select('email, role')
       .eq('conversation_id', conversationId)
 
     if (participantsError || !participants) {
@@ -54,8 +54,19 @@ export async function POST(request: NextRequest) {
         .eq('id', bookingRequestId)
         .maybeSingle()
 
-      if ((bookingRequest as any)?.status === 'refused') {
+      const bookingStatus = (bookingRequest as any)?.status
+      if (bookingStatus === 'refused') {
         return NextResponse.json({ error: 'Mission refusée: envoi de message désactivé' }, { status: 403 })
+      }
+
+      const senderParticipant = participants.find(
+        (p: any) => (p.email || '').toLowerCase().trim() === senderEmail
+      )
+      if ((senderParticipant as any)?.role === 'chef' && bookingStatus === 'pending') {
+        return NextResponse.json(
+          { error: 'Acceptez ou refusez la demande avant d\'écrire au client' },
+          { status: 403 }
+        )
       }
     }
 
