@@ -37,6 +37,7 @@
     "viewChef": "Voir {{name}}",
     "fallbackChefName": "Chef",
     "outOfRange": "Hors zone",
+    "selectedOnMap": "Sur la carte",
     "noChefInArea": "Aucun chef dans cette zone",
     "overCount": "Plus de {{count}} {{label}}",
     "chefsAvailableInZone": "{{count}} Chefs disponibles dans cette zone",

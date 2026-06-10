@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Next.js dev server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "name": "Next.js dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npm install && npm run dev"],
       "port": 3000
     }
   ]
