@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       const senderParticipant = participants.find(
         (p: any) => (p.email || '').toLowerCase().trim() === senderEmail
       )
-      if (senderParticipant?.role === 'chef' && bookingStatus === 'pending') {
+      if ((senderParticipant as any)?.role === 'chef' && bookingStatus === 'pending') {
         return NextResponse.json(
           { error: 'Acceptez ou refusez la demande avant d\'écrire au client' },
           { status: 403 }

@@ -61,10 +61,12 @@ export async function POST(request: NextRequest) {
     const isDateFlexible = Boolean((bookingRequest as any).is_date_flexible)
 
     let effectiveBookingDate = originalBookingDate
-    if (typeof confirmedDateRaw === 'string' && isValidDateString(confirmedDateRaw)) {
+    // Seule une réservation flexible permet au client de choisir une date parmi
+    // celles proposées. Hors flexibilité, on ignore toute date envoyée par le client
+    // pour qu'il ne puisse pas réécrire la date convenue avec le chef.
+    if (isDateFlexible && typeof confirmedDateRaw === 'string' && isValidDateString(confirmedDateRaw)) {
       const allowedDates = [originalBookingDate, ...altDates].filter(Boolean) as string[]
-      // En flexible, n'autoriser que les dates proposées ; sinon ignorer une date non sollicitée
-      if (isDateFlexible && allowedDates.length > 0 && !allowedDates.includes(confirmedDateRaw)) {
+      if (allowedDates.length > 0 && !allowedDates.includes(confirmedDateRaw)) {
         return NextResponse.json({
           error: 'La date confirmée doit faire partie des dates proposées',
         }, { status: 400 })
