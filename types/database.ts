@@ -152,6 +152,10 @@ export interface Database {
           fallback_group_id: string | null
           fallback_timeout_at: string | null
           fallback_previous_booking_id: string | null
+          chef_whatsapp_notified_at: string | null
+          chef_whatsapp_notification_status: 'sending' | 'sent' | 'failed' | 'skipped' | null
+          chef_whatsapp_message_id: string | null
+          chef_whatsapp_last_error: string | null
           status: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
@@ -195,6 +199,10 @@ export interface Database {
           fallback_group_id?: string | null
           fallback_timeout_at?: string | null
           fallback_previous_booking_id?: string | null
+          chef_whatsapp_notified_at?: string | null
+          chef_whatsapp_notification_status?: 'sending' | 'sent' | 'failed' | 'skipped' | null
+          chef_whatsapp_message_id?: string | null
+          chef_whatsapp_last_error?: string | null
           status?: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
@@ -237,6 +245,10 @@ export interface Database {
           fallback_group_id?: string | null
           fallback_timeout_at?: string | null
           fallback_previous_booking_id?: string | null
+          chef_whatsapp_notified_at?: string | null
+          chef_whatsapp_notification_status?: 'sending' | 'sent' | 'failed' | 'skipped' | null
+          chef_whatsapp_message_id?: string | null
+          chef_whatsapp_last_error?: string | null
           status?: 'pending' | 'accepted' | 'refused' | 'expired' | 'validated_by_client' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string

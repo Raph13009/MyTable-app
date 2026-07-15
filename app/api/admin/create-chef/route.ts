@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { ensureUniqueChefSlug } from '@/lib/chef-slug'
+import { normalizeChefPhoneForStorage } from '@/lib/chefPhone'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
 
@@ -154,6 +155,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let normalizedPhone: string | null = null
+    if (typeof phone === 'string' && phone.trim()) {
+      const phoneResult = normalizeChefPhoneForStorage(phone)
+      if (!phoneResult.valid || !phoneResult.normalized) {
+        return NextResponse.json({ error: phoneResult.error || 'Numéro de téléphone invalide' }, { status: 400 })
+      }
+      normalizedPhone = phoneResult.normalized
+    }
+
     const uniqueSlug = await ensureUniqueChefSlug(supabaseAdmin, slug)
 
     // Créer le chef
@@ -165,7 +175,7 @@ export async function POST(request: NextRequest) {
         name,
         last_name: normalizedLastName || null,
         email: normalizedEmail,
-        phone: phone || null,
+        phone: normalizedPhone,
         address: normalizedAddress || null,
         latitude: normalizedLatitude,
         longitude: normalizedLongitude,

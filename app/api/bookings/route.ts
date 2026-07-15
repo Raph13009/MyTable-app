@@ -9,6 +9,7 @@ import { calculateBookingTotal } from '@/lib/bookingCalculations'
 import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
+import { notifyChefNewBookingWhatsApp } from '@/lib/whatsapp'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -895,6 +896,20 @@ export async function POST(request: NextRequest) {
         { showFallbackPriority: fallbackEnabled }
       ),
     })
+
+    // WhatsApp chef notification (gated by WHATSAPP_BOOKING_NOTIFICATIONS_ENABLED; never blocks booking)
+    try {
+      await notifyChefNewBookingWhatsApp({
+        supabase,
+        chefPhone: (chef as any).phone,
+        chefName: (chef as any).name,
+        bookingDetails,
+        bookingRequestId,
+        logContext: `[bookings:${requestId}]`,
+      })
+    } catch (whatsappError) {
+      console.error(`[bookings:${requestId}] WhatsApp notification error (booking unaffected):`, whatsappError)
+    }
 
     // Email simple à l'admin (contact) pour chaque nouvelle réservation
     await sendEmail({
