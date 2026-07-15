@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Mission refusée: envoi de message désactivé' }, { status: 403 })
       }
 
-      const senderParticipant = participants.find(
-        (p: any) => (p.email || '').toLowerCase().trim() === senderEmail
+      const senderParticipant = (participants as Array<{ email?: string; role?: string }>).find(
+        (p) => (p.email || '').toLowerCase().trim() === senderEmail
       )
       if ((senderParticipant as any)?.role === 'chef' && bookingStatus === 'pending') {
         return NextResponse.json(

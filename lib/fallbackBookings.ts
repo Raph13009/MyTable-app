@@ -5,6 +5,7 @@ import { insertBookingNotesAsFirstMessage } from '@/lib/bookingConversation'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getServiceTypeLabel } from '@/lib/i18n/constants'
 import { formatDateForDisplay } from '@/lib/dateUtils'
+import { notifyChefFallbackBookingWhatsApp } from '@/lib/whatsapp'
 
 type AdminClient = SupabaseClient<Database>
 
@@ -32,7 +33,7 @@ export async function createNextFallbackBooking(
     const candidateChefId = queue[index]
     const { data: candidate } = await (supabase
       .from('chefs') as any)
-      .select('id, name, email, city, profile_picture')
+      .select('id, name, email, phone, city, profile_picture')
       .eq('id', candidateChefId)
       .single()
 
@@ -260,6 +261,20 @@ export async function createNextFallbackBooking(
       baseUrl
     ),
   })
+
+  // WhatsApp chef notification (gated by WHATSAPP_BOOKING_NOTIFICATIONS_ENABLED; never blocks booking)
+  try {
+    await notifyChefFallbackBookingWhatsApp({
+      supabase,
+      chefPhone: nextChef.phone,
+      chefName: nextChef.name,
+      bookingDetails,
+      bookingRequestId: newBooking.id,
+      logContext: `[fallback:${trigger}]`,
+    })
+  } catch (whatsappError) {
+    console.error('[fallback] WhatsApp notification error (booking unaffected):', whatsappError)
+  }
 
   console.log('[fallback] Created next booking', {
     trigger,
