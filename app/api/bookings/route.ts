@@ -11,6 +11,7 @@ import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } fro
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
 import { notifyChefNewBookingWhatsApp } from '@/lib/whatsapp'
+import { requireBookingSession } from '@/lib/bookingAuth'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       chefId,
       firstName,
       lastName,
-      email: emailFromBody,
+      email: _emailFromBody,
       phone,
       serviceType,
       bookingDate,
@@ -93,15 +94,22 @@ export async function POST(request: NextRequest) {
       clientLatitude: clientLatitudeRaw,
       clientLongitude: clientLongitudeRaw,
       idempotencyToken,
-      password: passwordFromBody,
     } = body
 
-    // Lire la session depuis les cookies (utilisateur déjà connecté)
+    // Auth required BEFORE any booking / conversation / participant / notification side effects
     const serverClient = await createClient()
     const { data: { user: sessionUser } } = await serverClient.auth.getUser()
+    const auth = requireBookingSession(sessionUser)
+    if (!auth.ok) {
+      console.warn(`[bookings:${requestId}] Unauthorized booking attempt`)
+      return NextResponse.json(
+        { error: auth.error, message: auth.message },
+        { status: auth.status }
+      )
+    }
 
-    // L'email utilisé pour la réservation : priorité à la session, sinon le body
-    const email = (sessionUser?.email ?? emailFromBody ?? '').toLowerCase().trim()
+    // Email comes from the authenticated session only (never trust body email alone)
+    const email = auth.email
     const sanitizedNotes = sanitizeBookingNotes(notes)
     const addrNorm = normalizeBookingAddressForDb({
       city: cityRaw,
@@ -622,37 +630,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', bookingRequestId)
 
-    // Créer ou récupérer l'utilisateur auth pour le CLIENT
-    let clientUserId: string | null = null
-    try {
-      if (sessionUser) {
-        // Utilisateur déjà connecté : utiliser son ID existant
-        clientUserId = sessionUser.id
-      } else {
-        // Créer un nouveau compte avec mot de passe si fourni
-        const createPayload: any = {
-          email,
-          email_confirm: true, // pas d'email de confirmation
-        }
-        if (passwordFromBody && typeof passwordFromBody === 'string' && passwordFromBody.length >= 8) {
-          createPayload.password = passwordFromBody
-        }
-
-        const { data: newClientUser, error: createClientError } = await supabase.auth.admin.createUser(createPayload)
-
-        if (createClientError) {
-          if (createClientError.message.includes('already registered') || createClientError.message.includes('already exists')) {
-            // Email déjà utilisé → renvoyer une erreur explicite au client
-            return NextResponse.json({ error: 'email_exists', message: 'Un compte existe déjà avec cet email.' }, { status: 409 })
-          }
-          console.error('Error creating client user:', createClientError)
-        } else if (newClientUser?.user) {
-          clientUserId = newClientUser.user.id
-        }
-      }
-    } catch (error) {
-      console.error('Error checking/creating client user:', error)
-    }
+    // Client is always authenticated at this point
+    const clientUserId = auth.userId
 
     // Pour le chef, récupérer son user_id existant (les chefs sont créés séparément)
     let chefUserId: string | null = null
