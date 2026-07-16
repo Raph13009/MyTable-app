@@ -17,6 +17,7 @@ import {
   isValidBookingDate 
 } from '@/lib/dateUtils'
 import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
+import { createInFlightGuard } from '@/lib/submitGuard'
 import { trackEvent } from '@/lib/analytics/track'
 import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
 import { resolveBookingAddress } from '@/lib/bookingAddress'
@@ -229,6 +230,8 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   const nearbyFetchAbortRef = useRef<AbortController | null>(null)
   const step1AdvanceTimeoutRef = useRef<number | null>(null)
   const step1AdvanceGenRef = useRef(0)
+  const submitGuardRef = useRef(createInFlightGuard())
+  const idempotencyTokenRef = useRef<string | null>(null)
   const [resolvedNearbyChefs, setResolvedNearbyChefs] = useState<NearbyChef[]>([])
   const [nearbyChefsLoading, setNearbyChefsLoading] = useState(false)
   const [clientMapCoords, setClientMapCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -291,6 +294,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     setAcceptedTerms(false)
     setErrors({})
     setLoading(false)
+    submitGuardRef.current.finish()
+    idempotencyTokenRef.current = null
+    setIdempotencyToken(null)
     setFormData({
       fullName: '',
       email: '',
@@ -792,11 +798,14 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       return
     }
     if (currentPage === 4 && validatePage4()) {
+      if (userLoading) {
+        return
+      }
       if (needsAccountStep) {
         setCurrentPage(5)
         return
       }
-      // Logged in (or still loading): submit directly
+      // Logged in: submit directly
       handleSubmit(e)
       return
     }
@@ -839,6 +848,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
 
     const effectiveUser = loggedInUser ?? currentUser
 
+    if (userLoading && !effectiveUser) {
+      return
+    }
+
     if (!validatePage1()) {
       setCurrentPage(1)
       return
@@ -863,14 +876,24 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       return
     }
 
+    // Synchronous in-flight guard (React state alone is too late for double-taps)
+    if (!submitGuardRef.current.tryStart()) {
+      console.warn('[BookingForm] Ignoring duplicate submit while request is in flight')
+      return
+    }
+
     // Masquer l'erreur globale si la validation passe
     setShowGlobalError(false)
 
-    // Générer un token d'idempotence si première soumission
-    if (!isRetry && !idempotencyToken) {
-      const token = generateIdempotencyToken()
-      setIdempotencyToken(token)
+    // Générer un token d'idempotence et l'utiliser immédiatement (pas via setState async)
+    let tokenForRequest = idempotencyTokenRef.current ?? idempotencyToken
+    if (!isRetry && !tokenForRequest) {
+      tokenForRequest = generateIdempotencyToken()
+      idempotencyTokenRef.current = tokenForRequest
+      setIdempotencyToken(tokenForRequest)
       setRetryCount(0)
+    } else if (tokenForRequest && !idempotencyTokenRef.current) {
+      idempotencyTokenRef.current = tokenForRequest
     }
 
     setLoading(true)
@@ -882,7 +905,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     try {
       console.log('[BookingForm] Starting booking submission', {
         serviceType: formData.serviceType,
-        idempotencyToken: idempotencyToken,
+        idempotencyToken: tokenForRequest,
         isRetry,
         retryCount,
         timestamp: new Date().toISOString(),
@@ -954,14 +977,14 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         fallbackChefIds: shareWithNearbyChefs ? nearbyChefIds : [],
         clientLatitude: clientMapCoords?.lat ?? null,
         clientLongitude: clientMapCoords?.lng ?? null,
-        idempotencyToken,
+        idempotencyToken: tokenForRequest,
       }
       if (passwordForBooking) {
         requestBody.password = passwordForBooking
       }
 
       console.log('[BookingForm] Sending booking request', {
-        hasIdempotencyToken: !!idempotencyToken,
+        hasIdempotencyToken: !!tokenForRequest,
         bodyKeys: Object.keys(requestBody),
       })
       
@@ -993,6 +1016,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           setIsLoginMode(true)
           setLoginEmail(accountEmail.trim().toLowerCase())
           setLoading(false)
+          submitGuardRef.current.finish()
           return
         }
         // Vérifier si c'est une erreur de doublon (idempotence)
@@ -1049,10 +1073,12 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         setRetryCount(prev => prev + 1)
       } else {
         // Après 2 retries, réinitialiser pour permettre un nouveau submit
+        idempotencyTokenRef.current = null
         setIdempotencyToken(null)
         setRetryCount(0)
       }
     } finally {
+      submitGuardRef.current.finish()
       setLoading(false)
     }
   }
@@ -2311,11 +2337,11 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           ) : (
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || userLoading}
               className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {currentPage === lastPage ? (
-                loading ? (
+                loading || userLoading ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

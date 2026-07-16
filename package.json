@@ -8,6 +8,8 @@
     "build": "next build && rm -rf .next/cache",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "npx --yes tsx --test lib/__tests__/ensureParticipants.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "check-labels": "tsx scripts/check-labels.ts"
