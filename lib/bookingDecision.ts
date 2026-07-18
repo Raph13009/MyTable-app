@@ -68,7 +68,7 @@ export async function processBookingDecision(
       .update({ status: 'refused' })
       .eq('status', 'pending')
       .eq('id', bookingRequestId)
-      .select('conversation_id')
+      .select('id, conversation_id')
       .maybeSingle()
 
     if (!refusedBooking?.id) {
