@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       dish_photos,
       min_guests,
       max_guests,
+      is_publicly_visible,
       menus,
     } = body
 
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       ? 25
       : Number.parseInt(String(availability_radius_km), 10)
     const normalizedAvailabilityRadiusKm = Number.isFinite(parsedAvailabilityRadiusKm) ? parsedAvailabilityRadiusKm : 25
+    const normalizedIsPubliclyVisible = is_publicly_visible === false ? false : true
 
     if (normalizedMinGuests !== null && (!Number.isFinite(normalizedMinGuests) || normalizedMinGuests < 1)) {
       return NextResponse.json({ error: 'Le minimum de convives est invalide' }, { status: 400 })
@@ -190,6 +192,7 @@ export async function POST(request: NextRequest) {
         dish_photos: normalizedDishPhotos,
         min_guests: normalizedMinGuests,
         max_guests: normalizedMaxGuests,
+        is_publicly_visible: normalizedIsPubliclyVisible,
       })
       .select()
       .single()

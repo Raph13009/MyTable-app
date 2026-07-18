@@ -48,7 +48,10 @@ export async function GET(request: NextRequest) {
 
     await sendEmail({
       to,
-      subject: emailSubjects.bookingRequestToChef,
+      subject: emailSubjects.bookingRequestToChef(
+        bookingDetails.firstName,
+        bookingDetails.lastName
+      ),
       html: emailTemplates.bookingRequestToChef(
         'Chef Test',
         bookingDetails,

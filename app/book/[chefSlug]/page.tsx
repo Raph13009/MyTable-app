@@ -16,11 +16,12 @@ export default async function BookPage({ params }: PageProps) {
   const supabase = await createClient()
   const { chefSlug } = params
 
-  // Récupérer le chef et ses menus
+  // Récupérer le chef et ses menus (uniquement si visible publiquement)
   const { data: chef, error: chefError } = await supabase
     .from('chefs')
     .select('*')
     .eq('slug', chefSlug)
+    .eq('is_publicly_visible', true)
     .single()
 
   if (chefError || !chef) {

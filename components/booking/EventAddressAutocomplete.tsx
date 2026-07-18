@@ -57,11 +57,22 @@ export function EventAddressAutocomplete({
     { id: string; label: string; feature: MapboxGeocodeFeature; parsed: ReturnType<typeof mapboxFeatureToBookingPlace> }[]
   >([])
   const wrapRef = useRef<HTMLDivElement>(null)
+  const committedValueRef = useRef<string | null>(null)
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
     const q = value.trim()
     const controller = new AbortController()
+
+    // After a suggestion is picked, keep the dropdown closed until the user edits the field.
+    if (committedValueRef.current !== null && q === committedValueRef.current.trim()) {
+      setSuggestions([])
+      setLoading(false)
+      setOpen(false)
+      return () => {
+        controller.abort()
+      }
+    }
 
     if (!token || q.length < MIN_QUERY) {
       setSuggestions([])
@@ -129,7 +140,10 @@ export function EventAddressAutocomplete({
 
   const handleSelect = useCallback(
     (parsed: NonNullable<ReturnType<typeof mapboxFeatureToBookingPlace>>) => {
+      committedValueRef.current = parsed.fullAddress
+      setSuggestions([])
       setOpen(false)
+      setLoading(false)
       onPick({
         fullAddress: parsed.fullAddress,
         city: parsed.city,
@@ -157,10 +171,17 @@ export function EventAddressAutocomplete({
           value={value}
           placeholder={placeholder}
           onChange={(e) => {
+            committedValueRef.current = null
             onChange(e.target.value)
             if (!e.target.value.trim()) setOpen(false)
           }}
           onFocus={() => {
+            if (
+              committedValueRef.current !== null &&
+              value.trim() === committedValueRef.current.trim()
+            ) {
+              return
+            }
             if (suggestions.length > 0) setOpen(true)
           }}
           className={cn(

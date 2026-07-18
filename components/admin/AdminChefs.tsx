@@ -13,6 +13,7 @@ interface Chef {
   city: string | null
   postal_code: string | null
   profile_picture: string | null
+  is_publicly_visible?: boolean
   created_at: string
   menus?: Menu[]
 }
@@ -182,9 +183,20 @@ export default function AdminChefs() {
               {/* Main Info - Center, Vertical alignment like Instagram DM */}
               <div className="flex-1 min-w-0">
                 {/* Chef name - Single line, clearly readable */}
-                <h3 className="text-base font-semibold text-black leading-tight mb-1.5 truncate">
-                  {chef.name}
-                </h3>
+                <div className="mb-1.5 flex items-center gap-2 min-w-0">
+                  <h3 className="text-base font-semibold text-black leading-tight truncate">
+                    {chef.name}
+                  </h3>
+                  {chef.is_publicly_visible === false ? (
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                      Masqué
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                      Visible
+                    </span>
+                  )}
+                </div>
                 
                 {/* City + postal code - One line below, lighter text */}
                 {chef.city && (

@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       .select(
         'id, name, profile_picture, slug, cuisine_style, dish_photos, min_guests, max_guests, latitude, longitude'
       )
+      .eq('is_publicly_visible', true)
       .neq('id', excludeChefId)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)

@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createNextFallbackBooking } from '@/lib/fallbackBookings'
+import {
+  dispatchFallbackToAllBackupChefs,
+  FALLBACK_EXCLUSIVE_WINDOW_HOURS,
+  shouldNotifyClientOfFallbackExhaustion,
+} from '@/lib/fallbackBookings'
+import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
+import { getBaseUrl } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Cron +6h pour les demandes fallback:
- * - Si la demande est toujours pending après fallback_timeout_at, on la passe en expired
- * - Puis on envoie automatiquement au chef suivant (si disponible)
+ * Cron for fallback exclusive window:
+ * - If the primary request is still pending after fallback_timeout_at, mark it expired
+ * - Then broadcast simultaneously to ALL selected backup chefs
  */
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
     const nowIso = new Date().toISOString()
+    const baseUrl = getBaseUrl()
 
     const { data: timedOutBookings, error: fetchError } = await supabase
       .from('booking_requests')
@@ -43,7 +50,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (!timedOutBookings || timedOutBookings.length === 0) {
-      return NextResponse.json({ success: true, expired: 0, forwarded: 0, message: 'Aucune demande fallback expirée' })
+      return NextResponse.json({
+        success: true,
+        expired: 0,
+        forwarded: 0,
+        message: `Aucune demande fallback expirée (fenêtre exclusive ${FALLBACK_EXCLUSIVE_WINDOW_HOURS}h)`,
+      })
     }
 
     let expiredCount = 0
@@ -71,9 +83,30 @@ export async function GET(request: NextRequest) {
         .eq('booking_request_id', booking.id)
         .eq('used', false)
 
-      const fallbackResult = await createNextFallbackBooking(supabase as any, booking, 'timeout')
-      if (fallbackResult) {
-        forwardedCount += 1
+      const fallbackResults = await dispatchFallbackToAllBackupChefs(
+        supabase as any,
+        booking,
+        'timeout'
+      )
+      if (fallbackResults.length > 0) {
+        forwardedCount += fallbackResults.length
+      } else {
+        const { data: chef } = await supabase
+          .from('chefs')
+          .select('name')
+          .eq('id', booking.chef_id)
+          .single()
+        const chefFirstName = chef
+          ? ((chef as any).name?.split(' ')[0] || (chef as any).name)
+          : 'Chef'
+        const shouldNotify = await shouldNotifyClientOfFallbackExhaustion(supabase as any, booking)
+        if (shouldNotify) {
+          try {
+            await sendBookingRefusedClientEmail(supabase as any, booking, chefFirstName, baseUrl)
+          } catch (emailError) {
+            console.error('[check-fallback-bookings] Error sending client email:', emailError)
+          }
+        }
       }
     }
 

@@ -118,7 +118,7 @@
       "cours_cuisine": "Cours de Cuisine",
       "mise_en_demeure": "Chef à demeure",
       "repas_domicile_desc": "{{chefName}} cuisine chez vous, sur place",
-      "cours_cuisine_desc": "Apprenez avec {{chefName}} (2h - 3h)",
+      "cours_cuisine_desc": "Apprenez avec {{chefName}}",
       "mise_en_demeure_desc": "{{chefName}} cuisine chez vous sur plusieurs jours"
     },
     "personalInfo": "Informations personnelles",
@@ -154,6 +154,7 @@
     },
     "finalizeChooseDateTitle": "Confirmez la date finale retenue",
     "finalizeChooseDateHint": "Vous aviez indiqué être flexible. Sélectionnez la date définitive pour la facturation.",
+    "finalizePaymentSecuresCheckbox": "Je comprends que mon paiement sécurise cette date et empêche tout autre client de réserver ce créneau.",
     "guests": "Convives",
     "adults": "Adultes",
     "guest": "convive",
@@ -179,7 +180,7 @@
     "cancelConfirm": "Confirmer l'annulation",
     "reservationDetails": "Détails de la réservation",
     "next": "Suivant",
-    "submit": "Envoyer",
+    "submit": "Envoyer ma demande à {{chefName}}",
     "budgetGlobal": "Budget global (€)",
     "courseTopic": "Sur quoi souhaitez-vous que le cours porte ?",
     "courseTopicPlaceholder": "Ex: Techniques de base, Cuisine italienne, Pâtisserie...",
@@ -354,7 +355,10 @@
     "bookingRefusedReadonly": "Mission refusée : cette conversation est en lecture seule.",
     "chefPendingDecisionHint": "Acceptez ou refusez la demande pour écrire au client.",
     "acceptRequest": "Accepter",
-    "refuseRequest": "Refuser"
+    "refuseRequest": "Refuser",
+    "flexibleDate": "Date flexible",
+    "acceptableDates": "Dates acceptables",
+    "acceptableDatesHint": "Le client a indiqué être flexible sur ces dates."
   },
   "helper": {
     "chef": {

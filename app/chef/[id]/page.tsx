@@ -13,6 +13,7 @@ export default async function ChefByIdPage({ params }: PageProps) {
   const { data, error } = await (supabase.from('chefs') as any)
     .select('slug')
     .eq('id', params.id)
+    .eq('is_publicly_visible', true)
     .single()
 
   const slug = typeof data?.slug === 'string' ? data.slug : null

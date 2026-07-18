@@ -8,6 +8,7 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
 import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
+import { FALLBACK_EXCLUSIVE_WINDOW_MS } from '@/lib/fallbackBookings'
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
 import { notifyChefNewBookingWhatsApp } from '@/lib/whatsapp'
@@ -304,6 +305,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if ((chef as any).is_publicly_visible === false) {
+      return NextResponse.json(
+        { error: 'Ce chef n’est pas disponible pour de nouvelles réservations' },
+        { status: 403 }
+      )
+    }
+
     console.log(`[bookings:${requestId}] Chef found:`, (chef as any).name)
 
     const clientLatitude = parseClientCoord(clientLatitudeRaw)
@@ -331,6 +339,7 @@ export async function POST(request: NextRequest) {
       const { data: fallbackChefRows } = await supabase
         .from('chefs')
         .select('id, latitude, longitude')
+        .eq('is_publicly_visible', true)
         .in('id', dedupedFallbackChefIds)
 
       const allowedIds = new Set(
@@ -350,7 +359,7 @@ export async function POST(request: NextRequest) {
 
     const fallbackEnabled = Boolean(fallbackEnabledRaw) && validFallbackChefIds.length > 0
     const fallbackTimeoutAt = fallbackEnabled
-      ? new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+      ? new Date(Date.now() + FALLBACK_EXCLUSIVE_WINDOW_MS).toISOString()
       : null
 
     // Vérifier l'idempotence AVANT de créer la conversation
@@ -847,7 +856,7 @@ export async function POST(request: NextRequest) {
     // Envoyer l'email au chef
     await sendEmail({
       to: (chef as any).email,
-      subject: emailSubjects.bookingRequestToChef,
+      subject: emailSubjects.bookingRequestToChef(firstNameTrim, lastNameTrim),
       html: emailTemplates.bookingRequestToChef(
         (chef as any).name,
         bookingDetails,

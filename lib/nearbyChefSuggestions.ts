@@ -40,6 +40,7 @@ export async function findNearbyChefSuggestions(
   const { data: rows, error } = await supabase
     .from('chefs')
     .select('id, name, slug, cuisine_style, latitude, longitude')
+    .eq('is_publicly_visible', true)
     .neq('id', params.excludeChefId)
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)

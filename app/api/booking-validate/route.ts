@@ -96,28 +96,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 })
     }
 
-    // Ajouter un message système dans le chat
-    const { data: conversation } = await supabaseAdmin
-      .from('conversations')
-      .select('id')
-      .eq('booking_request_id', bookingRequestId)
-      .single()
-
-    if (conversation) {
-      // Utiliser i18n pour le message de validation
-      const { getValidationMessage } = await import('@/lib/i18n/constants')
-      const clientName = `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`
-      const validationMessage = getValidationMessage(clientName, 'fr')
-      
-      await supabaseAdmin
-        .from('messages')
-        .insert({
-          conversation_id: (conversation as any).id,
-          sender_email: user.email!,
-          content: validationMessage,
-        } as any)
-    }
-
     // Récupérer les extras
     let extras: Array<{ name: string; price: number }> = []
     if ((bookingRequest as any).extras) {
@@ -217,29 +195,6 @@ export async function POST(request: NextRequest) {
       console.error('[booking-validate] ❌ Error sending client email:', clientEmailError)
     }
 
-    if (chef && chef.email) {
-      try {
-        await sendEmail({
-          to: chef.email,
-          subject: emailSubjects.bookingValidatedToChef,
-          html: emailTemplates.bookingValidatedToChef(
-            chef.name || 'Chef',
-            `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
-            bookingDate,
-            guestsCount,
-            childrenCount,
-            totalAmount,
-            (bookingRequest as any).city || null,
-            (bookingRequest as any).postal_code || null,
-            baseUrl
-          ),
-        })
-        console.log('[booking-validate] ✅ Chef email sent successfully')
-      } catch (chefEmailError) {
-        console.error('[booking-validate] ❌ Error sending chef email:', chefEmailError)
-      }
-    }
-
     console.log('[booking-validate] Sending email to admin: contact@guidemytable.fr')
     try {
       await sendEmail({
@@ -248,6 +203,7 @@ export async function POST(request: NextRequest) {
         html: emailTemplates.bookingValidatedToAdmin(
           `${(bookingRequest as any).first_name} ${(bookingRequest as any).last_name}`,
           (bookingRequest as any).email,
+          (bookingRequest as any).phone || 'N/A',
           chef?.name || 'Chef',
           chef?.email || '',
           bookingDate,
