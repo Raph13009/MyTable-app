@@ -1,8 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   dispatchFallbackToAllBackupChefs,
-  handleFallbackGroupAfterAccept,
-  isFallbackGroupAcceptSlotsFull,
+  resolveFallbackAcceptClaim,
   shouldNotifyClientOfFallbackExhaustion,
 } from '@/lib/fallbackBookings'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
@@ -111,18 +110,8 @@ export async function processBookingDecision(
     }
   }
 
-  // Backup broadcast phase: reject accept if two candidates already locked in.
+  // Accept first (conditional on pending), then enforce max candidates for backup races.
   const fallbackGroupId = booking.fallback_group_id || booking.id
-  if (booking.fallback_previous_booking_id && fallbackGroupId) {
-    const slotsFull = await isFallbackGroupAcceptSlotsFull(supabase, fallbackGroupId)
-    if (slotsFull) {
-      return {
-        ok: false,
-        code: 'already_handled',
-        message: 'La mission a déjà été attribuée à un autre chef.',
-      }
-    }
-  }
 
   const { data: updatedBooking } = await (supabase.from('booking_requests') as any)
     .update({ status: 'accepted' })
@@ -140,7 +129,14 @@ export async function processBookingDecision(
   }
 
   if (fallbackGroupId) {
-    await handleFallbackGroupAfterAccept(supabase, booking, bookingRequestId)
+    const claim = await resolveFallbackAcceptClaim(supabase, booking, bookingRequestId)
+    if (!claim.ok) {
+      return {
+        ok: false,
+        code: 'already_handled',
+        message: 'La mission a déjà été attribuée à un autre chef.',
+      }
+    }
   }
 
   const conversationId = updatedBooking.conversation_id

@@ -4,8 +4,7 @@ import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import {
   dispatchFallbackToAllBackupChefs,
-  handleFallbackGroupAfterAccept,
-  isFallbackGroupAcceptSlotsFull,
+  resolveFallbackAcceptClaim,
   shouldNotifyClientOfFallbackExhaustion,
 } from '@/lib/fallbackBookings'
 import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
@@ -146,19 +145,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(refusedUrl, 302)
     } else if (action === 'accept') {
       const fallbackGroupId = bookingRequest.fallback_group_id || bookingRequest.id
-      if (bookingRequest.fallback_previous_booking_id && fallbackGroupId) {
-        const slotsFull = await isFallbackGroupAcceptSlotsFull(supabase as any, fallbackGroupId)
-        if (slotsFull) {
-          const alreadyAssignedUrl = new URL('/?error=already_assigned', request.url)
-          alreadyAssignedUrl.searchParams.set(
-            'message',
-            'La mission a déjà été attribuée à un autre chef.'
-          )
-          return NextResponse.redirect(alreadyAssignedUrl)
-        }
-      }
 
-      // Mettre à jour le statut
+      // Accept first (conditional on pending), then enforce max candidates for backup races.
       const { data: updatedBooking } = await (supabase
         .from('booking_requests') as any)
         .update({ status: 'accepted' })
@@ -177,7 +165,19 @@ export async function GET(request: NextRequest) {
       }
 
       if (fallbackGroupId) {
-        await handleFallbackGroupAfterAccept(supabase as any, bookingRequest, bookingRequest.id)
+        const claim = await resolveFallbackAcceptClaim(
+          supabase as any,
+          bookingRequest,
+          bookingRequest.id
+        )
+        if (!claim.ok) {
+          const alreadyAssignedUrl = new URL('/?error=already_assigned', request.url)
+          alreadyAssignedUrl.searchParams.set(
+            'message',
+            'La mission a déjà été attribuée à un autre chef.'
+          )
+          return NextResponse.redirect(alreadyAssignedUrl)
+        }
       }
 
       const conversationId = (updatedBooking as any).conversation_id

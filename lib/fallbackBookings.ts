@@ -360,34 +360,94 @@ export async function isFallbackGroupAcceptSlotsFull(
   return acceptedCount >= FALLBACK_MAX_ACCEPTED_CANDIDATES
 }
 
+/** Deterministic winners among concurrent accepts (earliest updated_at, then id). */
+export function selectFallbackAcceptWinnerIds(
+  accepted: Array<{ id: string; updated_at?: string | null }>,
+  max: number = FALLBACK_MAX_ACCEPTED_CANDIDATES
+): string[] {
+  return [...accepted]
+    .sort((a, b) => {
+      const aTime = a.updated_at || ''
+      const bTime = b.updated_at || ''
+      const byTime = aTime.localeCompare(bTime)
+      if (byTime !== 0) return byTime
+      return a.id.localeCompare(b.id)
+    })
+    .slice(0, max)
+    .map((row) => row.id)
+}
+
 /**
- * Primary exclusive accept → lock immediately (expire all other pending).
- * Backup broadcast accept → lock only once FALLBACK_MAX_ACCEPTED_CANDIDATES have accepted.
+ * After a booking has been set to `accepted`, enforce the max-candidate rule.
+ * Primary exclusive accept → lock immediately.
+ * Backup broadcast accept → keep only the first FALLBACK_MAX_ACCEPTED_CANDIDATES
+ * winners; late racers are reverted to `expired`.
  */
-export async function handleFallbackGroupAfterAccept(
+export async function resolveFallbackAcceptClaim(
   supabase: AdminClient,
   booking: any,
   acceptedBookingId: string
-): Promise<{ locked: boolean; acceptedCount: number }> {
+): Promise<{ ok: true; locked: boolean; acceptedCount: number } | { ok: false }> {
   const fallbackGroupId = booking.fallback_group_id || booking.id
   if (!fallbackGroupId) {
-    return { locked: false, acceptedCount: 1 }
+    return { ok: true, locked: false, acceptedCount: 1 }
   }
 
   const isPrimaryExclusive = !booking.fallback_previous_booking_id
 
   if (isPrimaryExclusive) {
     await expireOtherPendingInFallbackGroup(supabase, fallbackGroupId, acceptedBookingId)
-    return { locked: true, acceptedCount: 1 }
+    return { ok: true, locked: true, acceptedCount: 1 }
   }
 
-  const acceptedCount = await countAcceptedInFallbackGroup(supabase, fallbackGroupId)
-  if (acceptedCount >= FALLBACK_MAX_ACCEPTED_CANDIDATES) {
+  const { data: acceptedRows } = await supabase
+    .from('booking_requests')
+    .select('id, updated_at')
+    .eq('fallback_group_id', fallbackGroupId)
+    .eq('status', 'accepted')
+
+  const accepted = (acceptedRows || []) as Array<{ id: string; updated_at?: string | null }>
+  const winnerIds = new Set(selectFallbackAcceptWinnerIds(accepted))
+
+  if (!winnerIds.has(acceptedBookingId)) {
+    // Lost the race against earlier accepts — revert this claim.
+    await (supabase
+      .from('booking_requests') as any)
+      .update({ status: 'expired' })
+      .eq('id', acceptedBookingId)
+      .eq('status', 'accepted')
+
+    await (supabase
+      .from('decision_tokens') as any)
+      .update({ used: true })
+      .eq('booking_request_id', acceptedBookingId)
+      .eq('used', false)
+
+    return { ok: false }
+  }
+
+  // Revert any other accepted rows that lost the deterministic race.
+  const loserIds = accepted.map((row) => row.id).filter((id) => !winnerIds.has(id))
+  if (loserIds.length > 0) {
+    await (supabase
+      .from('booking_requests') as any)
+      .update({ status: 'expired' })
+      .in('id', loserIds)
+      .eq('status', 'accepted')
+
+    await (supabase
+      .from('decision_tokens') as any)
+      .update({ used: true })
+      .in('booking_request_id', loserIds)
+      .eq('used', false)
+  }
+
+  if (winnerIds.size >= FALLBACK_MAX_ACCEPTED_CANDIDATES) {
     await expireOtherPendingInFallbackGroup(supabase, fallbackGroupId, acceptedBookingId)
-    return { locked: true, acceptedCount }
+    return { ok: true, locked: true, acceptedCount: winnerIds.size }
   }
 
-  return { locked: false, acceptedCount }
+  return { ok: true, locked: false, acceptedCount: winnerIds.size }
 }
 
 /**

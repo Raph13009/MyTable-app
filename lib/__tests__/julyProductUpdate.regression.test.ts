@@ -10,6 +10,7 @@ import {
   FALLBACK_EXCLUSIVE_WINDOW_HOURS,
   FALLBACK_EXCLUSIVE_WINDOW_MS,
   FALLBACK_MAX_ACCEPTED_CANDIDATES,
+  selectFallbackAcceptWinnerIds,
 } from '../fallbackBookings'
 import { emailSubjects, emailTemplates } from '../email'
 
@@ -21,6 +22,24 @@ describe('July product update — fallback exclusivity constants', () => {
 
   it('locks the backup broadcast after two accepts', () => {
     assert.equal(FALLBACK_MAX_ACCEPTED_CANDIDATES, 2)
+  })
+
+  it('keeps only the earliest accepts when more than two race', () => {
+    const winners = selectFallbackAcceptWinnerIds([
+      { id: 'c', updated_at: '2026-07-18T12:00:03Z' },
+      { id: 'a', updated_at: '2026-07-18T12:00:01Z' },
+      { id: 'b', updated_at: '2026-07-18T12:00:02Z' },
+    ])
+    assert.deepEqual(winners, ['a', 'b'])
+  })
+
+  it('breaks ties by booking id so winner selection is deterministic', () => {
+    const winners = selectFallbackAcceptWinnerIds([
+      { id: 'z', updated_at: '2026-07-18T12:00:00Z' },
+      { id: 'a', updated_at: '2026-07-18T12:00:00Z' },
+      { id: 'm', updated_at: '2026-07-18T12:00:00Z' },
+    ])
+    assert.deepEqual(winners, ['a', 'm'])
   })
 })
 
