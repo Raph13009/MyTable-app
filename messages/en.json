@@ -117,7 +117,7 @@
       "cours_cuisine": "Cooking Class",
       "mise_en_demeure": "Chef at Home",
       "repas_domicile_desc": "{{chefName}} cooks at your place",
-      "cours_cuisine_desc": "Learn with {{chefName}} (2h - 3h)",
+      "cours_cuisine_desc": "Learn with {{chefName}}",
       "mise_en_demeure_desc": "{{chefName}} cooks at your place over several days"
     },
     "personalInfo": "Personal information",
@@ -153,6 +153,7 @@
     },
     "finalizeChooseDateTitle": "Confirm the final date",
     "finalizeChooseDateHint": "You indicated you were flexible. Select the final date for billing.",
+    "finalizePaymentSecuresCheckbox": "I understand that my payment secures this date and prevents any other customer from booking this time slot.",
     "guests": "Guests",
     "adults": "Adults",
     "guest": "guest",
@@ -178,7 +179,7 @@
     "cancelConfirm": "Confirm cancellation",
     "reservationDetails": "Reservation details",
     "next": "Next",
-    "submit": "Submit",
+    "submit": "Send my request to {{chefName}}",
     "budgetGlobal": "Global budget (€)",
     "courseTopic": "What would you like the course to focus on?",
     "courseTopicPlaceholder": "Ex: Basic techniques, Italian cuisine, Pastry...",
@@ -353,7 +354,10 @@
     "bookingRefusedReadonly": "Mission refused: this conversation is read-only.",
     "chefPendingDecisionHint": "Accept or decline the request to message the client.",
     "acceptRequest": "Accept",
-    "refuseRequest": "Decline"
+    "refuseRequest": "Decline",
+    "flexibleDate": "Flexible date",
+    "acceptableDates": "Acceptable dates",
+    "acceptableDatesHint": "The customer indicated they are flexible on these dates."
   },
   "helper": {
     "chef": {

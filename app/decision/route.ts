@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyToken, getBaseUrl } from '@/lib/utils'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
-import { createNextFallbackBooking, expireOtherPendingInFallbackGroup } from '@/lib/fallbackBookings'
+import {
+  dispatchFallbackToAllBackupChefs,
+  handleFallbackGroupAfterAccept,
+  isFallbackGroupAcceptSlotsFull,
+  shouldNotifyClientOfFallbackExhaustion,
+} from '@/lib/fallbackBookings'
 import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
 
 
@@ -103,8 +108,12 @@ export async function GET(request: NextRequest) {
 
       let fallbackDispatched = false
       if (bookingRequest.fallback_enabled) {
-        const fallbackResult = await createNextFallbackBooking(supabase as any, bookingRequest, 'refused')
-        fallbackDispatched = Boolean(fallbackResult)
+        const fallbackResults = await dispatchFallbackToAllBackupChefs(
+          supabase as any,
+          bookingRequest,
+          'refused'
+        )
+        fallbackDispatched = fallbackResults.length > 0
       }
 
       // Récupérer les infos du chef pour l'email
@@ -118,18 +127,37 @@ export async function GET(request: NextRequest) {
       const chefFirstName = chef ? ((chef as any).name?.split(' ')[0] || (chef as any).name) : 'Chef'
 
       if (!fallbackDispatched) {
-        await sendBookingRefusedClientEmail(
+        const shouldNotify = await shouldNotifyClientOfFallbackExhaustion(
           supabase as any,
-          bookingRequest,
-          chefFirstName,
-          baseUrl
+          bookingRequest
         )
+        if (shouldNotify) {
+          await sendBookingRefusedClientEmail(
+            supabase as any,
+            bookingRequest,
+            chefFirstName,
+            baseUrl
+          )
+        }
       }
 
       // Rediriger vers une page de confirmation explicite
       const refusedUrl = new URL('/booking-refused', request.url)
       return NextResponse.redirect(refusedUrl, 302)
     } else if (action === 'accept') {
+      const fallbackGroupId = bookingRequest.fallback_group_id || bookingRequest.id
+      if (bookingRequest.fallback_previous_booking_id && fallbackGroupId) {
+        const slotsFull = await isFallbackGroupAcceptSlotsFull(supabase as any, fallbackGroupId)
+        if (slotsFull) {
+          const alreadyAssignedUrl = new URL('/?error=already_assigned', request.url)
+          alreadyAssignedUrl.searchParams.set(
+            'message',
+            'La mission a déjà été attribuée à un autre chef.'
+          )
+          return NextResponse.redirect(alreadyAssignedUrl)
+        }
+      }
+
       // Mettre à jour le statut
       const { data: updatedBooking } = await (supabase
         .from('booking_requests') as any)
@@ -148,9 +176,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(alreadyAssignedUrl)
       }
 
-      const fallbackGroupId = bookingRequest.fallback_group_id || bookingRequest.id
       if (fallbackGroupId) {
-        await expireOtherPendingInFallbackGroup(supabase as any, fallbackGroupId, bookingRequest.id)
+        await handleFallbackGroupAfterAccept(supabase as any, bookingRequest, bookingRequest.id)
       }
 
       const conversationId = (updatedBooking as any).conversation_id

@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
         html: emailTemplates.bookingValidatedToAdmin(
           `${bookingRequest.first_name} ${bookingRequest.last_name}`,
           bookingRequest.email,
+          bookingRequest.phone || 'N/A',
           chef?.name || 'Chef',
           chef?.email || '',
           bookingDate,

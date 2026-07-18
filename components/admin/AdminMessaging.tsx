@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { formatDateForDisplay, parseDateFromDB } from '@/lib/dateUtils'
 
 /** Demandes toujours en pending dont la création date de plus de 6h (chef n’a pas répondu à temps). */
-const PENDING_NO_RESPONSE_HOURS = 6
+const PENDING_NO_RESPONSE_HOURS = 4
 
 function isExpiredPendingNoResponse(bookingRequest?: {
   status: string

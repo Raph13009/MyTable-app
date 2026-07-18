@@ -344,7 +344,10 @@ export function emailLayout({ title, content, cta, baseUrl }: EmailLayoutOptions
 export const emailSubjects = {
   menuUpdated: 'Votre menu a été mis à jour',
   bookingConfirmationToClient: 'Votre demande de réservation a été transmise au Chef avec succès',
-  bookingRequestToChef: 'Nouvelle demande de réservation',
+  bookingRequestToChef: (firstName: string, lastName: string) => {
+    const customerName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Un client'
+    return `Demande exclusive : ${customerName} vous a choisi comme chef`
+  },
   clientChatInactivityReminder: 'MyTable — Votre conversation vous attend',
   bookingReplacementRequestToChef: 'Remplacement prioritaire - demande de réservation',
   bookingReminderToChef: 'Relance - demande de réservation en attente',
@@ -496,7 +499,7 @@ export const emailTemplates = {
         ? `
       <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
         <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
-          Vous êtes prioritaire pour cette demande pendant 6 heures ; après, elle sera attribuée à d'autres chefs.
+          Vous êtes prioritaire pour cette demande pendant 4 heures ; après, elle sera attribuée à d'autres chefs.
         </p>
       </div>
     `
@@ -557,7 +560,7 @@ export const emailTemplates = {
       <p><strong>Budget par personne :</strong> ${budgetPerPersonText}<br/>
       <strong>Budget total estimé :</strong> ${totalBudgetText}</p>
       <p>Cette demande est également envoyée à d'autres chefs qualifiés à proximité.</p>
-      <p><strong>Le premier chef qui accepte obtient la mission.</strong> Si le bouton n'aboutit pas, c'est qu'un autre chef a déjà confirmé avant vous.</p>
+      <p><strong>Les 2 premiers chefs qui acceptent deviennent candidats.</strong> Le client choisira ensuite entre eux. Si le bouton n'aboutit pas, c'est que deux chefs ont déjà confirmé avant vous.</p>
       ${detailsHtml}
       <p>Merci de répondre rapidement :</p>
     `
@@ -794,6 +797,7 @@ export const emailTemplates = {
   bookingValidatedToAdmin: (
     clientName: string,
     clientEmail: string,
+    clientPhone: string,
     chefName: string,
     chefEmail: string,
     bookingDate: string,
@@ -837,6 +841,7 @@ export const emailTemplates = {
           <p style="margin: 0; color: #666; font-size: 13px;"><strong>Client :</strong></p>
           <p style="margin: 4px 0 0 0; color: #000; font-size: 15px;">${clientName}</p>
           <p style="margin: 2px 0 0 0; color: #666; font-size: 14px;">${clientEmail}</p>
+          <p style="margin: 2px 0 0 0; color: #666; font-size: 14px;">${clientPhone}</p>
         </div>
         
         <div style="margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">

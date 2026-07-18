@@ -31,6 +31,7 @@ export interface Database {
           dish_photos: string[] | null
           min_guests: number | null
           max_guests: number | null
+          is_publicly_visible: boolean
           created_at: string
           updated_at: string
         }
@@ -55,6 +56,7 @@ export interface Database {
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null
+          is_publicly_visible?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -79,6 +81,7 @@ export interface Database {
           dish_photos?: string[] | null
           min_guests?: number | null
           max_guests?: number | null
+          is_publicly_visible?: boolean
           created_at?: string
           updated_at?: string
         }

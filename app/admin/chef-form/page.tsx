@@ -109,6 +109,7 @@ export default function ChefFormPage() {
     availability_radius_km: '25',
     min_guests: '',
     max_guests: '',
+    is_publicly_visible: true,
     profile_picture: null as File | null,
   })
   const [menus, setMenus] = useState<Menu[]>([])
@@ -452,6 +453,7 @@ export default function ChefFormPage() {
         availability_radius_km: chefData.availability_radius_km ? String(chefData.availability_radius_km) : '25',
         min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
+        is_publicly_visible: chefData.is_publicly_visible !== false,
         profile_picture: null,
       })
       setManualLocationMode(!chefData.address && !!chefData.city)
@@ -894,6 +896,7 @@ export default function ChefFormPage() {
         availability_radius_km: Number.parseInt(formData.availability_radius_km, 10) || 25,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
+        is_publicly_visible: formData.is_publicly_visible,
         dish_photos: dishPhotos,
         primary_dish_photo: selectedPrimaryDishPhoto,
         profile_picture: profilePictureUrl,
@@ -1059,6 +1062,22 @@ export default function ChefFormPage() {
             {activeSection === 'informations' && (
               <section className="rounded-[12px] border border-[#EAEAEA] bg-white p-5 sm:p-6">
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#6B7280]">Informations</h2>
+                <div className="mb-4 rounded-[10px] border border-[#EAEAEA] bg-[#FCFCFA] px-4 py-3">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_publicly_visible}
+                      onChange={(e) => setFormData({ ...formData, is_publicly_visible: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-[#FBCF03] focus:ring-[#FBCF03]"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-black">Visible sur la carte</span>
+                      <span className="mt-0.5 block text-xs text-[#6B7280]">
+                        Si décoché, le chef disparaît de la carte et des résultats publics. Le compte, les conversations et les réservations existantes restent inchangés.
+                      </span>
+                    </span>
+                  </label>
+                </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Prénom</label>

@@ -27,6 +27,7 @@ export default async function Explore2RegionPage({ params }: Explore2RegionPageP
 
   const { data, error } = await (supabase.from('chefs') as any)
     .select('id, slug, name, info_link_xx, profile_picture, dish_photos, primary_dish_photo, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(name,price)')
+    .eq('is_publicly_visible', true)
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
     .order('created_at', { ascending: false })

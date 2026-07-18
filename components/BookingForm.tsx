@@ -530,34 +530,47 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   // Section "Êtes-vous flexible sur la date ?" — utilisée pour repas_domicile et cours_cuisine.
   // Si flexible, le client peut proposer jusqu'à 3 dates alternatives via le même calendrier.
   const renderDateFlexibility = () => (
-    <div className="w-full">
-      <label className="flex items-start gap-3 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={formData.isDateFlexible}
-          onChange={(e) => {
-            const checked = e.target.checked
-            setFormData(prev => ({
-              ...prev,
-              isDateFlexible: checked,
-              // Réinitialiser les dates alternatives si on décoche
-              alternativeDates: checked ? prev.alternativeDates : [],
-            }))
-          }}
-          className="mt-0.5 h-5 w-5 rounded border-gray-300 text-[#FBCF03] focus:ring-[#FBCF03]/40 accent-[#FBCF03]"
-        />
-        <span className="text-[15px] sm:text-base font-medium text-black">
-          {t('booking.dateFlexibleQuestion')}
-        </span>
+    <div className="w-full space-y-3">
+      <label
+        htmlFor="date-flexible"
+        className={`group block cursor-pointer rounded-xl border px-5 py-4 shadow-sm transition-all duration-200 ${
+          formData.isDateFlexible
+            ? 'border-[#FBCF03]/70 bg-[#FBCF03]/10 shadow-md'
+            : 'border-[#FBCF03]/30 bg-white hover:-translate-y-0.5 hover:border-[#FBCF03]/50 hover:shadow-md'
+        }`}
+      >
+        <div className="flex items-start gap-4">
+          <input
+            id="date-flexible"
+            type="checkbox"
+            checked={formData.isDateFlexible}
+            onChange={(e) => {
+              const checked = e.target.checked
+              setFormData(prev => ({
+                ...prev,
+                isDateFlexible: checked,
+                // Réinitialiser les dates alternatives si on décoche
+                alternativeDates: checked ? prev.alternativeDates : [],
+              }))
+            }}
+            className="mt-0.5 h-5 w-5 flex-shrink-0 rounded-md border border-neutral-300 accent-[#FBCF03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBCF03]/40 focus-visible:ring-offset-1"
+            aria-describedby="date-flexible-description"
+          />
+          <div className="min-w-0">
+            <p className="text-base font-semibold leading-tight text-neutral-900">
+              {t('booking.dateFlexibleQuestion')}
+            </p>
+            <p id="date-flexible-description" className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
+              {t('booking.dateFlexibleHint')}
+            </p>
+          </div>
+        </div>
       </label>
 
       {formData.isDateFlexible && (
-        <div className="mt-3">
-          <p className="text-sm text-gray-600 mb-2">
-            {t('booking.dateFlexibleHint')}
-          </p>
+        <div className="space-y-2 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5">
           {!formData.bookingDate && (
-            <p className="text-sm text-amber-600 mb-2">
+            <p className="text-sm text-amber-600">
               {t('booking.dateFlexibleSelectMainFirst')}
             </p>
           )}
@@ -2324,7 +2337,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
                     {t('common.loading')}
                   </span>
                 ) : (
-                  t('booking.submit')
+                  t('booking.submit', { chefName: chefFirstName })
                 )
               ) : (
                 t('booking.next')

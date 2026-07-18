@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createNextFallbackBooking, expireOtherPendingInFallbackGroup } from '@/lib/fallbackBookings'
+import {
+  dispatchFallbackToAllBackupChefs,
+  handleFallbackGroupAfterAccept,
+  isFallbackGroupAcceptSlotsFull,
+  shouldNotifyClientOfFallbackExhaustion,
+} from '@/lib/fallbackBookings'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
 import { getBaseUrl } from '@/lib/utils'
@@ -76,8 +81,8 @@ export async function processBookingDecision(
 
     let fallbackDispatched = false
     if (booking.fallback_enabled) {
-      const fallbackResult = await createNextFallbackBooking(supabase, booking, 'refused')
-      fallbackDispatched = Boolean(fallbackResult)
+      const fallbackResults = await dispatchFallbackToAllBackupChefs(supabase, booking, 'refused')
+      fallbackDispatched = fallbackResults.length > 0
     }
 
     const { data: chef } = await supabase
@@ -89,10 +94,13 @@ export async function processBookingDecision(
     const chefFirstName = chef ? ((chef as any).name?.split(' ')[0] || (chef as any).name) : 'Chef'
 
     if (!fallbackDispatched) {
-      try {
-        await sendBookingRefusedClientEmail(supabase, booking, chefFirstName, baseUrl)
-      } catch (emailError) {
-        console.error('[bookingDecision] Error sending refuse email to client:', emailError)
+      const shouldNotify = await shouldNotifyClientOfFallbackExhaustion(supabase, booking)
+      if (shouldNotify) {
+        try {
+          await sendBookingRefusedClientEmail(supabase, booking, chefFirstName, baseUrl)
+        } catch (emailError) {
+          console.error('[bookingDecision] Error sending refuse email to client:', emailError)
+        }
       }
     }
 
@@ -100,6 +108,19 @@ export async function processBookingDecision(
       ok: true,
       status: 'refused',
       conversationId: refusedBooking.conversation_id,
+    }
+  }
+
+  // Backup broadcast phase: reject accept if two candidates already locked in.
+  const fallbackGroupId = booking.fallback_group_id || booking.id
+  if (booking.fallback_previous_booking_id && fallbackGroupId) {
+    const slotsFull = await isFallbackGroupAcceptSlotsFull(supabase, fallbackGroupId)
+    if (slotsFull) {
+      return {
+        ok: false,
+        code: 'already_handled',
+        message: 'La mission a déjà été attribuée à un autre chef.',
+      }
     }
   }
 
@@ -118,9 +139,8 @@ export async function processBookingDecision(
     }
   }
 
-  const fallbackGroupId = booking.fallback_group_id || booking.id
   if (fallbackGroupId) {
-    await expireOtherPendingInFallbackGroup(supabase, fallbackGroupId, bookingRequestId)
+    await handleFallbackGroupAfterAccept(supabase, booking, bookingRequestId)
   }
 
   const conversationId = updatedBooking.conversation_id

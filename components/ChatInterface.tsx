@@ -185,6 +185,8 @@ export default function ChatInterface({
   const [bookingStatus, setBookingStatus] = useState<string | null>(bookingRequest?.status || null)
   const [processingAction, setProcessingAction] = useState(false)
   const [showFinalizeModal, setShowFinalizeModal] = useState(false)
+  const [showFinalizeAckModal, setShowFinalizeAckModal] = useState(false)
+  const [finalizePaymentUnderstood, setFinalizePaymentUnderstood] = useState(false)
   const [confirmedDate, setConfirmedDate] = useState<string>(bookingRequest?.booking_date || '')
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
@@ -1116,6 +1118,16 @@ export default function ChatInterface({
   const isBookingCancelled = bookingStatus === 'cancelled'
   const isBookingRefused = bookingStatus === 'refused'
 
+  const proposedBookingDates: string[] = (() => {
+    if (!bookingRequest) return []
+    const dates = [
+      bookingRequest.booking_date,
+      ...(Array.isArray(bookingRequest.alternative_dates) ? bookingRequest.alternative_dates : []),
+    ].filter((d: unknown): d is string => typeof d === 'string' && d.trim().length > 0)
+    return Array.from(new Set(dates))
+  })()
+  const isBookingDateFlexible = Boolean(bookingRequest?.is_date_flexible)
+
   // Handler pour afficher la modale de finalisation
   const handleFinalizeBooking = () => {
     if (!bookingRequest?.id || !isClient || bookingStatus !== 'accepted') {
@@ -1133,12 +1145,13 @@ export default function ChatInterface({
     })
     // Réinitialiser la date confirmée sur la date principale à chaque ouverture
     setConfirmedDate(bookingRequest?.confirmed_date || bookingRequest?.booking_date || '')
+    setFinalizePaymentUnderstood(false)
     setShowFinalizeModal(true)
   }
 
-  // Handler pour confirmer la finalisation (appelle l'API)
-  const confirmFinalize = async () => {
-    if (!bookingRequest?.id) {
+  // Handler pour passer à la modale d'accusé de réception (après confirmation)
+  const handleFinalizeConfirmClick = () => {
+    if (!bookingRequest?.id || !finalizePaymentUnderstood) {
       return
     }
 
@@ -1155,8 +1168,20 @@ export default function ChatInterface({
       return
     }
 
-    setProcessingAction(true)
     setShowFinalizeModal(false)
+    setShowFinalizeAckModal(true)
+  }
+
+  // Handler pour confirmer la finalisation (appelle l'API)
+  const confirmFinalize = async () => {
+    if (!bookingRequest?.id) {
+      return
+    }
+
+    const isMiseEnDemeure = bookingRequest?.service_type === 'mise_en_demeure'
+
+    setProcessingAction(true)
+    setShowFinalizeAckModal(false)
 
     try {
       const endpoint = isMiseEnDemeure
@@ -1407,7 +1432,7 @@ export default function ChatInterface({
           </div>
           {/* Titre sur sa propre ligne, bien visible */}
           <div className="mb-2.5">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h1 className="text-base sm:text-lg font-semibold text-gray-900">
                 {bookingRequest ? (
                   <>
@@ -1426,6 +1451,11 @@ export default function ChatInterface({
                   t('chat.conversation')
                 )}
               </h1>
+              {bookingRequest?.is_date_flexible && (
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-medium uppercase tracking-wide text-gray-600">
+                  {t('chat.flexibleDate')}
+                </span>
+              )}
               {bookingStatus && bookingStatus === 'accepted' && (
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FBCF03]"></span>
               )}
@@ -1860,7 +1890,7 @@ export default function ChatInterface({
 
       {/* Chef : décision requise avant d'écrire au client */}
       {!isBookingCancelled && !isBookingRefused && !isAdmin && chefMustRespondToRequest && (
-        <div className="flex-shrink-0 bg-amber-50/60 border-t border-amber-100/80 px-4 sm:px-6 py-3.5 pb-safe">
+        <div className="flex-shrink-0 bg-amber-50/60 border-t border-amber-100/80 px-4 sm:px-6 pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))]">
           <p className="text-xs text-amber-900/80 text-center mb-2.5">
             {t('chat.chefPendingDecisionHint')}
           </p>
@@ -2069,17 +2099,38 @@ export default function ChatInterface({
                   <div className="bg-white rounded-xl border border-gray-300 shadow-md p-3 space-y-2">
                     <div className="grid grid-cols-2 gap-3">
                       {/* Date ou Période selon le type de service */}
-                      {(bookingRequest.service_type === 'repas_domicile' && bookingRequest.booking_date) ? (
+                      {(bookingRequest.service_type === 'repas_domicile' && (bookingRequest.booking_date || proposedBookingDates.length > 0)) ? (
                         <>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">Date</p>
-                        <p className="text-sm font-medium text-black">
-                          {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
+                      <div className={isBookingDateFlexible && proposedBookingDates.length > 1 ? 'col-span-2' : ''}>
+                        <p className="text-xs text-gray-500 mb-0.5">
+                          {isBookingDateFlexible ? t('chat.acceptableDates') : 'Date'}
                         </p>
+                        {isBookingDateFlexible && proposedBookingDates.length > 0 ? (
+                          <>
+                            <ul className="space-y-0.5">
+                              {proposedBookingDates.map((dateStr) => (
+                                <li key={dateStr} className="text-sm font-medium text-black">
+                                  {formatDateForDisplay(dateStr, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                  })}
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                              {t('chat.acceptableDatesHint')}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-medium text-black">
+                            {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        )}
                       </div>
                           {bookingRequest.meal_time && (
                             <div>
@@ -2092,16 +2143,37 @@ export default function ChatInterface({
                         </>
                       ) : bookingRequest.service_type === 'cours_cuisine' ? (
                         <>
-                          {bookingRequest.booking_date && (
-                            <div>
-                              <p className="text-xs text-gray-500 mb-0.5">Date</p>
-                              <p className="text-sm font-medium text-black">
-                                {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
-                                  day: 'numeric', 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}
+                          {(bookingRequest.booking_date || proposedBookingDates.length > 0) && (
+                            <div className={isBookingDateFlexible && proposedBookingDates.length > 1 ? 'col-span-2' : ''}>
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                {isBookingDateFlexible ? t('chat.acceptableDates') : 'Date'}
                               </p>
+                              {isBookingDateFlexible && proposedBookingDates.length > 0 ? (
+                                <>
+                                  <ul className="space-y-0.5">
+                                    {proposedBookingDates.map((dateStr) => (
+                                      <li key={dateStr} className="text-sm font-medium text-black">
+                                        {formatDateForDisplay(dateStr, locale === 'en' ? 'en-US' : 'fr-FR', {
+                                          day: 'numeric',
+                                          month: 'long',
+                                          year: 'numeric',
+                                        })}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                                    {t('chat.acceptableDatesHint')}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm font-medium text-black">
+                                  {formatDateForDisplay(bookingRequest.booking_date, locale === 'en' ? 'en-US' : 'fr-FR', { 
+                                    day: 'numeric', 
+                                    month: 'long', 
+                                    year: 'numeric' 
+                                  })}
+                                </p>
+                              )}
                             </div>
                           )}
                           {bookingRequest.budget && (
@@ -2604,9 +2676,15 @@ export default function ChatInterface({
         </div>
       )}
 
-      {/* Modal de confirmation - Finaliser */}
+              {/* Modal de confirmation - Finaliser */}
       {showFinalizeModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowFinalizeModal(false)}>
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowFinalizeModal(false)
+            setFinalizePaymentUnderstood(false)
+          }}
+        >
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <h2 className="text-xl font-semibold text-black mb-4">Finaliser la réservation</h2>
@@ -2707,28 +2785,65 @@ export default function ChatInterface({
                 </div>
               )}
 
-              <p className="text-sm text-gray-600 mb-6">
-                {bookingRequest?.service_type === 'mise_en_demeure'
-                  ? 'En confirmant, vous indiquez que vous êtes prêt à finaliser votre réservation. Un lien de paiement vous sera envoyé par email dans les prochaines 24 heures.'
-                  : 'En confirmant, vous validez cette réservation. Un lien de paiement vous sera envoyé dans les 24 heures.'}
-              </p>
+              <label className="flex items-start gap-3 mb-6 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={finalizePaymentUnderstood}
+                  onChange={(e) => setFinalizePaymentUnderstood(e.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-[#FBCF03] focus:ring-[#FBCF03]"
+                />
+                <span className="text-sm text-gray-700">
+                  {t('booking.finalizePaymentSecuresCheckbox')}
+                </span>
+              </label>
 
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setShowFinalizeModal(false)}
+                  onClick={() => {
+                    setShowFinalizeModal(false)
+                    setFinalizePaymentUnderstood(false)
+                  }}
                   className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   Retour
                 </button>
                 <button
-                  onClick={confirmFinalize}
-                  disabled={processingAction}
+                  onClick={handleFinalizeConfirmClick}
+                  disabled={!finalizePaymentUnderstood || processingAction}
                   className="flex-1 px-4 py-2.5 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {processingAction ? '...' : 'Confirmer'}
+                  {t('common.confirm')}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'accusé de réception - Lien de paiement */}
+      {showFinalizeAckModal && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            if (!processingAction) {
+              setShowFinalizeAckModal(false)
+              setFinalizePaymentUnderstood(false)
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <p className="text-sm text-gray-700 mb-6">
+                {t('booking.paymentPendingDescription')}
+              </p>
+              <button
+                onClick={confirmFinalize}
+                disabled={processingAction}
+                className="w-full px-4 py-2.5 text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processingAction ? '...' : t('booking.understood')}
+              </button>
             </div>
           </div>
         </div>
