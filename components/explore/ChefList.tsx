@@ -16,6 +16,8 @@ interface ChefListProps {
   compact?: boolean
   /** When true, profile links break out of iframe for full-screen navigation */
   breakOutOfIframe?: boolean
+  /** Horizontal card layout for desktop list mode */
+  horizontal?: boolean
 }
 
 export function ChefList({
@@ -28,6 +30,7 @@ export function ChefList({
   forceMobileCardStyle = false,
   compact = false,
   breakOutOfIframe = false,
+  horizontal = false,
 }: ChefListProps) {
   const { t } = useTranslation()
 
@@ -35,7 +38,9 @@ export function ChefList({
     <section className="min-h-full">
         <div
           className={
-            forceMobileCardStyle
+            horizontal
+              ? 'flex flex-col gap-3'
+              : forceMobileCardStyle
               ? `grid grid-cols-1 sm:grid-cols-2 ${compact ? 'gap-3' : 'gap-4'}`
               : 'grid grid-cols-1 gap-6 md:grid-cols-2'
           }
@@ -57,6 +62,7 @@ export function ChefList({
               forceMobileStyle={forceMobileCardStyle}
               compact={compact}
               breakOutOfIframe={breakOutOfIframe}
+              horizontal={horizontal}
             />
           ))
         )}

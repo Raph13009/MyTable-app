@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { generateDecisionToken, hashToken, getBaseUrl, sanitizeBookingNotes } from '@/lib/utils'
 import { insertBookingNotesAsFirstMessage } from '@/lib/bookingConversation'
+import { ensureConversationParticipants } from '@/lib/ensureParticipants'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
@@ -11,6 +12,7 @@ import { FALLBACK_EXCLUSIVE_WINDOW_MS } from '@/lib/fallbackBookings'
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
 import { notifyChefNewBookingWhatsApp } from '@/lib/whatsapp'
+import { requireBookingSession } from '@/lib/bookingAuth'
 
 const COURSE_BUDGET_MAP: Record<string, number> = {
   '50': 50,
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
       chefId,
       firstName,
       lastName,
-      email: emailFromBody,
+      email: _emailFromBody,
       phone,
       serviceType,
       bookingDate,
@@ -93,15 +95,22 @@ export async function POST(request: NextRequest) {
       clientLatitude: clientLatitudeRaw,
       clientLongitude: clientLongitudeRaw,
       idempotencyToken,
-      password: passwordFromBody,
     } = body
 
-    // Lire la session depuis les cookies (utilisateur déjà connecté)
+    // Auth required BEFORE any booking / conversation / participant / notification side effects
     const serverClient = await createClient()
     const { data: { user: sessionUser } } = await serverClient.auth.getUser()
+    const auth = requireBookingSession(sessionUser)
+    if (!auth.ok) {
+      console.warn(`[bookings:${requestId}] Unauthorized booking attempt`)
+      return NextResponse.json(
+        { error: auth.error, message: auth.message },
+        { status: auth.status }
+      )
+    }
 
-    // L'email utilisé pour la réservation : priorité à la session, sinon le body
-    const email = (sessionUser?.email ?? emailFromBody ?? '').toLowerCase().trim()
+    // Email comes from the authenticated session only (never trust body email alone)
+    const email = auth.email
     const sanitizedNotes = sanitizeBookingNotes(notes)
     const addrNorm = normalizeBookingAddressForDb({
       city: cityRaw,
@@ -630,37 +639,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', bookingRequestId)
 
-    // Créer ou récupérer l'utilisateur auth pour le CLIENT
-    let clientUserId: string | null = null
-    try {
-      if (sessionUser) {
-        // Utilisateur déjà connecté : utiliser son ID existant
-        clientUserId = sessionUser.id
-      } else {
-        // Créer un nouveau compte avec mot de passe si fourni
-        const createPayload: any = {
-          email,
-          email_confirm: true, // pas d'email de confirmation
-        }
-        if (passwordFromBody && typeof passwordFromBody === 'string' && passwordFromBody.length >= 8) {
-          createPayload.password = passwordFromBody
-        }
-
-        const { data: newClientUser, error: createClientError } = await supabase.auth.admin.createUser(createPayload)
-
-        if (createClientError) {
-          if (createClientError.message.includes('already registered') || createClientError.message.includes('already exists')) {
-            // Email déjà utilisé → renvoyer une erreur explicite au client
-            return NextResponse.json({ error: 'email_exists', message: 'Un compte existe déjà avec cet email.' }, { status: 409 })
-          }
-          console.error('Error creating client user:', createClientError)
-        } else if (newClientUser?.user) {
-          clientUserId = newClientUser.user.id
-        }
-      }
-    } catch (error) {
-      console.error('Error checking/creating client user:', error)
-    }
+    // Client is always authenticated at this point
+    const clientUserId = auth.userId
 
     // Pour le chef, récupérer son user_id existant (les chefs sont créés séparément)
     let chefUserId: string | null = null
@@ -701,78 +681,59 @@ export async function POST(request: NextRequest) {
       {
         conversation_id: conversationId,
         email: normalizedClientEmail,
-        role: 'client',
+        role: 'client' as const,
         user_id: clientUserId || null,
       },
       {
         conversation_id: conversationId,
         email: normalizedChefEmail,
-        role: 'chef',
+        role: 'chef' as const,
         user_id: chefUserId || null,
       },
     ]
-    
-    console.log('[bookings] Participants to insert:', JSON.stringify(participantsToInsert, null, 2))
-    console.log('[bookings] Participants to insert (detailed):', participantsToInsert.map(p => ({
-      ...p,
-      emailLength: p.email.length,
-      emailChars: p.email.split('').map((c: string) => `${c}(${c.charCodeAt(0)})`).join(''),
-    })))
-    
-    const { data: participants, error: participantsError } = await supabase
-      .from('participants')
-      .insert(participantsToInsert as any)
-      .select()
-    
-    console.log('[bookings] ========== PARTICIPANTS INSERT RESULT ==========')
-    console.log('[bookings] Insert result - data:', participants)
-    console.log('[bookings] Insert result - data count:', participants?.length || 0)
-    console.log('[bookings] Insert result - error:', participantsError)
-    if (participantsError) {
-      console.error('[bookings] ❌❌❌ ERROR INSERTING PARTICIPANTS ❌❌❌')
-      console.error('[bookings] Error message:', participantsError.message)
-      console.error('[bookings] Error code:', participantsError.code)
-      console.error('[bookings] Error details:', participantsError.details)
-      console.error('[bookings] Error hint:', participantsError.hint)
-    }
-    if (participants && participants.length > 0) {
-      console.log('[bookings] ✅ Participants created successfully:')
-      participants.forEach((p: any, i: number) => {
-        console.log(`[bookings]   ${i + 1}. Email: "${p.email}" (normalized: "${(p.email || '').toLowerCase().trim()}")`)
-        console.log(`[bookings]      Role: ${p.role}`)
-        console.log(`[bookings]      User ID: ${p.user_id || 'null'}`)
-        console.log(`[bookings]      Conversation ID: ${p.conversation_id}`)
+
+    if (normalizedClientEmail === normalizedChefEmail) {
+      console.error('[bookings] Client email matches chef email — cannot create distinct participants', {
+        conversationId,
+        email: normalizedClientEmail,
       })
+      return NextResponse.json(
+        {
+          error:
+            'Impossible de réserver avec l’email du chef. Utilisez une autre adresse email client.',
+        },
+        { status: 400 }
+      )
     }
-    
+
+    console.log('[bookings] Participants to upsert:', JSON.stringify(participantsToInsert, null, 2))
+
+    const { data: participants, error: participantsError } = await ensureConversationParticipants(
+      supabase,
+      participantsToInsert
+    )
+
+    console.log('[bookings] ========== PARTICIPANTS UPSERT RESULT ==========')
+    console.log('[bookings] Upsert result - data count:', participants?.length || 0)
+    console.log('[bookings] Upsert result - error:', participantsError)
+
     if (participantsError) {
       console.error('[bookings] ❌ ERROR creating participants:', participantsError)
-      console.error('[bookings] Error details:', JSON.stringify(participantsError, null, 2))
       return NextResponse.json(
         { error: `Erreur lors de la création des participants: ${participantsError.message}` },
         { status: 500 }
       )
     }
-    
+
     if (!participants || participants.length === 0) {
-      console.error('[bookings] ❌ WARNING: No participants returned after insert')
+      console.error('[bookings] ❌ WARNING: No participants returned after upsert')
       return NextResponse.json(
         { error: 'Aucun participant créé' },
         { status: 500 }
       )
     }
-    
-    console.log('[bookings] ✅ Participants created successfully:', participants)
-    console.log('[bookings] Number of participants created:', participants.length)
-    
-    // Vérifier que les participants sont bien dans la DB
-    const { data: verifyParticipants, error: verifyError } = await supabase
-      .from('participants')
-      .select('*')
-      .eq('conversation_id', conversationId)
-    
-    console.log('[bookings] Verification query - participants in DB:', verifyParticipants)
-    console.log('[bookings] Verification query - error:', verifyError)
+
+    console.log('[bookings] ✅ Participants ensured:', participants.length)
     console.log('[bookings] ========== PARTICIPANTS CREATION DONE ==========')
 
     await insertBookingNotesAsFirstMessage(supabase, conversationId, email, sanitizedNotes)

@@ -19,6 +19,8 @@ interface ChefCardProps {
   compact?: boolean
   /** When true, profile links break out of iframe (window.top) for full-screen navigation */
   breakOutOfIframe?: boolean
+  /** Horizontal card layout for desktop list mode */
+  horizontal?: boolean
 }
 
 function formatPrice(price: number | null): string {
@@ -59,6 +61,7 @@ export function ChefCard({
   forceMobileStyle = false,
   compact = false,
   breakOutOfIframe = false,
+  horizontal = false,
 }: ChefCardProps) {
   const navigateToProfile = useProfileNavigation(breakOutOfIframe)
   const [isDarkBackground, setIsDarkBackground] = useState(false)
@@ -127,6 +130,95 @@ export function ChefCard({
       cancelled = true
     }
   }, [chef.image])
+
+  if (horizontal) {
+    const heroSrc = mobileHeroImage
+      ? (getOptimizedSupabaseImageUrl(mobileHeroImage, 400, 70, true) ?? mobileHeroImage)
+      : null
+
+    return (
+      <article
+        ref={(element) => onMountRef?.(chef.id, element)}
+        className={`group relative flex overflow-hidden rounded-2xl border bg-white transition-all duration-200 ${
+          isOutOfRange ? 'opacity-[0.72] saturate-[0.65]' : ''
+        } ${
+          isHighlighted
+            ? 'border-[#FBCF03] shadow-[0_0_0_2px_#FBCF03,0_6px_24px_rgba(251,207,3,0.18)] bg-[#FFFDF0]'
+            : 'border-[#EAEAEA] shadow-[0_1px_6px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]'
+        }`}
+        onMouseEnter={() => onHover?.(chef.id)}
+        onMouseLeave={() => onHover?.(null)}
+      >
+        <div className="relative w-[120px] shrink-0 overflow-hidden sm:w-[148px]">
+          {heroSrc ? (
+            <img
+              src={heroSrc}
+              alt={displayChefName}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[#F0F0F0] text-[10px] font-medium text-[#8A8A8A]">
+              {t('explore.photoUnavailable')}
+            </div>
+          )}
+          {isOutOfRange && (
+            <div className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+              {t('explore.outOfRange')}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col justify-between gap-3 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              {isHighlighted && (
+                <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-[#FBCF03] px-2 py-0.5 text-[10px] font-semibold text-[#1C1C1C]">
+                  <svg width="9" height="11" viewBox="0 0 9 11" fill="none" className="shrink-0" aria-hidden>
+                    <path d="M4.5 0C2.01 0 0 2.01 0 4.5C0 7.88 4.5 11 4.5 11C4.5 11 9 7.88 9 4.5C9 2.01 6.99 0 4.5 0ZM4.5 6C3.67 6 3 5.33 3 4.5C3 3.67 3.67 3 4.5 3C5.33 3 6 3.67 6 4.5C6 5.33 5.33 6 4.5 6Z" fill="#1C1C1C"/>
+                  </svg>
+                  {t('explore.selectedOnMap')}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onChefNameClick?.(chef.id)
+                }}
+                className="block truncate text-left text-[15px] font-semibold leading-tight text-[#111111] hover:underline"
+              >
+                {displayChefName}
+              </button>
+              <span className="mt-1 inline-flex max-w-full truncate rounded-full bg-[#F4F4F4] px-2.5 py-1 text-[11px] font-medium text-[#4E4E4E]">
+                {displayedCuisine}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-semibold text-[#111111]">{priceLabel}</p>
+              <p className="mt-0.5 text-[12px] text-[#7A7A7A]">{guestsLabel}</p>
+            </div>
+            {infoHref ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'list' })
+                  navigateToProfile(infoHref)
+                }}
+                className="shrink-0 rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_4px_10px_rgba(251,207,3,0.30)] transition hover:brightness-[1.03]"
+              >
+                {t('explore.viewProfile')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <article

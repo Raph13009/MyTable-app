@@ -73,7 +73,7 @@ export async function findNearbyChefSuggestions(
         id: row.id,
         name: row.name,
         slug,
-        profileUrl: `${baseUrl}/book/${slug}`,
+        profileUrl: `${baseUrl}/book/${encodeURIComponent(slug)}`,
         cuisineStyle: row.cuisine_style,
         distanceKm: km,
       }

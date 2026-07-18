@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { generateDecisionToken, hashToken, getBaseUrl, sanitizeBookingNotes } from '@/lib/utils'
 import { insertBookingNotesAsFirstMessage } from '@/lib/bookingConversation'
+import { ensureConversationParticipants } from '@/lib/ensureParticipants'
 import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { getServiceTypeLabel } from '@/lib/i18n/constants'
 import { formatDateForDisplay } from '@/lib/dateUtils'
@@ -191,22 +192,24 @@ async function createFallbackBookingForChef(
   const normalizedChefEmail = (chef.email || '').toLowerCase().trim()
   const sanitizedNotes = sanitizeBookingNotes(currentBooking.notes)
 
-  await supabase
-    .from('participants')
-    .insert([
-      {
-        conversation_id: conversation.id,
-        email: normalizedClientEmail,
-        role: 'client',
-        user_id: null,
-      },
-      {
-        conversation_id: conversation.id,
-        email: normalizedChefEmail,
-        role: 'chef',
-        user_id: null,
-      },
-    ] as any)
+  const { error: participantsError } = await ensureConversationParticipants(supabase, [
+    {
+      conversation_id: conversation.id,
+      email: normalizedClientEmail,
+      role: 'client',
+      user_id: null,
+    },
+    {
+      conversation_id: conversation.id,
+      email: normalizedChefEmail,
+      role: 'chef',
+      user_id: null,
+    },
+  ])
+
+  if (participantsError) {
+    throw new Error(`Impossible de créer les participants fallback: ${participantsError.message}`)
+  }
 
   await insertBookingNotesAsFirstMessage(
     supabase,

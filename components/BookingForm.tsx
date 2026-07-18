@@ -17,6 +17,12 @@ import {
   isValidBookingDate 
 } from '@/lib/dateUtils'
 import { fetchWithTimeout, generateIdempotencyToken } from '@/lib/utils'
+import { createInFlightGuard } from '@/lib/submitGuard'
+import {
+  canSubmitBookingRequest,
+  resolveBookingAuthGate,
+  shouldShowAccountStep,
+} from '@/lib/bookingAuth'
 import { trackEvent } from '@/lib/analytics/track'
 import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
 import { resolveBookingAddress } from '@/lib/bookingAddress'
@@ -229,6 +235,8 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   const nearbyFetchAbortRef = useRef<AbortController | null>(null)
   const step1AdvanceTimeoutRef = useRef<number | null>(null)
   const step1AdvanceGenRef = useRef(0)
+  const submitGuardRef = useRef(createInFlightGuard())
+  const idempotencyTokenRef = useRef<string | null>(null)
   const [resolvedNearbyChefs, setResolvedNearbyChefs] = useState<NearbyChef[]>([])
   const [nearbyChefsLoading, setNearbyChefsLoading] = useState(false)
   const [clientMapCoords, setClientMapCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -291,6 +299,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     setAcceptedTerms(false)
     setErrors({})
     setLoading(false)
+    submitGuardRef.current.finish()
+    idempotencyTokenRef.current = null
+    setIdempotencyToken(null)
     setFormData({
       fullName: '',
       email: '',
@@ -805,11 +816,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       return
     }
     if (currentPage === 4 && validatePage4()) {
-      if (needsAccountStep) {
+      const gate = resolveBookingAuthGate({ userLoading, currentUser })
+      if (gate === 'wait') {
+        return
+      }
+      if (gate === 'account_step') {
         setCurrentPage(5)
         return
       }
-      // Logged in (or still loading): submit directly
+      // Logged in: submit directly
       handleSubmit(e)
       return
     }
@@ -850,7 +865,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false, loggedInUser?: any) => {
     e.preventDefault()
 
-    const effectiveUser = loggedInUser ?? currentUser
+    let effectiveUser = loggedInUser ?? currentUser
+
+    const preAuthGate = canSubmitBookingRequest({
+      userLoading: userLoading && !effectiveUser,
+      currentUser: effectiveUser,
+    })
+    if (!preAuthGate.ok && preAuthGate.reason === 'auth_loading') {
+      return
+    }
 
     if (!validatePage1()) {
       setCurrentPage(1)
@@ -872,32 +895,116 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       return
     }
 
-    if (!effectiveUser && !validatePage5()) {
+    // Unauthenticated users must complete account step (sign up or sign in) first
+    if (!effectiveUser) {
+      if (resolveBookingAuthGate({ userLoading, currentUser: null }) === 'wait') {
+        return
+      }
+      if (!validatePage5()) {
+        setCurrentPage(5)
+        return
+      }
+      if (isLoginMode) {
+        // Login is handled by handleLogin (establishes session, then calls handleSubmit)
+        setCurrentPage(5)
+        return
+      }
+
+      // Sign up + establish session BEFORE any booking API call
+      setLoading(true)
+      setAccountError('')
+      setSubmissionError(null)
+      try {
+        const email = accountEmail.trim().toLowerCase()
+        const registerResponse = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const registerData = await registerResponse.json().catch(() => ({}))
+
+        if (!registerResponse.ok) {
+          if (registerData.error === 'email_exists') {
+            setAccountError(t('booking.errors.emailExists'))
+            setIsLoginMode(true)
+            setLoginEmail(email)
+            setCurrentPage(5)
+            return
+          }
+          setAccountError(registerData.message || registerData.error || t('booking.errors.genericError'))
+          setCurrentPage(5)
+          return
+        }
+
+        const supabase = createClient()
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (signInError || !signInData.user) {
+          setAccountError(
+            signInError?.message || t('booking.errors.genericError')
+          )
+          setIsLoginMode(true)
+          setLoginEmail(email)
+          setCurrentPage(5)
+          return
+        }
+
+        setCurrentUser(signInData.user)
+        effectiveUser = signInData.user
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('booking.errors.genericError')
+        setAccountError(message)
+        setCurrentPage(5)
+        return
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const authGate = canSubmitBookingRequest({
+      userLoading: false,
+      currentUser: effectiveUser,
+    })
+    if (!authGate.ok) {
+      setCurrentPage(5)
+      return
+    }
+
+    // Synchronous in-flight guard (React state alone is too late for double-taps)
+    if (!submitGuardRef.current.tryStart()) {
+      console.warn('[BookingForm] Ignoring duplicate submit while request is in flight')
       return
     }
 
     // Masquer l'erreur globale si la validation passe
     setShowGlobalError(false)
 
-    // Générer un token d'idempotence si première soumission
-    if (!isRetry && !idempotencyToken) {
-      const token = generateIdempotencyToken()
-      setIdempotencyToken(token)
+    // Générer un token d'idempotence et l'utiliser immédiatement (pas via setState async)
+    let tokenForRequest = idempotencyTokenRef.current ?? idempotencyToken
+    if (!isRetry && !tokenForRequest) {
+      tokenForRequest = generateIdempotencyToken()
+      idempotencyTokenRef.current = tokenForRequest
+      setIdempotencyToken(tokenForRequest)
       setRetryCount(0)
+    } else if (tokenForRequest && !idempotencyTokenRef.current) {
+      idempotencyTokenRef.current = tokenForRequest
     }
 
     setLoading(true)
     setSubmissionError(null)
 
-    const emailForBooking = effectiveUser?.email ?? accountEmail.trim().toLowerCase()
-    const passwordForBooking = (!effectiveUser && !isLoginMode) ? password : undefined
+    const emailForBooking = (effectiveUser.email || accountEmail).toString().trim().toLowerCase()
 
     try {
       console.log('[BookingForm] Starting booking submission', {
         serviceType: formData.serviceType,
-        idempotencyToken: idempotencyToken,
+        idempotencyToken: tokenForRequest,
         isRetry,
         retryCount,
+        authenticated: true,
         timestamp: new Date().toISOString(),
       })
 
@@ -938,14 +1045,11 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         courseTopic = formData.courseTopic || null
       } else if (formData.serviceType === 'mise_en_demeure') {
         selectedDates = formData.selectedDates.length > 0 ? formData.selectedDates : null
-        // Convertir mealOptionsByDate en format pour l'API
-        // Structure: { date1: ['pdj', 'dejeuner'], date2: ['diner'], ... }
         mealOptions = Object.keys(formData.mealOptionsByDate).length > 0 ? formData.mealOptionsByDate : null
         totalPrice = formData.budget || null
-        budget = null // Ne pas utiliser budget pour mise_en_demeure, utiliser totalPrice
+        budget = null
       }
 
-      // La flexibilité de date ne concerne que repas à domicile et cours de cuisine
       const supportsDateFlexibility =
         formData.serviceType === 'repas_domicile' || formData.serviceType === 'cours_cuisine'
       const isDateFlexible = supportsDateFlexibility && formData.isDateFlexible
@@ -967,18 +1071,14 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         fallbackChefIds: shareWithNearbyChefs ? nearbyChefIds : [],
         clientLatitude: clientMapCoords?.lat ?? null,
         clientLongitude: clientMapCoords?.lng ?? null,
-        idempotencyToken,
-      }
-      if (passwordForBooking) {
-        requestBody.password = passwordForBooking
+        idempotencyToken: tokenForRequest,
       }
 
       console.log('[BookingForm] Sending booking request', {
-        hasIdempotencyToken: !!idempotencyToken,
+        hasIdempotencyToken: !!tokenForRequest,
         bodyKeys: Object.keys(requestBody),
       })
       
-      // Utiliser fetchWithTimeout avec timeout de 30 secondes
       const response = await fetchWithTimeout(
         '/api/bookings',
         {
@@ -988,7 +1088,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           },
           body: JSON.stringify(requestBody),
         },
-        30000 // 30 secondes timeout
+        30000
       )
 
       console.log('[BookingForm] Response received', {
@@ -1000,15 +1100,22 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       const data = await response.json()
 
       if (!response.ok) {
-        // Email déjà existant : basculer vers le mode connexion
+        if (response.status === 401 || data.error === 'unauthorized') {
+          setAccountError(data.message || t('booking.errors.genericError'))
+          setCurrentUser(null)
+          setCurrentPage(5)
+          setLoading(false)
+          submitGuardRef.current.finish()
+          return
+        }
         if (data.error === 'email_exists') {
           setAccountError(t('booking.errors.emailExists'))
           setIsLoginMode(true)
           setLoginEmail(accountEmail.trim().toLowerCase())
           setLoading(false)
+          submitGuardRef.current.finish()
           return
         }
-        // Vérifier si c'est une erreur de doublon (idempotence)
         if (data.isDuplicate) {
           console.log('[BookingForm] Duplicate booking detected, redirecting to confirmation')
           router.push('/booking-confirmation')
@@ -1029,7 +1136,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         service_type: formData.serviceType,
       })
 
-      // Rediriger vers une page de confirmation
       router.push('/booking-confirmation')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue'
@@ -1044,7 +1150,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         timestamp: new Date().toISOString(),
       })
 
-      // Déterminer si on peut retry (timeout ou erreur réseau, max 2 retries)
       const canRetry = (isTimeout || isNetworkError) && retryCount < 2
 
       setSubmissionError({
@@ -1061,11 +1166,12 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       if (canRetry) {
         setRetryCount(prev => prev + 1)
       } else {
-        // Après 2 retries, réinitialiser pour permettre un nouveau submit
+        idempotencyTokenRef.current = null
         setIdempotencyToken(null)
         setRetryCount(0)
       }
     } finally {
+      submitGuardRef.current.finish()
       setLoading(false)
     }
   }
@@ -1253,7 +1359,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     )
   }
 
-  const needsAccountStep = !currentUser && !userLoading
+  const needsAccountStep = shouldShowAccountStep({ userLoading, currentUser })
   const stepLabels = [
     t('booking.formStepper.serviceType'),
     t('booking.formStepper.serviceDetails'),
@@ -2324,11 +2430,11 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           ) : (
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || userLoading}
               className="w-full sm:w-auto min-w-[220px] rounded-full bg-[#FBCF03] text-black hover:bg-[#E6BA00] font-semibold py-3.5 px-8 text-base transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {currentPage === lastPage ? (
-                loading ? (
+                loading || userLoading ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

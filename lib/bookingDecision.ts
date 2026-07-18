@@ -71,7 +71,7 @@ export async function processBookingDecision(
       .select('id, conversation_id')
       .maybeSingle()
 
-    if (!refusedBooking?.id) {
+    if (!refusedBooking) {
       return {
         ok: false,
         code: 'already_handled',
