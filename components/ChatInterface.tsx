@@ -231,13 +231,51 @@ export default function ChatInterface({
   }
 
   const getCurrentUserRole = (): 'chef' | 'client' | null => {
-    if (!currentUser?.email) return null
-    const role = getParticipantRole(currentUser.email)
+    if (!currentUser?.email && !currentUser?.id) return null
+
+    // 1) Match by email (normalized)
+    if (currentUser?.email) {
+      const roleByEmail = getParticipantRole(currentUser.email)
+      if (roleByEmail) {
+        console.log('[ChatInterface] getCurrentUserRole:', {
+          userEmail: currentUser.email,
+          role: roleByEmail,
+          via: 'email',
+        })
+        return roleByEmail
+      }
+    }
+
+    // 2) Fallback: match by user_id (access can succeed via user_id even if emails diverge)
+    if (currentUser?.id) {
+      const byUserId = participants.find((p) => p.user_id === currentUser.id)
+      if (byUserId?.role) {
+        console.log('[ChatInterface] getCurrentUserRole:', {
+          userId: currentUser.id,
+          role: byUserId.role,
+          via: 'user_id',
+        })
+        return byUserId.role
+      }
+    }
+
+    // 3) Fallback: booking email matches → treat as client (keeps Finaliser visible)
+    const bookingEmail = bookingRequest?.email?.toLowerCase?.().trim?.()
+    const userEmail = currentUser?.email?.toLowerCase?.().trim?.()
+    if (bookingEmail && userEmail && bookingEmail === userEmail) {
+      console.log('[ChatInterface] getCurrentUserRole:', {
+        userEmail,
+        role: 'client',
+        via: 'booking_email',
+      })
+      return 'client'
+    }
+
     console.log('[ChatInterface] getCurrentUserRole:', {
-      userEmail: currentUser.email,
-      role,
+      userEmail: currentUser?.email,
+      role: null,
     })
-    return role
+    return null
   }
 
   useEffect(() => {
@@ -1522,15 +1560,26 @@ export default function ChatInterface({
               )}
             </button>
 
-            {/* Right: Actions grouped */}
-            <div className="flex items-center gap-2 flex-1 justify-end">
+            {/* Right: Actions grouped — wrap on mobile so Finaliser never overflows off-screen */}
+            <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
               {bookingRequest && (
                 <>
+                  {/* Primary: Finaliser first (client uniquement, statut accepted) — always visible */}
+                  {isClient && bookingStatus === 'accepted' && (
+                    <button
+                      onClick={handleFinalizeBooking}
+                      disabled={processingAction}
+                      className="flex-shrink-0 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {processingAction ? '...' : t('booking.finalize')}
+                    </button>
+                  )}
+
                   {/* Menu button (chef only) - Yellow for contrast - Caché pour cours_cuisine et mise_en_demeure */}
                   {isChef && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                     <button
                       onClick={() => setShowMenuModal(true)}
-                      className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow"
+                      className="flex-shrink-0 px-3 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow"
                     >
                       {t('booking.menu')}
                     </button>
@@ -1538,7 +1587,7 @@ export default function ChatInterface({
                   {/* Secondary: Voir l&apos;offre (ghost/outline) */}
                   <button
                     onClick={() => setShowOfferModal(true)}
-                    className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
+                    className="flex-shrink-0 px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white/80 border border-gray-300/60 hover:bg-white hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                   >
                     {t('booking.seeOffer')}
                   </button>
@@ -1547,20 +1596,9 @@ export default function ChatInterface({
                   {isClient && hasMenu && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                     <button
                       onClick={() => setShowMenuModal(true)}
-                      className="px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
+                      className="flex-shrink-0 px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm hover:shadow"
                     >
                       {t('booking.seeMenu')}
-                    </button>
-                  )}
-                  
-                  {/* Primary: Finaliser (client uniquement, statut accepted) */}
-                  {isClient && bookingStatus === 'accepted' && (
-                    <button
-                      onClick={handleFinalizeBooking}
-                      disabled={processingAction}
-                      className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processingAction ? '...' : t('booking.finalize')}
                     </button>
                   )}
                   
@@ -1569,7 +1607,7 @@ export default function ChatInterface({
                     <button
                       onClick={handleCancelBooking}
                       disabled={processingAction}
-                      className="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-shrink-0 px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100/80 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       title={t('booking.cancelBooking')}
                     >
                       {processingAction ? '...' : t('common.cancel')}
@@ -1612,6 +1650,22 @@ export default function ChatInterface({
           <p className="text-sm text-green-700">
             Réservation acceptée
           </p>
+        </div>
+      )}
+
+      {/* CTA Finaliser bien visible pour le client tant que la résa est acceptée */}
+      {isClient && bookingStatus === 'accepted' && (
+        <div className="flex-shrink-0 bg-[#FBCF03]/25 border-b border-[#FBCF03]/50 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+          <p className="text-sm text-gray-800">
+            {t('chat.finalizeReservation')} <span className="font-semibold">&quot;{t('booking.finalize')}&quot;</span>
+          </p>
+          <button
+            onClick={handleFinalizeBooking}
+            disabled={processingAction}
+            className="flex-shrink-0 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {processingAction ? '...' : t('booking.finalize')}
+          </button>
         </div>
       )}
 
@@ -2902,6 +2956,23 @@ export default function ChatInterface({
 
               {/* Actions - Réplique exacte des boutons du header avec explications */}
               <div className="space-y-3 mb-6">
+                {/* Finaliser la réservation — en premier pour rester trouvé facilement */}
+                {isClient && bookingStatus === 'accepted' && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setShowInfoModal(false)
+                        handleFinalizeBooking()
+                      }}
+                      disabled={processingAction}
+                      className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    >
+                      {processingAction ? '...' : 'Finaliser'}
+                    </button>
+                    <p className="text-xs text-gray-500 flex-1">{t('booking.finalizeDescription')}</p>
+                  </div>
+                )}
+
                 {/* Voir l&apos;offre */}
                 <div className="flex items-center gap-3">
                   <button
@@ -2929,23 +3000,6 @@ export default function ChatInterface({
                       Menu
                     </button>
                     <p className="text-xs text-gray-500 flex-1">{t('booking.defineMenu')}</p>
-                  </div>
-                )}
-
-                {/* Finaliser la réservation */}
-                {isClient && bookingStatus === 'accepted' && (
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => {
-                        setShowInfoModal(false)
-                        handleFinalizeBooking()
-                      }}
-                      disabled={processingAction}
-                      className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                    >
-                      {processingAction ? '...' : 'Finaliser'}
-                    </button>
-                    <p className="text-xs text-gray-500 flex-1">{t('booking.finalizeDescription')}</p>
                   </div>
                 )}
 
