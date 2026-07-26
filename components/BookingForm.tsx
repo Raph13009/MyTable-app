@@ -541,7 +541,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
   // Section "Êtes-vous flexible sur la date ?" — utilisée pour repas_domicile et cours_cuisine.
   // Si flexible, le client peut proposer jusqu'à 3 dates alternatives via le même calendrier.
   const renderDateFlexibility = () => (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 mt-6 sm:mt-4">
       <label
         htmlFor="date-flexible"
         className={`group block cursor-pointer rounded-xl border px-5 py-4 shadow-sm transition-all duration-200 ${
