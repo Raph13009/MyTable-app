@@ -1118,6 +1118,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         }
         if (data.isDuplicate) {
           console.log('[BookingForm] Duplicate booking detected, redirecting to confirmation')
+          submitGuardRef.current.finish()
           router.push('/booking-confirmation')
           return
         }
@@ -1136,6 +1137,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         service_type: formData.serviceType,
       })
 
+      submitGuardRef.current.finish()
       router.push('/booking-confirmation')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue'
