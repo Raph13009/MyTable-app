@@ -499,7 +499,7 @@ export const emailTemplates = {
         ? `
       <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
         <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
-          Vous êtes prioritaire pour cette demande pendant 6 heures ; après, elle sera attribuée à d'autres chefs.
+          Vous êtes prioritaire pour cette demande pendant 3 heures ; après, elle sera attribuée à d'autres chefs.
         </p>
       </div>
     `
@@ -550,6 +550,11 @@ export const emailTemplates = {
     const content = `
       <p>Bonjour ${chefName},</p>
       <p>Vous avez été sélectionné comme <strong>chef de remplacement</strong> pour une prestation de <strong>${guestsText} convives</strong>.</p>
+      <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
+        <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
+          ⏱️ Vous avez 6 heures pour répondre à cette demande de remplacement.
+        </p>
+      </div>
       <p style="margin: 0 0 10px 0; color: #444;">
         Le Chef initialement prévu pour ce client n'est plus disponible. <strong>Tentez votre chance&nbsp;!</strong>
       </p>

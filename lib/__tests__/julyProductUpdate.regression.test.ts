@@ -15,9 +15,9 @@ import {
 import { emailSubjects, emailTemplates } from '../email'
 
 describe('July product update — fallback exclusivity constants', () => {
-  it('uses a 4-hour exclusive window for the primary chef', () => {
-    assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 4)
-    assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 4 * 60 * 60 * 1000)
+  it('uses a 3-hour exclusive window for the primary chef', () => {
+    assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 3)
+    assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 3 * 60 * 60 * 1000)
   })
 
   it('locks the backup broadcast after two accepts', () => {
@@ -84,7 +84,7 @@ describe('July product update — chef email copy', () => {
       'https://example.com',
       { showFallbackPriority: true }
     )
-    assert.match(html, /pendant 6 heures/)
+    assert.match(html, /pendant 3 heures/)
     assert.doesNotMatch(html, /pendant 6 heures/)
   })
 

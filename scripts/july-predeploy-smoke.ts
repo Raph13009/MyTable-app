@@ -192,8 +192,8 @@ function smokeStaticFinalizeAndNotifications() {
   assert.match(checkFallback, /dispatchFallbackToAllBackupChefs/)
   assert.doesNotMatch(checkFallback, /createNextFallbackBooking/)
 
-  assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 4)
-  assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 4 * 60 * 60 * 1000)
+  assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 3)
+  assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 3 * 60 * 60 * 1000)
 
   assert.equal(
     emailSubjects.bookingRequestToChef('Ada', 'Lovelace'),
@@ -223,7 +223,7 @@ function smokeStaticFinalizeAndNotifications() {
     'https://example.com',
     { showFallbackPriority: true }
   )
-  assert.match(primaryHtml, /pendant 6 heures/)
+  assert.match(primaryHtml, /pendant 3 heures/)
 
   // WhatsApp must stay off unless explicitly enabled in env
   assert.equal(isWhatsAppBookingNotificationsEnabled(), process.env.WHATSAPP_BOOKING_NOTIFICATIONS_ENABLED === 'true')

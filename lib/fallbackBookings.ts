@@ -11,8 +11,15 @@ import { notifyChefFallbackBookingWhatsApp } from '@/lib/whatsapp'
 type AdminClient = SupabaseClient<Database>
 
 /** Exclusive window for the primary chef before backups are contacted. */
-export const FALLBACK_EXCLUSIVE_WINDOW_HOURS = 6
-export const FALLBACK_EXCLUSIVE_WINDOW_MS = FALLBACK_EXCLUSIVE_WINDOW_HOURS * 60 * 60 * 1000
+export const FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS = 3
+export const FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS = FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS * 60 * 60 * 1000
+
+/** Response window communicated to backup chefs (informational). */
+export const FALLBACK_BACKUP_RESPONSE_WINDOW_HOURS = 6
+
+// Legacy exports for backward compatibility
+export const FALLBACK_EXCLUSIVE_WINDOW_HOURS = FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS
+export const FALLBACK_EXCLUSIVE_WINDOW_MS = FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS
 
 /** After broadcast, stop accepting once this many backup chefs have accepted. */
 export const FALLBACK_MAX_ACCEPTED_CANDIDATES = 2
