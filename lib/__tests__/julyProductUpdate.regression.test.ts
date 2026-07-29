@@ -84,7 +84,7 @@ describe('July product update — chef email copy', () => {
       'https://example.com',
       { showFallbackPriority: true }
     )
-    assert.match(html, /pendant 4 heures/)
+    assert.match(html, /pendant 6 heures/)
     assert.doesNotMatch(html, /pendant 6 heures/)
   })
 

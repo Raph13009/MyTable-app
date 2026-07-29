@@ -499,7 +499,7 @@ export const emailTemplates = {
         ? `
       <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
         <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
-          Vous êtes prioritaire pour cette demande pendant 4 heures ; après, elle sera attribuée à d'autres chefs.
+          Vous êtes prioritaire pour cette demande pendant 6 heures ; après, elle sera attribuée à d'autres chefs.
         </p>
       </div>
     `

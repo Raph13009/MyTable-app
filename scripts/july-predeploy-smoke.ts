@@ -223,7 +223,7 @@ function smokeStaticFinalizeAndNotifications() {
     'https://example.com',
     { showFallbackPriority: true }
   )
-  assert.match(primaryHtml, /pendant 4 heures/)
+  assert.match(primaryHtml, /pendant 6 heures/)
 
   // WhatsApp must stay off unless explicitly enabled in env
   assert.equal(isWhatsAppBookingNotificationsEnabled(), process.env.WHATSAPP_BOOKING_NOTIFICATIONS_ENABLED === 'true')
