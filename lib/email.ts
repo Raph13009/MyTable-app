@@ -552,7 +552,7 @@ export const emailTemplates = {
       <p>Vous avez été sélectionné comme <strong>chef de remplacement</strong> pour une prestation de <strong>${guestsText} convives</strong>.</p>
       <div style="background-color:#FFFBEB;border:2px solid #FBCF03;padding:18px 22px;margin:20px 0 24px 0;border-radius:8px;">
         <p style="margin:0;font-weight:700;font-size:16px;line-height:1.55;color:#111;">
-          ⏱️ Vous avez 6 heures pour répondre à cette demande de remplacement.
+          ⏱️ Vous avez 12 heures pour répondre à cette demande de remplacement.
         </p>
       </div>
       <p style="margin: 0 0 10px 0; color: #444;">

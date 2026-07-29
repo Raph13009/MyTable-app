@@ -15,7 +15,7 @@ export const FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS = 3
 export const FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS = FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS * 60 * 60 * 1000
 
 /** Response window communicated to backup chefs (informational). */
-export const FALLBACK_BACKUP_RESPONSE_WINDOW_HOURS = 6
+export const FALLBACK_BACKUP_RESPONSE_WINDOW_HOURS = 12
 
 // Legacy exports for backward compatibility
 export const FALLBACK_EXCLUSIVE_WINDOW_HOURS = FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_HOURS
