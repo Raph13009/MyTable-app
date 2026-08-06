@@ -36,13 +36,13 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // User doesn't exist - check if they exist in chefs table
-      const { data: chef, error: chefError } = await supabase
+      const { data: chefData, error: chefError } = await supabase
         .from('chefs')
         .select('email, name, last_name')
         .ilike('email', email)
         .single()
 
-      if (chefError || !chef) {
+      if (chefError || !chefData) {
         return NextResponse.json({
           exists: false,
           message: 'User not found in auth.users or chefs table',
@@ -50,9 +50,12 @@ export async function GET(request: NextRequest) {
         })
       }
 
+      // Chef exists - extract email
+      const chefEmail = (chefData as any).email as string
+      
       // Chef exists in chefs table but not in auth.users - create them
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: chef.email,
+        email: chefEmail,
         email_confirm: true,
       })
 
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
             error: 'Failed to create user', 
             details: createError.message,
             chefExists: true,
-            chefData: chef 
+            chefData: chefData 
           },
           { status: 500 }
         )
@@ -73,9 +76,9 @@ export async function GET(request: NextRequest) {
         exists: false,
         created: true,
         userId: newUser.user?.id,
-        email,
+        email: chefEmail,
         message: 'User was created. They can now use "Forgot Password" on the login page.',
-        chefData: chef,
+        chefData: chefData,
       })
     }
 
