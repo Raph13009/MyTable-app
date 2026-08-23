@@ -41,11 +41,11 @@ export function LocaleDateInput({
           {label}
         </label>
       )}
-      <div className="relative">
+      <div className="relative group">
         <div
           aria-hidden="true"
           className={cn(
-            'w-full min-w-0 px-4 py-3 pr-11 border-2 border-gray-300 rounded-lg bg-white pointer-events-none',
+            'w-full min-w-0 px-4 py-3 pr-11 border-2 border-gray-300 rounded-lg bg-white pointer-events-none group-focus-within:border-black',
             error && 'border-red-500',
             !display && 'text-gray-400',
             className
