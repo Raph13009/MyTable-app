@@ -3,32 +3,29 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, emailLayout, emailSubjects, emailTemplates } from '@/lib/email'
 import { getBaseUrl, generateDecisionToken, hashToken } from '@/lib/utils'
 import { formatDateForDisplay } from '@/lib/dateUtils'
+import { getChefInactivityReminderCreatedAtRange } from '@/lib/chefInactivityReminder'
 import { getServiceTypeLabel } from '@/lib/i18n/constants'
 
 /** Prevent static prerendering - must only run when called by Vercel Cron or manual request */
 export const dynamic = 'force-dynamic'
 
 /**
- * Endpoint pour vérifier les booking_requests en attente depuis plus de 12h
- * et envoyer un email d'alerte à contact@guidemytable.fr
- * 
- * Ce endpoint peut être appelé :
- * - Via un cron job (Vercel Cron, GitHub Actions, etc.)
- * - Manuellement pour tester
+ * Relance unique à J+1 : demandes pending créées hier (Europe/Paris).
+ * Email au chef et à contact@guidemytable.fr — pas de relance les jours suivants.
+ *
+ * Appelé via le cron Vercel quotidien, ou manuellement pour tester.
  */
 export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient()
     const baseUrl = getBaseUrl()
 
-    // Calculer la date limite (12h avant maintenant)
     const now = new Date()
-    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000)
-    const twelveHoursAgoISO = twelveHoursAgo.toISOString()
+    const { fromInclusive, toExclusive } = getChefInactivityReminderCreatedAtRange(now)
 
-    console.log('[check-inactive-bookings] Checking for bookings created before:', twelveHoursAgoISO)
+    console.log('[check-inactive-bookings] Checking J+1 bookings created between', fromInclusive, 'and', toExclusive)
 
-    // Récupérer les booking_requests en attente créées il y a plus de 12h
+    // Uniquement les pending créées hier (J+1), pour éviter les relances quotidiennes au-delà
     const { data: inactiveBookings, error: bookingsError } = await supabase
       .from('booking_requests')
       .select(`
@@ -66,7 +63,8 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('status', 'pending')
-      .lt('created_at', twelveHoursAgoISO)
+      .gte('created_at', fromInclusive)
+      .lt('created_at', toExclusive)
 
     if (bookingsError) {
       console.error('[check-inactive-bookings] Error fetching inactive bookings:', bookingsError)
@@ -77,10 +75,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!inactiveBookings || inactiveBookings.length === 0) {
-      console.log('[check-inactive-bookings] No inactive bookings found')
+      console.log('[check-inactive-bookings] No J+1 inactive bookings found')
       return NextResponse.json({
         success: true,
-        message: 'No inactive bookings found',
+        message: 'No J+1 inactive bookings found',
         count: 0,
       })
     }

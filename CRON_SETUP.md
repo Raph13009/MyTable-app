@@ -2,7 +2,7 @@
 
 ## Endpoint API
 
-L'endpoint `/api/check-inactive-bookings` vérifie automatiquement les demandes de réservation en attente depuis plus de 12h et envoie un email d'alerte à `contact@guidemytable.fr` (et une relance au chef si l'email est disponible).
+L'endpoint `/api/check-inactive-bookings` vérifie automatiquement les demandes de réservation en attente **créées hier (J+1, Europe/Paris)** et envoie un email d'alerte à `contact@guidemytable.fr` (et une relance au chef si l'email est disponible). Aucune relance n'est envoyée au-delà de J+1.
 
 ## Configuration Vercel Cron
 
@@ -57,6 +57,6 @@ L'email envoyé à `contact@guidemytable.fr` contient :
 ## Notes
 
 - L'endpoint vérifie uniquement les `booking_requests` avec `status = 'pending'`
-- Seules les demandes créées il y a plus de 12h sont prises en compte
-- Un email est envoyé pour chaque demande inactive trouvée
+- Seules les demandes créées **hier** (J+1, fuseau Europe/Paris) sont prises en compte
+- Un email est envoyé une seule fois (à J+1) pour chaque demande inactive — pas de relance les jours suivants
 - Les emails sont envoyés en parallèle pour optimiser les performances
