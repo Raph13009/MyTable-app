@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { parseEmbedSearchLocale } from '../i18n'
 import {
   bbox100kmAroundCenter,
   buildExplore2LocationUrl,
@@ -12,6 +13,16 @@ import {
   mapboxFeatureToSuggestion,
   parseExploreLocationParams,
 } from '../exploreLocationSearch'
+
+describe('parseEmbedSearchLocale', () => {
+  it('maps WordPress/html lang values to fr or en', () => {
+    assert.equal(parseEmbedSearchLocale('en'), 'en')
+    assert.equal(parseEmbedSearchLocale('en-US'), 'en')
+    assert.equal(parseEmbedSearchLocale('fr_FR'), 'fr')
+    assert.equal(parseEmbedSearchLocale('de'), 'fr')
+    assert.equal(parseEmbedSearchLocale(undefined), 'fr')
+  })
+})
 
 describe('parseExploreLocationParams', () => {
   it('parses a valid lat/lng/q contract', () => {
