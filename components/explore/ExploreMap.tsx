@@ -556,6 +556,8 @@ export function ExploreMap({
     features: [],
   })
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const initialSearchViewportRef = useRef(searchViewport)
+  const skipNextViewportAnimationRef = useRef(Boolean(searchViewport))
   const localeRef = useRef<Locale>(locale)
   const [activePopupChefId, setActivePopupChefId] = useState<string | null>(null)
   const [radiusInfoDismissed, setRadiusInfoDismissed] = useState(false)
@@ -701,11 +703,13 @@ export function ExploreMap({
     let isDisposed = false
 
     mapboxgl.accessToken = token
-    const initialZoom = embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM
+    const startViewport = initialSearchViewportRef.current
+    const initialZoom = startViewport?.zoom ?? (embedded ? EMBEDDED_FRANCE_ZOOM : FRANCE_ZOOM)
+    const initialCenter = startViewport?.center ?? FRANCE_CENTER
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: FRANCE_CENTER,
+      center: initialCenter,
       zoom: initialZoom,
       maxBounds: EUROPE_MAX_BOUNDS,
     })
@@ -989,7 +993,16 @@ export function ExploreMap({
       hideMapNoiseLayers(map)
       applyMapLanguage(map, localeRef.current)
 
-      if (initialRegionBBoxRef.current) {
+      if (startViewport?.bbox) {
+        const [minLng, minLat, maxLng, maxLat] = startViewport.bbox
+        map.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 80, duration: 0 }
+        )
+      } else if (initialRegionBBoxRef.current) {
         const [minLng, minLat, maxLng, maxLat] = initialRegionBBoxRef.current
         map.fitBounds(
           [
@@ -1403,6 +1416,9 @@ export function ExploreMap({
     const map = mapRef.current
     if (!map || !searchViewport) return
 
+    const duration = skipNextViewportAnimationRef.current ? 0 : 800
+    skipNextViewportAnimationRef.current = false
+
     if (searchViewport.bbox) {
       const [minLng, minLat, maxLng, maxLat] = searchViewport.bbox
       map.fitBounds(
@@ -1410,7 +1426,7 @@ export function ExploreMap({
           [minLng, minLat],
           [maxLng, maxLat],
         ],
-        { padding: 80, duration: 800 }
+        { padding: 80, duration }
       )
       return
     }
@@ -1418,7 +1434,7 @@ export function ExploreMap({
     map.flyTo({
       center: searchViewport.center,
       zoom: searchViewport.zoom,
-      duration: 800,
+      duration,
       essential: true,
     })
   }, [searchViewport])

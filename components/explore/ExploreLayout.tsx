@@ -1,32 +1,31 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ChefList } from './ChefList'
 import { ExploreMap } from './ExploreMap'
+import { LocationSearchBar } from './LocationSearchBar'
 import { ExploreChef } from './types'
 import { FRANCE_CENTER, FRANCE_ZOOM, EMBEDDED_FRANCE_ZOOM, RegionBBox, getChefAvailabilityRadiusKm } from '@/lib/regions'
 import BookingLanguageSwitcher from '@/components/BookingLanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
 import { trackEvent } from '@/lib/analytics/track'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import {
+  buildSearchStateFromSelection,
+  type ExploreLocationSelection,
+  type ExploreLocationSuggestion,
+} from '@/lib/exploreLocationSearch'
 
 interface ExploreLayoutProps {
   chefs: ExploreChef[]
   initialRegionBBox?: RegionBBox | null
   focusedRegionSlug?: string | null
+  initialLocation?: ExploreLocationSelection | null
   /** Version embeddée : pas de header avec logo, barre de recherche compacte + bouton translate à droite */
   embedded?: boolean
-}
-
-interface SearchSuggestion {
-  id: string
-  label: string
-  center: [number, number]
-  bbox?: RegionBBox | null
 }
 
 interface SearchPin {
@@ -36,16 +35,6 @@ interface SearchPin {
 
 function inBBox(longitude: number, latitude: number, bbox: RegionBBox) {
   return longitude >= bbox[0] && longitude <= bbox[2] && latitude >= bbox[1] && latitude <= bbox[3]
-}
-
-/** Build a bbox ~100km around a center (for address search default view) */
-function bbox100kmAroundCenter(center: [number, number]): RegionBBox {
-  const [lng, lat] = center
-  const kmPerDegLat = 111.32
-  const kmPerDegLng = 111.32 * Math.cos((lat * Math.PI) / 180)
-  const deltaLat = 100 / kmPerDegLat
-  const deltaLng = 100 / kmPerDegLng
-  return [lng - deltaLng, lat - deltaLat, lng + deltaLng, lat + deltaLat]
 }
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
@@ -66,35 +55,36 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
 
 const EMBEDDED_BASE_PATH = '/explore2'
 
-export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSlug: initialFocusedRegionSlug = null, embedded = false }: ExploreLayoutProps) {
+export function ExploreLayout({
+  chefs,
+  initialRegionBBox = null,
+  focusedRegionSlug: initialFocusedRegionSlug = null,
+  initialLocation = null,
+  embedded = false,
+}: ExploreLayoutProps) {
   const router = useRouter()
   const { t, locale } = useTranslation()
+  const initialSearchState = initialLocation ? buildSearchStateFromSelection(initialLocation) : null
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
   const isMobile = useIsMobile()
   const [pinnedChefId, setPinnedChefId] = useState<string | null>(null)
   const [hoveredChefId, setHoveredChefId] = useState<string | null>(null)
-  const [focusedRegionSlug, setFocusedRegionSlug] = useState<string | null>(initialFocusedRegionSlug)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([])
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isSearchLoading, setIsSearchLoading] = useState(false)
+  const [focusedRegionSlug, setFocusedRegionSlug] = useState<string | null>(
+    initialLocation ? null : initialFocusedRegionSlug
+  )
+  const [searchQuery, setSearchQuery] = useState(initialSearchState?.query ?? '')
   const [searchViewport, setSearchViewport] = useState<{
     key: string
     center: [number, number]
     zoom: number
     bbox?: RegionBBox | null
-  } | null>(null)
+  } | null>(initialSearchState?.viewport ?? null)
   const [activeSearch, setActiveSearch] = useState<{
     center: [number, number]
     bbox?: RegionBBox | null
-  } | null>(null)
+  } | null>(initialSearchState?.activeSearch ?? null)
   const [mapVisibleChefIds, setMapVisibleChefIds] = useState<string[] | null>(null)
-  const [searchPin, setSearchPin] = useState<SearchPin | null>(null)
-  const [mobileDropdownBounds, setMobileDropdownBounds] = useState<{
-    top: number
-    left: number
-    width: number
-  } | null>(null)
+  const [searchPin, setSearchPin] = useState<SearchPin | null>(initialSearchState?.pin ?? null)
   const [mapLayoutTransitioning, setMapLayoutTransitioning] = useState(false)
   const layoutTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -119,15 +109,9 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [])
 
   const cardRefs = useRef<Record<string, HTMLElement | null>>({})
-  const searchContainerRef = useRef<HTMLDivElement | null>(null)
-  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null)
-  const mobileDropdownRef = useRef<HTMLDivElement | null>(null)
-  const searchAbortRef = useRef<AbortController | null>(null)
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mobileSheetScrollRef = useRef<HTMLDivElement | null>(null)
   const desktopListScrollRef = useRef<HTMLDivElement | null>(null)
   const sheetDragRef = useRef<{ startY: number; startTranslate: number; hasMoved: boolean } | null>(null)
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   const [mobileSheetSnap, setMobileSheetSnap] = useState<'bottom' | 'mid' | 'full'>('bottom')
   const [mobileSheetDragTranslate, setMobileSheetDragTranslate] = useState<number | null>(null)
   const selectedChefId = pinnedChefId ?? hoveredChefId
@@ -224,8 +208,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousHtmlOverflow
       window.removeEventListener('unhandledrejection', onUnhandledRejection)
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-      if (searchAbortRef.current) searchAbortRef.current.abort()
     }
   }, [])
 
@@ -240,10 +222,12 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
   }, [pinnedChefId, viewMode, isMobile])
 
   useEffect(() => {
+    if (initialLocation) return
     setFocusedRegionSlug(initialFocusedRegionSlug)
-  }, [initialFocusedRegionSlug])
+  }, [initialFocusedRegionSlug, initialLocation])
 
   useEffect(() => {
+    if (initialLocation) return
     if (!initialRegionBBox || !initialFocusedRegionSlug) return
     const center: [number, number] = [
       (initialRegionBBox[0] + initialRegionBBox[2]) / 2,
@@ -256,112 +240,7 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
       bbox: initialRegionBBox,
     })
     setMapVisibleChefIds(null)
-  }, [initialRegionBBox, initialFocusedRegionSlug])
-
-  useEffect(() => {
-    const handleOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node
-      if (searchContainerRef.current?.contains(target)) return
-      if (mobileDropdownRef.current?.contains(target)) return
-      setIsSearchOpen(false)
-    }
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('touchstart', handleOutside, { passive: true })
-    return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
-    }
-  }, [])
-
-  const SEARCH_DEBOUNCE_MS = 300
-
-  useEffect(() => {
-    const query = searchQuery.trim()
-    if (query.length < 2 || !mapboxToken) {
-      setSearchSuggestions([])
-      setIsSearchLoading(false)
-      return
-    }
-
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-    searchDebounceRef.current = setTimeout(async () => {
-      if (searchAbortRef.current) searchAbortRef.current.abort()
-      const controller = new AbortController()
-      searchAbortRef.current = controller
-      setIsSearchLoading(true)
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('[explore] geocoding request', { query })
-      }
-
-      try {
-        const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=8&language=${locale}&country=fr&types=address,place,locality,postcode,neighborhood&access_token=${mapboxToken}`
-        const response = await fetch(endpoint, { signal: controller.signal })
-        if (!response.ok) throw new Error('Erreur recherche')
-        const payload = await response.json()
-        const suggestions: SearchSuggestion[] = Array.isArray(payload?.features)
-          ? payload.features
-              .map((feature: any) => {
-                const center = Array.isArray(feature?.center) ? feature.center : null
-                if (!center || center.length < 2) return null
-                const bbox = Array.isArray(feature?.bbox) && feature.bbox.length === 4 ? (feature.bbox as RegionBBox) : null
-                return {
-                  id: String(feature.id || crypto.randomUUID()),
-                  label: String(feature.place_name || feature.text || ''),
-                  center: [Number(center[0]), Number(center[1])] as [number, number],
-                  bbox,
-                }
-              })
-              .filter((item: SearchSuggestion | null): item is SearchSuggestion => !!item && !!item.label)
-          : []
-        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-          console.log('[explore] geocoding response', { query, count: suggestions.length, features: payload?.features?.length })
-        }
-        setSearchSuggestions(suggestions)
-      } catch (error: any) {
-        if (error?.name !== 'AbortError') {
-          console.error('[explore] search autocomplete error:', error)
-        }
-      } finally {
-        setIsSearchLoading(false)
-      }
-    }, SEARCH_DEBOUNCE_MS)
-
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-    }
-  }, [locale, mapboxToken, searchQuery])
-
-  const shouldShowMobileDropdown =
-    (isMobile || embedded) && isSearchOpen && (isSearchLoading || searchSuggestions.length > 0)
-
-  useEffect(() => {
-    if (!shouldShowMobileDropdown) {
-      setMobileDropdownBounds(null)
-      return
-    }
-    const updateBounds = () => {
-      const el = mobileSearchInputRef.current
-      if (el) {
-        const rect = el.getBoundingClientRect()
-        setMobileDropdownBounds({
-          top: rect.bottom + 8,
-          left: rect.left,
-          width: rect.width,
-        })
-      } else {
-        setMobileDropdownBounds({ top: 80, left: 16, width: window.innerWidth - 32 })
-      }
-    }
-    updateBounds()
-    const raf = requestAnimationFrame(updateBounds)
-    window.visualViewport?.addEventListener('resize', updateBounds)
-    window.visualViewport?.addEventListener('scroll', updateBounds)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.visualViewport?.removeEventListener('resize', updateBounds)
-      window.visualViewport?.removeEventListener('scroll', updateBounds)
-    }
-  }, [shouldShowMobileDropdown])
+  }, [initialLocation, initialRegionBBox, initialFocusedRegionSlug])
 
   const handleChefMountRef = useCallback((chefId: string, element: HTMLElement | null) => {
     cardRefs.current[chefId] = element
@@ -386,54 +265,17 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setHoveredChefId((prev) => (prev === chefId ? null : prev))
   }, [])
 
-  const applySuggestion = (suggestion: SearchSuggestion) => {
+  const applySuggestion = (suggestion: ExploreLocationSuggestion) => {
+    const state = buildSearchStateFromSelection(suggestion)
+    const key = `${suggestion.id}-${Date.now()}`
     setFocusedRegionSlug(null)
-    setSearchQuery(suggestion.label)
-    setIsSearchOpen(false)
-    setSearchSuggestions([])
-    setSearchPin({
-      key: `${suggestion.id}-${Date.now()}`,
-      center: suggestion.center,
-    })
-    setActiveSearch({ center: suggestion.center, bbox: suggestion.bbox || null })
-    const viewportBbox = bbox100kmAroundCenter(suggestion.center)
-    setSearchViewport({
-      key: `${suggestion.id}-${Date.now()}`,
-      center: suggestion.center,
-      zoom: 6,
-      bbox: viewportBbox,
-    })
+    setSearchQuery(state.query)
+    setSearchPin({ key, center: state.pin.center })
+    setActiveSearch(state.activeSearch)
+    setSearchViewport({ ...state.viewport, key })
     setMapVisibleChefIds(null)
     trackEvent('search', { search_query: suggestion.label, search_label: suggestion.label })
     router.replace(embedded ? EMBEDDED_BASE_PATH : '/explore')
-  }
-
-  const handleSearchSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const query = searchQuery.trim()
-    if (!query || !mapboxToken) return
-
-    if (searchSuggestions.length > 0) {
-      applySuggestion(searchSuggestions[0])
-      return
-    }
-
-    try {
-      const endpoint = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=false&limit=1&language=${locale}&country=fr&types=address,place,locality,postcode,neighborhood&access_token=${mapboxToken}`
-      const response = await fetch(endpoint)
-      if (!response.ok) return
-      const payload = await response.json()
-      const first = Array.isArray(payload?.features) ? payload.features[0] : null
-      if (!first?.center || first.center.length < 2) return
-      applySuggestion({
-        id: String(first.id || crypto.randomUUID()),
-        label: String(first.place_name || first.text || query),
-        center: [Number(first.center[0]), Number(first.center[1])],
-        bbox: Array.isArray(first.bbox) && first.bbox.length === 4 ? (first.bbox as RegionBBox) : null,
-      })
-    } catch (error) {
-      console.error('[explore] search submit error:', error)
-    }
   }
 
   const handleResetRegionFocus = () => {
@@ -441,8 +283,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setSearchPin(null)
     setActiveSearch(null)
     setSearchQuery('')
-    setSearchSuggestions([])
-    setIsSearchOpen(false)
     setSearchViewport({
       key: `france-${Date.now()}`,
       center: FRANCE_CENTER,
@@ -457,8 +297,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
     setSearchPin(null)
     setActiveSearch(null)
     setSearchQuery('')
-    setSearchSuggestions([])
-    setIsSearchOpen(false)
     setSearchViewport({
       key: `france-${Date.now()}`,
       center: FRANCE_CENTER,
@@ -582,56 +420,18 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 <img src="/logo-cercle.png" alt="MyTable" className="h-10 w-10 object-contain" />
               </a>
 
-              <div
-                ref={searchContainerRef}
-                className="relative hidden flex-1 min-w-0 transition-all duration-200 md:block"
-              >
-                <form
-                  onSubmit={handleSearchSubmit}
-                  className="relative flex h-11 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
-                >
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(event.target.value)
-                      setIsSearchOpen(true)
-                    }}
-                    onFocus={() => setIsSearchOpen(true)}
-                    placeholder={t('explore.searchPlaceholder')}
-                    className={`w-full bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-8' : ''}`}
-                  />
-                  {searchPin && (
-                    <button
-                      type="button"
-                      onClick={handleResetSearchPin}
-                      className="absolute right-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F0F0F0] hover:text-[#374151]"
-                      aria-label={t('explore.resetPin')}
-                    >
-                      <X className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  )}
-                </form>
-
-                {isSearchOpen && (isSearchLoading || searchSuggestions.length > 0) && (
-                  <div className="absolute left-0 right-0 top-[50px] overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
-                    {isSearchLoading ? (
-                      <p className="px-4 py-3 text-sm text-[#6B7280]">{t('explore.searchLoading')}</p>
-                    ) : (
-                      searchSuggestions.map((suggestion) => (
-                        <button
-                          key={suggestion.id}
-                          type="button"
-                          onClick={() => applySuggestion(suggestion)}
-                          className="block w-full border-b border-[#F3F3F3] px-4 py-3 text-left text-sm text-[#222222] last:border-b-0 hover:bg-[#FAFAFA]"
-                        >
-                          {suggestion.label}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
+              <LocationSearchBar
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                onSelect={applySuggestion}
+                locale={locale}
+                placeholder={t('explore.searchPlaceholder')}
+                loadingLabel={t('explore.searchLoading')}
+                clearLabel={t('explore.resetPin')}
+                showClear={!!searchPin}
+                onClear={handleResetSearchPin}
+                variant="header"
+              />
 
               <div className="ml-auto flex items-center gap-3">
                 {focusedRegionSlug && (
@@ -693,40 +493,20 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
             />
 
             <div
-              ref={searchContainerRef}
               className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${useExplore2MobileLayout ? '' : 'md:hidden'}`}
             >
-              <form
-                onSubmit={handleSearchSubmit}
-                className={`relative flex h-11 flex-1 min-w-0 items-center rounded-full border border-[#EAEAEA] bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]`}
-              >
-                <input
-                  ref={mobileSearchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => {
-                    setSearchQuery(event.target.value)
-                    setIsSearchOpen(true)
-                  }}
-                  onFocus={() => setIsSearchOpen(true)}
-                  onTouchStart={() => setIsSearchOpen(true)}
-                  placeholder={useExplore2MobileLayout ? t('explore.searchPlaceholderEmbedded') : t('explore.searchPlaceholder')}
-                  className={`w-full flex-1 min-w-0 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${searchPin ? 'pr-12' : ''}`}
-                />
-                {searchPin && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleResetSearchPin()
-                    }}
-                    className="absolute right-1 flex h-9 min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F0F0F0] hover:text-[#374151] active:bg-[#E5E7EB]"
-                    aria-label={t('explore.resetPin')}
-                  >
-                    <X className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  </button>
-                )}
-              </form>
+              <LocationSearchBar
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                onSelect={applySuggestion}
+                locale={locale}
+                placeholder={useExplore2MobileLayout ? t('explore.searchPlaceholderEmbedded') : t('explore.searchPlaceholder')}
+                loadingLabel={t('explore.searchLoading')}
+                clearLabel={t('explore.resetPin')}
+                showClear={!!searchPin}
+                onClear={handleResetSearchPin}
+                variant="overlay"
+              />
               {useExplore2MobileLayout && (
                 <div className="shrink-0">
                   <BookingLanguageSwitcher variant="embedded" />
@@ -786,35 +566,6 @@ export function ExploreLayout({ chefs, initialRegionBBox = null, focusedRegionSl
                 />
               )
             })()}
-            {showMobileLayout &&
-              mobileDropdownBounds &&
-              createPortal(
-                <div
-                  ref={mobileDropdownRef}
-                  className="fixed z-[100] max-h-[min(50vh,320px)] overflow-y-auto rounded-2xl border border-[#EAEAEA] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]"
-                  style={{
-                    top: mobileDropdownBounds.top,
-                    left: mobileDropdownBounds.left,
-                    width: mobileDropdownBounds.width,
-                  }}
-                >
-                  {isSearchLoading ? (
-                    <p className="px-4 py-4 text-sm text-[#6B7280]">{t('explore.searchLoading')}</p>
-                  ) : (
-                    searchSuggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => applySuggestion(suggestion)}
-                        className="flex min-h-[44px] w-full touch-manipulation items-center border-b border-[#F3F3F3] px-4 py-3 text-left text-sm text-[#222222] active:bg-[#F0F0F0] last:border-b-0 hover:bg-[#FAFAFA]"
-                      >
-                        {suggestion.label}
-                      </button>
-                    ))
-                  )}
-                </div>,
-                document.body
-              )}
           </div>
         ) : (
           <div className="w-full overflow-hidden h-[calc(100dvh-64px)] lg:h-[calc(100dvh-84px)]">

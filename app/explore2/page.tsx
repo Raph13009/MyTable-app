@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ExploreLayout } from '@/components/explore/ExploreLayout'
 import { ExploreChef } from '@/components/explore/types'
 import { getRegionBBoxBySlug, RegionBBox } from '@/lib/regions'
+import { parseExploreLocationParams } from '@/lib/exploreLocationSearch'
 
 // Revalider les données toutes les 5 minutes (cache CDN plus long = chargement embed plus rapide)
 export const revalidate = 300
@@ -18,6 +19,10 @@ function toNumber(value: unknown): number | null {
 interface Explore2PageProps {
   searchParams?: {
     region?: string
+    lat?: string
+    lng?: string
+    q?: string
+    source?: string
   }
 }
 
@@ -82,5 +87,15 @@ export default async function Explore2Page({ searchParams }: Explore2PageProps) 
     }
   })
 
-  return <ExploreLayout chefs={chefs} initialRegionBBox={regionBBox} focusedRegionSlug={regionParam} embedded />
+  const initialLocation = parseExploreLocationParams(searchParams)
+
+  return (
+    <ExploreLayout
+      chefs={chefs}
+      initialRegionBBox={initialLocation ? null : regionBBox}
+      focusedRegionSlug={initialLocation ? null : regionParam}
+      initialLocation={initialLocation}
+      embedded
+    />
+  )
 }
