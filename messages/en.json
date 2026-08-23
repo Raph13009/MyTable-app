@@ -23,6 +23,7 @@
   "explore": {
     "searchPlaceholder": "Enter the event venue address",
     "searchPlaceholderEmbedded": "Event address",
+    "searchPlaceholderWordpress": "Enter your address or city",
     "searchLoading": "Searching...",
     "resetRegion": "Reset region",
     "resetPin": "Reset",

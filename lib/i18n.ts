@@ -47,3 +47,16 @@ export function getLocale(): Locale {
   if (typeof window === 'undefined') return defaultLocale
   return detectBrowserLocale()
 }
+
+/** Parse a WordPress/html lang value (`en`, `en-US`, `fr_FR`) into an app locale. */
+export function parseEmbedSearchLocale(value?: string | string[] | null): Locale {
+  const raw = Array.isArray(value) ? value[0] : value
+  const lang = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace('_', '-')
+    .split('-')[0]
+  if (lang === 'en') return 'en'
+  if (lang === 'fr') return 'fr'
+  return defaultLocale
+}

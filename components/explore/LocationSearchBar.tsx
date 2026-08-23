@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import type { ExploreLocationSuggestion } from '@/lib/exploreLocationSearch'
 import { geocodeExploreLocationQuery } from '@/lib/exploreLocationSearch'
 import { useExploreLocationSearch } from '@/hooks/useExploreLocationSearch'
@@ -167,10 +167,17 @@ export function LocationSearchBar({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className={`w-full min-w-0 flex-1 bg-transparent text-sm text-[#2A2A2A] outline-none placeholder:text-[#9A9A9A] ${
-            showClear ? (variant === 'overlay' ? 'pr-12' : 'pr-8') : ''
+          className={`w-full min-w-0 flex-1 bg-transparent text-sm text-[#2A2A2A] outline-none ${
+            variant === 'embed'
+              ? 'pr-8 placeholder:text-[12px] placeholder:text-[#6B6B6B]'
+              : `placeholder:text-[#9A9A9A] ${showClear ? (variant === 'overlay' ? 'pr-12' : 'pr-8') : ''}`
           }`}
         />
+        {variant === 'embed' && (
+          <span className="pointer-events-none absolute right-3 flex h-7 w-7 items-center justify-center text-[#6B6B6B]" aria-hidden>
+            <Search className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          </span>
+        )}
         {showClear && onClear && (
           <button
             type="button"
