@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { slugifyChefName } from '@/lib/chef-slug'
+import { MAX_CHEF_DISH_PHOTOS } from '@/lib/chefProfile'
 import AvatarCropper from '@/components/admin/AvatarCropper'
 
 interface Menu {
@@ -106,6 +107,8 @@ export default function ChefFormPage() {
     cuisine_style: '',
     cuisine_style_en: '',
     info_link_xx: '',
+    portrait_fr: '',
+    portrait_en: '',
     availability_radius_km: '25',
     min_guests: '',
     max_guests: '',
@@ -450,6 +453,8 @@ export default function ChefFormPage() {
         cuisine_style: chefData.cuisine_style || '',
         cuisine_style_en: chefData.cuisine_style_en || '',
         info_link_xx: chefData.info_link_xx || '',
+        portrait_fr: chefData.portrait_fr || '',
+        portrait_en: chefData.portrait_en || '',
         availability_radius_km: chefData.availability_radius_km ? String(chefData.availability_radius_km) : '25',
         min_guests: chefData.min_guests ? String(chefData.min_guests) : '',
         max_guests: chefData.max_guests ? String(chefData.max_guests) : '',
@@ -458,7 +463,7 @@ export default function ChefFormPage() {
       })
       setManualLocationMode(!chefData.address && !!chefData.city)
       setCurrentProfilePicture(chefData.profile_picture)
-      const loadedDishPhotos = Array.isArray(chefData.dish_photos) ? chefData.dish_photos : []
+      const loadedDishPhotos = (Array.isArray(chefData.dish_photos) ? chefData.dish_photos : []).slice(0, MAX_CHEF_DISH_PHOTOS)
       setCurrentDishPhotos(loadedDishPhotos)
       const loadedPrimaryDishPhoto = typeof chefData.primary_dish_photo === 'string' ? chefData.primary_dish_photo : ''
       const loadedPrimaryIndex = loadedPrimaryDishPhoto ? loadedDishPhotos.findIndex((url: string) => url === loadedPrimaryDishPhoto) : -1
@@ -535,7 +540,7 @@ export default function ChefFormPage() {
   const appendDishFiles = (files: File[]) => {
     if (!files.length) return
     const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-    const remainingSlots = Math.max(0, 3 - (currentDishPhotos.length + dishPhotoFiles.length + dishCropQueue.length))
+    const remainingSlots = Math.max(0, MAX_CHEF_DISH_PHOTOS - (currentDishPhotos.length + dishPhotoFiles.length + dishCropQueue.length))
     const selected = imageFiles.slice(0, remainingSlots)
     if (!selected.length) return
     setDishCropQueue((prev) => [...prev, ...selected])
@@ -830,7 +835,7 @@ export default function ChefFormPage() {
       }
 
       const uploadedDishPhotos = await uploadDishPhotos(dishPhotoFiles, tempId)
-      const dishPhotos = [...currentDishPhotos, ...uploadedDishPhotos].slice(0, 3)
+      const dishPhotos = [...currentDishPhotos, ...uploadedDishPhotos].slice(0, MAX_CHEF_DISH_PHOTOS)
       const selectedPrimaryDishPhoto =
         dishPhotos.length > 0 && primaryDishIndex >= 0 && primaryDishIndex < dishPhotos.length
           ? dishPhotos[primaryDishIndex]
@@ -893,6 +898,8 @@ export default function ChefFormPage() {
         cuisine_style: formData.cuisine_style || null,
         cuisine_style_en: formData.cuisine_style_en || null,
         info_link_xx: formData.info_link_xx.trim() || null,
+        portrait_fr: formData.portrait_fr.trim() || null,
+        portrait_en: formData.portrait_en.trim() || null,
         availability_radius_km: Number.parseInt(formData.availability_radius_km, 10) || 25,
         min_guests: minGuestsValue,
         max_guests: maxGuestsValue,
@@ -981,8 +988,8 @@ export default function ChefFormPage() {
     ...dishPhotoPreviews.map((url) => ({ kind: 'pending' as const, url })),
   ]
   const totalDishPhotoSlotsUsed = allDishPhotos.length + dishCropQueue.length
-  const isDishPhotoLimitReached = totalDishPhotoSlotsUsed >= 3
-  const dishPhotoSlots = Array.from({ length: 3 }, (_, index) => allDishPhotos[index] ?? null)
+  const isDishPhotoLimitReached = totalDishPhotoSlotsUsed >= MAX_CHEF_DISH_PHOTOS
+  const dishPhotoSlots = allDishPhotos
 
   if (isPageLoading && isEditing) {
     return (
@@ -1155,13 +1162,34 @@ export default function ChefFormPage() {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Lien info (champ XX)</label>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Lien WordPress (SEO)</label>
                     <input
                       type="url"
                       value={formData.info_link_xx}
                       onChange={(e) => setFormData({ ...formData, info_link_xx: e.target.value })}
                       placeholder="https://..."
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
+                    />
+                    <p className="mt-1.5 text-xs text-[#6B7280]">Page Chef WordPress. N’est plus utilisée par la carte ; le profil in-map lit les champs ci-dessous.</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Portrait MyTable (FR)</label>
+                    <textarea
+                      value={formData.portrait_fr}
+                      onChange={(e) => setFormData({ ...formData, portrait_fr: e.target.value })}
+                      rows={5}
+                      placeholder="Texte éditorial présenté dans le profil carte."
+                      className="w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 py-2 text-sm outline-none transition focus:border-black"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Portrait MyTable (EN, optionnel)</label>
+                    <textarea
+                      value={formData.portrait_en}
+                      onChange={(e) => setFormData({ ...formData, portrait_en: e.target.value })}
+                      rows={5}
+                      placeholder="Si vide, le profil anglais affiche le texte français."
+                      className="w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 py-2 text-sm outline-none transition focus:border-black"
                     />
                   </div>
                   <div>
@@ -1588,7 +1616,7 @@ export default function ChefFormPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Photos des plats</p>
-                        <p className="mt-1 text-sm text-[#111111]">{totalDishPhotoSlotsUsed}/3 photo(s)</p>
+                        <p className="mt-1 text-sm text-[#111111]">{totalDishPhotoSlotsUsed}/{MAX_CHEF_DISH_PHOTOS} photo(s)</p>
                         <p className="mt-1 text-xs text-[#6B7280]">Recadrage carre obligatoire a l&apos;upload</p>
                       </div>
                     </div>
@@ -1604,9 +1632,7 @@ export default function ChefFormPage() {
                         disabled={isDishPhotoLimitReached}
                       />
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {dishPhotoSlots.map((photo, index) => {
-                          if (photo) {
-                            return (
+                        {dishPhotoSlots.map((photo, index) => (
                             <div key={`${photo.url}-${index}`} className="group relative overflow-hidden rounded-[12px] border border-[#EAEAEA]">
                               <img src={photo.url} alt={`Plat ${index + 1}`} className="aspect-square w-full object-cover" />
                               <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/35" />
@@ -1633,18 +1659,14 @@ export default function ChefFormPage() {
                                 </button>
                               </div>
                             </div>
-                            )
-                          }
-
-                          return (
+                        ))}
+                        {!isDishPhotoLimitReached && (
                             <button
-                              key={`empty-slot-${index}`}
                               type="button"
                               onClick={openDishFilePicker}
                               onDragOver={(e) => e.preventDefault()}
                               onDrop={handleDishSlotDrop}
-                              disabled={isDishPhotoLimitReached}
-                              className="group flex aspect-square w-full flex-col items-center justify-center rounded-[12px] border border-dashed border-[#EAEAEA] bg-[#FCFCFC] p-4 text-center transition hover:border-[#DADADA] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="group flex aspect-square w-full flex-col items-center justify-center rounded-[12px] border border-dashed border-[#EAEAEA] bg-[#FCFCFC] p-4 text-center transition hover:border-[#DADADA] hover:bg-gray-50"
                             >
                               <span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#EAEAEA] bg-white text-[#5F6368] transition group-hover:text-[#111111]">
                                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
@@ -1654,10 +1676,9 @@ export default function ChefFormPage() {
                                 </svg>
                               </span>
                               <span className="text-sm font-medium text-[#111111]">Ajouter une photo</span>
-                              <span className="mt-1 text-xs text-[#7A7A7A]">Glisser ou cliquer</span>
+                              <span className="mt-1 text-xs text-[#7A7A7A]">Glisser ou cliquer · max {MAX_CHEF_DISH_PHOTOS}</span>
                             </button>
-                          )
-                        })}
+                        )}
                       </div>
                     </div>
                   </div>

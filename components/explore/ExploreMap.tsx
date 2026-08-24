@@ -203,6 +203,8 @@ interface ExploreMapProps {
   onChefClick?: (chefId: string) => void
   onVisibleChefIdsChange?: (chefIds: string[]) => void
   onSelectionClear?: () => void
+  onOpenProfile?: (chefId: string) => void
+  profileOpen?: boolean
 }
 
 function formatChefNameWithPrefix(name: string, fallback = 'Chef'): string {
@@ -530,6 +532,8 @@ export function ExploreMap({
   onChefClick,
   onVisibleChefIdsChange,
   onSelectionClear,
+  onOpenProfile,
+  profileOpen = false,
 }: ExploreMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -1532,9 +1536,10 @@ export function ExploreMap({
           </div>
         </div>
       )}
-      {isMapMode && !isMobile && popupChef && (
+      {isMapMode && !isMobile && popupChef && !profileOpen && (
         <ChefMapPopup
           chef={popupChef}
+          onOpenProfile={onOpenProfile}
           onRequestClose={closePinnedPopup}
           onCardClick={() => {
             if (popupPinnedRef.current) {

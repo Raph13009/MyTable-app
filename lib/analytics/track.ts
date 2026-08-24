@@ -22,6 +22,9 @@ function getOrCreateSessionId(): string {
 export type EventType =
   | 'search'
   | 'profile_view'
+  | 'chef_profile_opened'
+  | 'chef_profile_closed'
+  | 'chef_profile_contact_clicked'
   | 'message_sent'
   | 'booking_request'
   | 'signup'

@@ -31,6 +31,7 @@ Alternative: point `.env.local` at a real hosted Supabase dev project (its `http
 ### Other local caveats
 - `.env.local` is gitignored and holds the well-known default local Supabase keys.
 - Email: `sendEmail` in `lib/email.ts` is a silent no-op unless `EMAIL_PROVIDER` is `resend` or `make`. Keep it set to something else (e.g. `disabled`) locally so bookings don't fail on Resend calls.
-- Mapbox: with a placeholder `NEXT_PUBLIC_MAPBOX_TOKEN` the map tiles / address autocomplete return 403 and the map is blank. Browse (list) and booking (manual city/postal entry) still work.
+- Mapbox: with a placeholder `NEXT_PUBLIC_MAPBOX_TOKEN` the map tiles / address autocomplete return 403 and the map is blank. Browse (list) and booking (manual city/postal entry) still work. The in-map profile drawer can still be opened from **Liste** → **Voir le profil**.
 - Auth is email+password (`signInWithPassword`), not magic links, despite older docs. New accounts are created confirmed via `/api/auth/register` (admin API), so they can sign in immediately.
-- The seeded demo chef is at `/book/chef-demo` and appears on `/explore`.
+- The seeded demo chef is at `/book/chef-demo` and appears on `/explore`. A second local chef, `chef-partiel`, is a partial profile (no portrait/gallery) for empty-state QA.
+- In-map Chef profile: compact cards only show **Voir le profil**. Rich data (Portrait MyTable, `dish_photos` gallery, menu descriptions) is lazy-loaded from `GET /api/chefs/[slug]/profile` when that action opens — do not put portraits/galleries/menu descriptions back on the explore `select()`. Contact CTA goes to existing `/book/[slug]`. Desktop uses a right drawer; mobile uses a ~94dvh bottom sheet. Hosted DB needs `supabase/migrations/034_chef_in_map_profile.sql` applied in the Supabase SQL Editor (do not run it against remote from the agent). Local bootstrap applies that file idempotently.
