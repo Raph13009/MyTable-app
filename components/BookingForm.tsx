@@ -28,6 +28,7 @@ import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
 import { resolveBookingAddress } from '@/lib/bookingAddress'
 import { splitFullNameForBooking } from '@/lib/splitFullName'
 import { EventAddressAutocomplete } from '@/components/booking/EventAddressAutocomplete'
+import { LocaleDateInput } from '@/components/booking/LocaleDateInput'
 import { createClient } from '@/lib/supabase/client'
 
 type Chef = Database['public']['Tables']['chefs']['Row']
@@ -1738,15 +1739,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-2.5">
               <div className="w-full min-w-0 overflow-hidden">
-                <Input
+                <LocaleDateInput
                   label={`${t('booking.date')} *`}
-                  type="date"
                   name="bookingDate"
                   value={formData.bookingDate}
                   onChange={handleChange}
                   error={errors.bookingDate}
                   min={getMinDate()}
                   required
+                  locale={locale}
                   className="w-full min-w-0 max-w-full py-2.5 sm:py-3 md:py-2"
                 />
               </div>
@@ -1789,15 +1790,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="w-full min-w-0 overflow-hidden">
-                <Input
+                <LocaleDateInput
                   label={`${t('booking.date')} *`}
-                  type="date"
                   name="bookingDate"
                   value={formData.bookingDate}
                   onChange={handleChange}
                   error={errors.bookingDate}
                   min={getMinDate()}
                   required
+                  locale={locale}
                   className="w-full min-w-0 max-w-full"
                   autoComplete="off"
                 />

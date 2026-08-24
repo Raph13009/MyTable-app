@@ -98,6 +98,31 @@ export function formatDateForDisplay(
 }
 
 /**
+ * Numeric date for booking fields. Independent of OS/browser locale.
+ * French UI always uses DD/MM/YYYY; English UI uses MM/DD/YYYY.
+ */
+export function formatDateNumeric(
+  date: Date | string | null,
+  locale: 'fr' | 'en' | string = 'fr'
+): string {
+  if (!date) return ''
+
+  const dateObj = typeof date === 'string' ? parseDateFromDB(date) : date
+  if (!dateObj || isNaN(dateObj.getTime())) return ''
+
+  const day = String(dateObj.getDate()).padStart(2, '0')
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+  const year = dateObj.getFullYear()
+  const isEnglish = locale === 'en' || locale.startsWith('en')
+
+  return isEnglish ? `${month}/${day}/${year}` : `${day}/${month}/${year}`
+}
+
+export function numericDatePlaceholder(locale: 'fr' | 'en' | string = 'fr'): string {
+  return locale === 'en' || String(locale).startsWith('en') ? 'MM/DD/YYYY' : 'JJ/MM/AAAA'
+}
+
+/**
  * Valide qu'une string est au format YYYY-MM-DD
  */
 export function isValidDateString(dateString: string): boolean {
