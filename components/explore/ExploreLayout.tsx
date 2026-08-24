@@ -519,7 +519,15 @@ export function ExploreLayout({
             />
 
             <div
-              className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${useExplore2MobileLayout ? '' : 'md:hidden'}`}
+              className={`absolute left-4 right-4 top-4 flex w-[calc(100%-2rem)] items-center gap-2 ${
+                useExplore2MobileLayout ? '' : 'md:hidden'
+              } ${
+                profileChef && useExplore2MobileLayout
+                  ? 'z-[55]'
+                  : profileChef
+                    ? 'pointer-events-none invisible'
+                    : 'z-30'
+              }`}
             >
               <LocationSearchBar
                 query={searchQuery}
@@ -601,7 +609,12 @@ export function ExploreLayout({
                   aria-label={t('common.close')}
                   onClick={handleCloseProfile}
                 />
-                <ChefProfilePanel chef={profileChef} variant="sheet" onClose={handleCloseProfile} />
+                <ChefProfilePanel
+                  chef={profileChef}
+                  variant="sheet"
+                  onClose={handleCloseProfile}
+                  sitBelowOverlay={useExplore2MobileLayout}
+                />
               </>
             )}
           </div>

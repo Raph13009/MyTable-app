@@ -12,11 +12,14 @@ import {
 } from '@/lib/chefProfile'
 import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
 import { ExploreChef } from './types'
+import { FramedPhoto } from './FramedPhoto'
 
 interface ChefProfilePanelProps {
   chef: ExploreChef
   variant: 'drawer' | 'sheet'
   onClose: () => void
+  /** Extra top inset so the sheet sits below a floating search/lang overlay. Mobile sheet only. */
+  sitBelowOverlay?: boolean
 }
 
 function formatPrice(price: number | null, locale: string): string | null {
@@ -44,7 +47,7 @@ function formatChefName(name: string): string {
   return trimmed || 'Chef'
 }
 
-export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelProps) {
+export function ChefProfilePanel({ chef, variant, onClose, sitBelowOverlay = false }: ChefProfilePanelProps) {
   const router = useRouter()
   const { t, locale } = useTranslation()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -55,6 +58,8 @@ export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelPro
   const [menusExpanded, setMenusExpanded] = useState(false)
   const [contactLoading, setContactLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const swipeOrigin = useRef<{ x: number; y: number } | null>(null)
+  const swipeAxis = useRef<'x' | 'y' | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -122,14 +127,38 @@ export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelPro
     router.push(`/book/${chef.slug}`)
   }
 
+  const goToSwipeImage = (deltaX: number) => {
+    if (images.length < 2 || Math.abs(deltaX) < 32) return
+    setActiveImage((index) => (index + (deltaX < 0 ? 1 : -1) + images.length) % images.length)
+  }
+
   const handleClose = () => {
     trackEvent('chef_profile_closed', { chef_id: chef.id, chef_slug: chef.slug, source: variant })
     onClose()
   }
 
   const shellClass = isSheet
-    ? 'pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex h-[min(94dvh,100%)] max-h-[94dvh] flex-col overflow-hidden rounded-t-[24px] bg-white shadow-[0_-18px_40px_rgba(0,0,0,0.18)]'
-    : 'pointer-events-auto absolute inset-y-0 right-0 z-40 flex h-full w-[min(440px,100%)] flex-col overflow-hidden border-l border-[#EAEAEA] bg-white shadow-[-18px_0_40px_rgba(0,0,0,0.08)] lg:w-[min(440px,42vw)]'
+    ? `pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[24px] bg-transparent shadow-[0_-10px_28px_rgba(0,0,0,0.16)] ${
+        sitBelowOverlay ? 'top-[4.25rem]' : 'top-4'
+      }`
+    : 'pointer-events-auto absolute inset-y-0 left-0 z-40 flex h-full w-[min(440px,100%)] flex-col overflow-hidden border-r border-[#EAEAEA] bg-white shadow-[18px_0_40px_rgba(0,0,0,0.08)] lg:w-[min(440px,42vw)]'
+
+  const closeButtonClass =
+    'absolute left-3.5 top-3.5 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[#111111] shadow-[0_4px_14px_rgba(0,0,0,0.16)]'
+
+  const closeButton = (zClass: string) => (
+    <button
+      ref={closeButtonRef}
+      type="button"
+      onClick={handleClose}
+      className={`${closeButtonClass} ${zClass}`}
+      aria-label={t('common.close')}
+    >
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+        <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+      </svg>
+    </button>
+  )
 
   return (
     <aside
@@ -138,74 +167,108 @@ export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelPro
       aria-modal="true"
       aria-labelledby="chef-profile-title"
     >
-      {isSheet && <div className="mx-auto mt-2 h-1 w-12 shrink-0 rounded-full bg-[#D8D8D8]" aria-hidden />}
+      <div
+        className={
+          isSheet
+            ? 'relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-t-[24px] bg-white'
+            : 'flex h-full min-h-0 flex-1 flex-col overflow-hidden'
+        }
+      >
+        {isSheet && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center pt-3"
+            aria-hidden
+          >
+            <div className="h-1 w-12 rounded-full bg-white/85 shadow-[0_1px_3px_rgba(0,0,0,0.28)]" />
+          </div>
+        )}
+        {isSheet && closeButton('z-20')}
 
-      <div ref={scrollRef} className="explore-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div ref={scrollRef} className="explore-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div
-          className={`relative overflow-hidden bg-[#F4F4F4] ${isSheet ? 'h-[38dvh] min-h-[220px]' : 'h-[280px]'}`}
-          onTouchStart={(event) => {
+          className={`relative w-full select-none touch-pan-y bg-white px-5 pt-5 ${isSheet ? 'pb-8' : 'pb-6'} ${
+            images.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''
+          }`}
+          onDragStart={(event) => event.preventDefault()}
+          onPointerDown={(event) => {
             if (images.length < 2) return
-            const startX = event.changedTouches[0]?.clientX
-            const target = event.currentTarget
-            const handleEnd = (endEvent: TouchEvent) => {
-              target.removeEventListener('touchend', handleEnd)
-              const endX = endEvent.changedTouches[0]?.clientX
-              if (startX == null || endX == null) return
-              const delta = endX - startX
-              if (Math.abs(delta) < 40) return
-              setActiveImage((index) => (index + (delta < 0 ? 1 : -1) + images.length) % images.length)
+            if ((event.target as HTMLElement).closest('button')) return
+            swipeOrigin.current = { x: event.clientX, y: event.clientY }
+            swipeAxis.current = null
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }}
+          onPointerMove={(event) => {
+            if (!swipeOrigin.current) return
+            const dx = event.clientX - swipeOrigin.current.x
+            const dy = event.clientY - swipeOrigin.current.y
+            if (!swipeAxis.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+              swipeAxis.current = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
             }
-            target.addEventListener('touchend', handleEnd, { once: true })
+          }}
+          onPointerUp={(event) => {
+            if (!swipeOrigin.current) return
+            const dx = event.clientX - swipeOrigin.current.x
+            const axis = swipeAxis.current
+            swipeOrigin.current = null
+            swipeAxis.current = null
+            if (axis === 'y') return
+            goToSwipeImage(dx)
+          }}
+          onPointerCancel={(event) => {
+            if (!swipeOrigin.current) return
+            const dx = event.clientX - swipeOrigin.current.x
+            const axis = swipeAxis.current
+            swipeOrigin.current = null
+            swipeAxis.current = null
+            if (axis === 'y') return
+            goToSwipeImage(dx)
           }}
         >
-          {hero ? (
-            <img
-              src={getOptimizedSupabaseImageUrl(hero, 900, 75) ?? hero}
-              alt={formatChefName(chef.name)}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-[#8A8A8A]">
-              {t('explore.photoUnavailable')}
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/20" />
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={handleClose}
-            className="absolute left-3 top-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-[#111111] shadow-[0_4px_14px_rgba(0,0,0,0.16)]"
-            aria-label={t('common.close')}
+          <div
+            className={`relative mx-auto flex w-full items-center justify-center ${
+              isSheet ? 'h-[min(52dvh,420px)]' : 'h-[min(48vh,400px)]'
+            }`}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
-          </button>
+            {hero ? (
+              <FramedPhoto
+                src={hero}
+                alt={formatChefName(chef.name)}
+                width={900}
+                quality={75}
+                variant="hero"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-[#8A8A8A]">
+                {t('explore.photoUnavailable')}
+              </div>
+            )}
+            {chef.avatarImage && (
+              <img
+                src={getOptimizedSupabaseImageUrl(chef.avatarImage, 160, 75, true) ?? chef.avatarImage}
+                alt=""
+                className="pointer-events-none absolute bottom-3 left-3 h-14 w-14 rounded-full border-2 border-white object-cover shadow-[0_6px_16px_rgba(0,0,0,0.16)]"
+              />
+            )}
+          </div>
+          {!isSheet && closeButton('z-10')}
           {images.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+            <div className="mt-3 flex justify-center gap-1.5">
               {images.map((url, index) => (
                 <button
                   key={`${url}-dot`}
                   type="button"
                   onClick={() => setActiveImage(index)}
                   className={`h-1.5 rounded-full transition ${
-                    index === activeImage ? 'w-4 bg-white' : 'w-1.5 bg-white/55'
+                    index === activeImage ? 'w-4 bg-[#111111]' : 'w-1.5 bg-[#D0D0D0]'
                   }`}
                   aria-label={`${t('explore.profile.gallery')} ${index + 1}`}
                 />
               ))}
             </div>
           )}
-          {chef.avatarImage && (
-            <img
-              src={getOptimizedSupabaseImageUrl(chef.avatarImage, 160, 75, true) ?? chef.avatarImage}
-              alt=""
-              className="absolute bottom-4 left-5 h-16 w-16 rounded-full border-2 border-white object-cover shadow-[0_6px_16px_rgba(0,0,0,0.2)]"
-            />
-          )}
         </div>
 
-        <div className="px-5 pb-6 pt-5">
+        <div className="bg-white px-5 pb-6 pt-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A8A8A]">
             {cuisine}
             {city ? ` · ${city}` : ''}
@@ -240,17 +303,13 @@ export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelPro
                     key={url}
                     type="button"
                     onClick={() => setActiveImage(index)}
-                    className={`relative h-20 w-20 shrink-0 snap-start overflow-hidden rounded-xl ${
-                      index === activeImage ? 'ring-2 ring-[#FBCF03]' : 'ring-1 ring-[#EAEAEA]'
+                    className={`relative h-20 w-20 shrink-0 snap-start overflow-hidden rounded-2xl bg-white ${
+                      index === activeImage ? 'ring-2 ring-[#FBCF03]' : ''
                     }`}
                     aria-label={`${t('explore.profile.gallery')} ${index + 1}`}
                     aria-current={index === activeImage}
                   >
-                    <img
-                      src={getOptimizedSupabaseImageUrl(url, 200, 70, true) ?? url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+                    <FramedPhoto src={url} alt="" width={240} quality={70} variant="thumb" />
                   </button>
                 ))}
               </div>
@@ -312,6 +371,7 @@ export function ChefProfilePanel({ chef, variant, onClose }: ChefProfilePanelPro
         <p className="mt-2 text-center text-[12px] leading-snug text-[#6B7280]">
           {t('explore.profile.reassurance')}
         </p>
+      </div>
       </div>
     </aside>
   )
