@@ -2,6 +2,8 @@
 
 ## Cursor Cloud specific instructions
 
+For small UI/CSS changes, do not re-bootstrap the environment. Reuse existing services and run only targeted validation. Full build/test/bootstrap is reserved for structural or backend changes.
+
 MyTable is a single Next.js 14 (App Router) app backed by Supabase (Postgres + Auth + Realtime + Storage). There is one runnable service — the Next.js dev server — plus a local Supabase stack it depends on.
 
 ### Standard commands (see `package.json` scripts)
