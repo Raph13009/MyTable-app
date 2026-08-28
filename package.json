@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "npx --yes tsx --test lib/__tests__/ensureParticipants.test.ts lib/__tests__/bookingAuth.test.ts lib/__tests__/chefInactivityReminder.test.ts lib/__tests__/exploreLocationSearch.test.ts",
+    "test:unit": "npx --yes tsx --test lib/__tests__/ensureParticipants.test.ts lib/__tests__/bookingAuth.test.ts lib/__tests__/chefInactivityReminder.test.ts lib/__tests__/exploreLocationSearch.test.ts && RESEND_API_KEY=re_test_dummy npx --yes tsx --test lib/__tests__/primaryExclusiveWindow.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "check-labels": "tsx scripts/check-labels.ts"

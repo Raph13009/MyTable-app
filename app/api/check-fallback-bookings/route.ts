@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  dispatchFallbackToAllBackupChefs,
-  FALLBACK_EXCLUSIVE_WINDOW_HOURS,
-  shouldNotifyClientOfFallbackExhaustion,
-} from '@/lib/fallbackBookings'
-import { sendBookingRefusedClientEmail } from '@/lib/sendBookingRefusedClientEmail'
-import { getBaseUrl } from '@/lib/utils'
+import { FALLBACK_EXCLUSIVE_WINDOW_HOURS } from '@/lib/fallbackBookings'
+import { processExpiredPrimaryExclusiveWindows } from '@/lib/processExpiredPrimaryBookings'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Cron for fallback exclusive window:
+ * Cron for the primary chef exclusive window (always 3h, even without replacement chefs):
  * - If the primary request is still pending after fallback_timeout_at, mark it expired
- * - Then broadcast simultaneously to ALL selected backup chefs
+ * - If the client selected backup chefs, broadcast to them
+ * - Otherwise email the client nearby-chef suggestions
  */
 export async function GET(request: NextRequest) {
   try {
@@ -30,91 +26,24 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
-    const nowIso = new Date().toISOString()
-    const baseUrl = getBaseUrl()
+    const result = await processExpiredPrimaryExclusiveWindows(supabase as any)
 
-    const { data: timedOutBookings, error: fetchError } = await supabase
-      .from('booking_requests')
-      .select('*')
-      .eq('status', 'pending')
-      .eq('fallback_enabled', true)
-      .not('fallback_timeout_at', 'is', null)
-      .lt('fallback_timeout_at', nowIso)
-      .limit(100)
-
-    if (fetchError) {
-      return NextResponse.json(
-        { error: 'Erreur lors de la récupération des demandes timeout', details: fetchError.message },
-        { status: 500 }
-      )
-    }
-
-    if (!timedOutBookings || timedOutBookings.length === 0) {
+    if (result.processed === 0) {
       return NextResponse.json({
         success: true,
         expired: 0,
         forwarded: 0,
-        message: `Aucune demande fallback expirée (fenêtre exclusive ${FALLBACK_EXCLUSIVE_WINDOW_HOURS}h)`,
+        notified: 0,
+        message: `Aucune demande expirée (fenêtre exclusive ${FALLBACK_EXCLUSIVE_WINDOW_HOURS}h)`,
       })
-    }
-
-    let expiredCount = 0
-    let forwardedCount = 0
-
-    for (const booking of timedOutBookings as any[]) {
-      // "Lock" via update conditionnelle pour éviter les doubles traitements concurrents
-      const { data: lockedRow } = await (supabase
-        .from('booking_requests') as any)
-        .update({ status: 'expired' })
-        .eq('id', booking.id)
-        .eq('status', 'pending')
-        .select('id')
-        .maybeSingle()
-
-      if (!lockedRow?.id) {
-        continue
-      }
-
-      expiredCount += 1
-
-      await (supabase
-        .from('decision_tokens') as any)
-        .update({ used: true })
-        .eq('booking_request_id', booking.id)
-        .eq('used', false)
-
-      const fallbackResults = await dispatchFallbackToAllBackupChefs(
-        supabase as any,
-        booking,
-        'timeout'
-      )
-      if (fallbackResults.length > 0) {
-        forwardedCount += fallbackResults.length
-      } else {
-        const { data: chef } = await supabase
-          .from('chefs')
-          .select('name')
-          .eq('id', booking.chef_id)
-          .single()
-        const chefFirstName = chef
-          ? ((chef as any).name?.split(' ')[0] || (chef as any).name)
-          : 'Chef'
-        const shouldNotify = await shouldNotifyClientOfFallbackExhaustion(supabase as any, booking)
-        if (shouldNotify) {
-          try {
-            await sendBookingRefusedClientEmail(supabase as any, booking, chefFirstName, baseUrl)
-          } catch (emailError) {
-            console.error('[check-fallback-bookings] Error sending client email:', emailError)
-          }
-        }
-      }
     }
 
     return NextResponse.json({
       success: true,
-      processed: timedOutBookings.length,
-      expired: expiredCount,
-      forwarded: forwardedCount,
+      processed: result.processed,
+      expired: result.expired,
+      forwarded: result.forwarded,
+      notified: result.notified,
     })
   } catch (error: any) {
     return NextResponse.json(

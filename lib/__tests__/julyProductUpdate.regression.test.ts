@@ -10,6 +10,7 @@ import {
   FALLBACK_EXCLUSIVE_WINDOW_HOURS,
   FALLBACK_EXCLUSIVE_WINDOW_MS,
   FALLBACK_MAX_ACCEPTED_CANDIDATES,
+  getPrimaryExclusiveTimeoutAt,
   selectFallbackAcceptWinnerIds,
 } from '../fallbackBookings'
 import { emailSubjects, emailTemplates } from '../email'
@@ -18,6 +19,11 @@ describe('July product update — fallback exclusivity constants', () => {
   it('uses a 3-hour exclusive window for the primary chef', () => {
     assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 3)
     assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 3 * 60 * 60 * 1000)
+  })
+
+  it('always computes a 3-hour timeout for primary bookings, even without replacement chefs', () => {
+    const nowMs = Date.parse('2026-07-18T10:00:00.000Z')
+    assert.equal(getPrimaryExclusiveTimeoutAt(nowMs), '2026-07-18T13:00:00.000Z')
   })
 
   it('locks the backup broadcast after two accepts', () => {
