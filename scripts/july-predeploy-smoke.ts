@@ -193,6 +193,21 @@ function smokeStaticFinalizeAndNotifications() {
   assert.doesNotMatch(checkFallback, /createNextFallbackBooking/)
   assert.doesNotMatch(checkFallback, /\.eq\(['"]fallback_enabled['"],\s*true\)/)
 
+  const processExpired = fs.readFileSync(
+    path.join(root, 'lib/processExpiredPrimaryBookings.ts'),
+    'utf8'
+  )
+  assert.match(processExpired, /dispatchFallbackToAllBackupChefs/)
+  assert.match(processExpired, /'timeout'/)
+
+  const decisionRoute = fs.readFileSync(path.join(root, 'app/decision/route.ts'), 'utf8')
+  assert.match(decisionRoute, /dispatchFallbackToAllBackupChefs/)
+  assert.match(decisionRoute, /'refused'/)
+
+  const bookingDecision = fs.readFileSync(path.join(root, 'lib/bookingDecision.ts'), 'utf8')
+  assert.match(bookingDecision, /dispatchFallbackToAllBackupChefs/)
+  assert.match(bookingDecision, /'refused'/)
+
   const bookingsRoute = fs.readFileSync(path.join(root, 'app/api/bookings/route.ts'), 'utf8')
   assert.match(bookingsRoute, /getPrimaryExclusiveTimeoutAt\(\)/)
   assert.doesNotMatch(

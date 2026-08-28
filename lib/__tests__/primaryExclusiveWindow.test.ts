@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS,
+  dispatchFallbackToAllBackupChefs,
   fetchExpiredPrimaryExclusiveWindowBookings,
   getPrimaryExclusiveTimeoutAt,
   isPrimaryExclusiveWindowExpired,
@@ -199,6 +200,107 @@ describe('fetchExpiredPrimaryExclusiveWindowBookings', () => {
   })
 })
 
+describe('dispatchFallbackToAllBackupChefs — chefs cochés', () => {
+  it('does not contact backups when the client skipped replacement chefs', async () => {
+    const result = await dispatchFallbackToAllBackupChefs(
+      {} as any,
+      {
+        fallback_enabled: false,
+        fallback_next_chef_ids: ['chef-b', 'chef-c'],
+      },
+      'timeout'
+    )
+    assert.deepEqual(result, [])
+  })
+
+  it('does not contact backups when the checked-chef queue is empty', async () => {
+    const result = await dispatchFallbackToAllBackupChefs(
+      {} as any,
+      {
+        fallback_enabled: true,
+        fallback_next_chef_ids: [],
+      },
+      'refused'
+    )
+    assert.deepEqual(result, [])
+  })
+
+  it('loads every checked chef after timeout or refuse, then broadcasts', async () => {
+    const lookedUp: string[] = []
+    const cleared: string[] = []
+    const chefsById: Record<string, any> = {
+      'chef-b': { id: 'chef-b', name: 'Backup B', email: 'b@test.com', is_publicly_visible: true },
+      'chef-c': { id: 'chef-c', name: 'Backup C', email: 'c@test.com', is_publicly_visible: true },
+    }
+    const supabase = {
+      from(table: string) {
+        if (table === 'chefs') {
+          const chain: any = {
+            _id: null as string | null,
+            select() {
+              return chain
+            },
+            eq(column: string, value: unknown) {
+              if (column === 'id') chain._id = String(value)
+              return chain
+            },
+            single() {
+              lookedUp.push(chain._id as string)
+              return Promise.resolve({ data: chefsById[chain._id as string] || null })
+            },
+          }
+          return chain
+        }
+        if (table === 'booking_requests') {
+          return {
+            update() {
+              return {
+                eq(_column: string, id: string) {
+                  cleared.push(id)
+                  return Promise.resolve({ data: null, error: null })
+                },
+              }
+            },
+          }
+        }
+        if (table === 'conversations') {
+          return {
+            insert() {
+              return {
+                select() {
+                  return {
+                    single() {
+                      return Promise.resolve({
+                        data: null,
+                        error: { message: 'stop-before-email-in-test' },
+                      })
+                    },
+                  }
+                },
+              }
+            },
+          }
+        }
+        throw new Error(`unexpected table ${table}`)
+      },
+    }
+
+    const result = await dispatchFallbackToAllBackupChefs(
+      supabase as any,
+      {
+        id: 'primary-1',
+        fallback_enabled: true,
+        fallback_next_chef_ids: ['chef-b', 'chef-c'],
+      },
+      'timeout'
+    )
+
+    assert.deepEqual(lookedUp, ['chef-b', 'chef-c'])
+    assert.deepEqual(cleared, ['primary-1'])
+    assert.deepEqual(result, [])
+  })
+})
+
 function createLockingSupabase(bookings: Array<{ id: string; chef_id: string; status?: string }>) {
   const store = new Map(bookings.map((row) => [row.id, { ...row, status: row.status ?? 'pending' }]))
   const usedTokens: string[] = []
@@ -339,16 +441,21 @@ describe('processExpiredPrimaryExclusiveWindows — nearby chefs email', () => {
     }
     const supabase = createLockingSupabase([booking])
     let notified = 0
+    const dispatchedTriggers: string[] = []
 
     const result = await processExpiredPrimaryExclusiveWindows(supabase as any, {
       fetchExpired: async () => [booking],
-      dispatchFallback: async () => [{ bookingId: 'backup-1', chefId: 'chef-2' }],
+      dispatchFallback: async (_supabase, current, trigger) => {
+        dispatchedTriggers.push(`${trigger}:${current.id}`)
+        return [{ bookingId: 'backup-1', chefId: 'chef-2' }]
+      },
       shouldNotifyClient: async () => true,
       notifyClient: async () => {
         notified += 1
       },
     })
 
+    assert.deepEqual(dispatchedTriggers, ['timeout:booking-with-backups'])
     assert.equal(result.forwarded, 1)
     assert.equal(result.notified, 0)
     assert.equal(notified, 0)
