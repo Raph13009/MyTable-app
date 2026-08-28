@@ -189,8 +189,16 @@ function smokeStaticFinalizeAndNotifications() {
     path.join(root, 'app/api/check-fallback-bookings/route.ts'),
     'utf8'
   )
-  assert.match(checkFallback, /dispatchFallbackToAllBackupChefs/)
+  assert.match(checkFallback, /processExpiredPrimaryExclusiveWindows/)
   assert.doesNotMatch(checkFallback, /createNextFallbackBooking/)
+  assert.doesNotMatch(checkFallback, /\.eq\(['"]fallback_enabled['"],\s*true\)/)
+
+  const bookingsRoute = fs.readFileSync(path.join(root, 'app/api/bookings/route.ts'), 'utf8')
+  assert.match(bookingsRoute, /getPrimaryExclusiveTimeoutAt\(\)/)
+  assert.doesNotMatch(
+    bookingsRoute,
+    /fallbackTimeoutAt = fallbackEnabled/
+  )
 
   assert.equal(FALLBACK_EXCLUSIVE_WINDOW_HOURS, 3)
   assert.equal(FALLBACK_EXCLUSIVE_WINDOW_MS, 3 * 60 * 60 * 1000)

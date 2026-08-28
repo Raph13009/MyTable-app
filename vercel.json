@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/expire-past-event-bookings",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/check-fallback-bookings",
+      "schedule": "5 * * * *"
     }
   ]
 }
