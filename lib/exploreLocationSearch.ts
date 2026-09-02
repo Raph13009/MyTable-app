@@ -12,6 +12,7 @@ export interface ExploreLocationSelection {
   center: [number, number]
   bbox?: RegionBBox | null
   source?: string
+  zoom?: number
 }
 
 export interface ExploreLocationSearchState {
@@ -118,6 +119,7 @@ export function buildSearchStateFromSelection(
   keyPrefix = 'location'
 ): ExploreLocationSearchState {
   const key = `${keyPrefix}-${selection.center[0]},${selection.center[1]}`
+  const zoom = selection.zoom ?? 6
   return {
     query: selection.label,
     pin: {
@@ -131,7 +133,7 @@ export function buildSearchStateFromSelection(
     viewport: {
       key,
       center: selection.center,
-      zoom: 6,
+      zoom,
       bbox: bbox100kmAroundCenter(selection.center),
     },
   }

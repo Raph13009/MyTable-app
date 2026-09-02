@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ExploreLayout } from '@/components/explore/ExploreLayout'
 import { ExploreChef } from '@/components/explore/types'
 import { getRegionBBoxBySlug, RegionBBox } from '@/lib/regions'
+import { geocodeCitySlug } from '@/lib/geocodeCitySlug'
+import { redirect } from 'next/navigation'
 
 // Revalider les données toutes les 5 minutes (cache CDN plus long = chargement embed plus rapide)
 export const revalidate = 300
@@ -24,6 +26,25 @@ interface Explore2RegionPageProps {
 export default async function Explore2RegionPage({ params }: Explore2RegionPageProps) {
   const supabase = createAdminClient()
   const regionBBox: RegionBBox | null = getRegionBBoxBySlug(params.region)
+
+  let initialLocation = null
+
+  if (!regionBBox) {
+    const cityResult = await geocodeCitySlug(params.region, 'fr')
+    
+    if (!cityResult) {
+      console.warn(`[explore2-region-city] Failed to resolve as region or city: ${params.region}`)
+      redirect('/explore2')
+    }
+
+    initialLocation = {
+      label: cityResult.label,
+      center: cityResult.center,
+      bbox: cityResult.bbox || null,
+      source: 'city-url',
+      zoom: 11,
+    }
+  }
 
   const { data, error } = await (supabase.from('chefs') as any)
     .select('id, slug, name, info_link_xx, profile_picture, dish_photos, primary_dish_photo, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(name,price)')
@@ -80,6 +101,18 @@ export default async function Explore2RegionPage({ params }: Explore2RegionPageP
       longitude: toNumber(row.longitude),
     }
   })
+
+  if (initialLocation) {
+    return (
+      <ExploreLayout
+        chefs={chefs}
+        initialRegionBBox={null}
+        focusedRegionSlug={null}
+        initialLocation={initialLocation}
+        embedded
+      />
+    )
+  }
 
   return <ExploreLayout chefs={chefs} initialRegionBBox={regionBBox} focusedRegionSlug={params.region} embedded />
 }
