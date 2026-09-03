@@ -29,7 +29,7 @@ export interface ExploreLocationSearchState {
     key: string
     center: [number, number]
     zoom: number
-    bbox: RegionBBox
+    bbox?: RegionBBox | null
   }
 }
 
@@ -134,7 +134,9 @@ export function buildSearchStateFromSelection(
       key,
       center: selection.center,
       zoom,
-      bbox: bbox100kmAroundCenter(selection.center),
+      // Explicit zooms (e.g. city URLs) must not be overridden by the
+      // generic 100 km fitBounds used by manual location searches.
+      bbox: selection.zoom == null ? bbox100kmAroundCenter(selection.center) : null,
     },
   }
 }
