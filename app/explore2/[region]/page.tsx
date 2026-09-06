@@ -42,7 +42,6 @@ export default async function Explore2RegionPage({ params }: Explore2RegionPageP
       center: cityResult.center,
       bbox: cityResult.bbox || null,
       source: 'city-url',
-      zoom: 11,
     }
   }
 

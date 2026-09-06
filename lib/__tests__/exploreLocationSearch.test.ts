@@ -99,6 +99,23 @@ describe('buildSearchStateFromSelection', () => {
     assert.equal(state.query, 'Nantes, France')
     assert.deepEqual(state.pin.center, [-1.5536, 47.2184])
     assert.equal(state.viewport.zoom, 6)
-    assert.equal(state.viewport.bbox.length, 4)
+    assert.equal(state.viewport.bbox?.length, 4)
+  })
+
+  it('reuses the 100km search viewport for city deep links', () => {
+    const center: [number, number] = [6.6398, 43.2727]
+    const searchState = buildSearchStateFromSelection({
+      label: 'Saint-Tropez, France',
+      center,
+    })
+    const cityUrlState = buildSearchStateFromSelection({
+      label: 'Saint-Tropez, France',
+      center,
+      source: 'city-url',
+    })
+    assert.deepEqual(cityUrlState.viewport.bbox, searchState.viewport.bbox)
+    assert.deepEqual(cityUrlState.viewport.bbox, bbox100kmAroundCenter(center))
+    assert.equal(cityUrlState.viewport.zoom, searchState.viewport.zoom)
+    assert.deepEqual(cityUrlState.pin.center, center)
   })
 })

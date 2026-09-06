@@ -134,9 +134,7 @@ export function buildSearchStateFromSelection(
       key,
       center: selection.center,
       zoom,
-      // Explicit zooms (e.g. city URLs) must not be overridden by the
-      // generic 100 km fitBounds used by manual location searches.
-      bbox: selection.zoom == null ? bbox100kmAroundCenter(selection.center) : null,
+      bbox: bbox100kmAroundCenter(selection.center),
     },
   }
 }
