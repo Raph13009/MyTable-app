@@ -61,6 +61,8 @@ describe('booking funnel helpers', () => {
     assert.equal(layer[0].event, 'booking_form_started')
     assert.equal(layer[1].event, 'booking_step_view')
     assert.equal(layer[1].step_name, 'service_type')
+    assert.equal(typeof layer[1].step_number, 'number')
+    assert.equal(layer[1].step_number, 1)
     assert.equal(layer[1].funnel_name, 'booking')
     assert.equal(layer[3].event, 'booking_validation_error')
     assert.equal(layer[3].error_type, 'business_rule')

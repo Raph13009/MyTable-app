@@ -455,12 +455,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     return () => clearTimeout(timer)
   }, [currentPage])
 
-  // GTM/GA4: step becomes visible (deduped against Strict Mode remounts in pushDataLayer)
+  // GTM/GA4: form entry = step 1 (once); each step view including step 1
   useEffect(() => {
+    const meta = { chef_id: chef.id, chef_slug: chef.slug || undefined }
+    if (currentPage === 1) {
+      trackBookingFormStarted(meta)
+    }
     trackBookingStepView({
       step_number: currentPage,
-      chef_id: chef.id,
-      chef_slug: chef.slug || undefined,
+      ...meta,
     })
   }, [currentPage, chef.id, chef.slug])
 
@@ -810,7 +813,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
 
   const handleServiceTypeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value as ServiceType
-    trackBookingFormStarted(funnelMeta)
     setFormData((prev) => ({ ...prev, serviceType: value }))
     setErrors((prev) => {
       if (!prev.serviceType) return prev
@@ -846,7 +848,6 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         step1AdvanceTimeoutRef.current = null
       }
       step1AdvanceGenRef.current += 1
-      trackBookingFormStarted(funnelMeta)
       trackBookingStepCompleted({ step_number: 1, ...funnelMeta })
       setCurrentPage(2)
       return
