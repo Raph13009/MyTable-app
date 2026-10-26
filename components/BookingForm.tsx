@@ -24,6 +24,13 @@ import {
   shouldShowAccountStep,
 } from '@/lib/bookingAuth'
 import { trackEvent } from '@/lib/analytics/track'
+import {
+  trackBookingCompleted,
+  trackBookingFormStarted,
+  trackBookingStepCompleted,
+  trackBookingStepView,
+  trackBookingValidationError,
+} from '@/lib/analytics/booking-funnel'
 import { BOOKING_FALLBACK_RADIUS_KM } from '@/lib/geo'
 import { resolveBookingAddress } from '@/lib/bookingAddress'
 import { splitFullNameForBooking } from '@/lib/splitFullName'
@@ -448,6 +455,15 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     return () => clearTimeout(timer)
   }, [currentPage])
 
+  // GTM/GA4: step becomes visible (deduped against Strict Mode remounts in pushDataLayer)
+  useEffect(() => {
+    trackBookingStepView({
+      step_number: currentPage,
+      chef_id: chef.id,
+      chef_slug: chef.slug || undefined,
+    })
+  }, [currentPage, chef.id, chef.slug])
+
   useEffect(() => {
     setIsGuestsTotalAnimating(true)
     const timer = setTimeout(() => setIsGuestsTotalAnimating(false), 150)
@@ -603,6 +619,18 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     </div>
   )
 
+  const funnelMeta = { chef_id: chef.id, chef_slug: chef.slug || undefined }
+
+  const trackStepValidationFailure = (stepNumber: number, errorFields: string[]) => {
+    if (errorFields.length === 0) return
+    trackBookingValidationError({
+      step_number: stepNumber,
+      errorFields,
+      ...funnelMeta,
+    })
+  }
+
+  /** Returns true when valid. On failure, pushes booking_validation_error (field keys only). */
   const validatePage1 = () => {
     const newErrors: Record<string, string> = {}
 
@@ -611,7 +639,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    const fields = Object.keys(newErrors)
+    if (fields.length > 0) trackStepValidationFailure(1, fields)
+    return fields.length === 0
   }
 
   const validatePage2 = () => {
@@ -704,7 +734,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    const fields = Object.keys(newErrors)
+    if (fields.length > 0) trackStepValidationFailure(2, fields)
+    return fields.length === 0
   }
 
   const validatePage3 = () => {
@@ -737,7 +769,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     }
 
     setErrors(prev => ({ ...prev, ...newErrors }))
-    return Object.keys(newErrors).length === 0
+    const fields = Object.keys(newErrors)
+    if (fields.length > 0) trackStepValidationFailure(3, fields)
+    return fields.length === 0
   }
 
   const validatePage4 = () => {
@@ -748,7 +782,9 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     if (!acceptedTerms) newErrors.terms = t('booking.errors.termsRequired')
 
     setErrors(prev => ({ ...prev, ...newErrors }))
-    return Object.keys(newErrors).length === 0
+    const fields = Object.keys(newErrors)
+    if (fields.length > 0) trackStepValidationFailure(4, fields)
+    return fields.length === 0
   }
 
   const validatePage5 = () => {
@@ -767,11 +803,14 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       else if (password !== confirmPassword) newErrors.confirmPassword = t('booking.errors.passwordsDontMatch')
     }
     setErrors(prev => ({ ...prev, ...newErrors }))
-    return Object.keys(newErrors).length === 0
+    const fields = Object.keys(newErrors)
+    if (fields.length > 0) trackStepValidationFailure(5, fields)
+    return fields.length === 0
   }
 
   const handleServiceTypeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value as ServiceType
+    trackBookingFormStarted(funnelMeta)
     setFormData((prev) => ({ ...prev, serviceType: value }))
     setErrors((prev) => {
       if (!prev.serviceType) return prev
@@ -791,7 +830,11 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     step1AdvanceTimeoutRef.current = window.setTimeout(() => {
       step1AdvanceTimeoutRef.current = null
       if (step1AdvanceGenRef.current !== generation) return
-      setCurrentPage((prev) => (prev === 1 ? 2 : prev))
+      setCurrentPage((prev) => {
+        if (prev !== 1) return prev
+        trackBookingStepCompleted({ step_number: 1, ...funnelMeta })
+        return 2
+      })
     }, 200)
   }
 
@@ -803,15 +846,19 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         step1AdvanceTimeoutRef.current = null
       }
       step1AdvanceGenRef.current += 1
+      trackBookingFormStarted(funnelMeta)
+      trackBookingStepCompleted({ step_number: 1, ...funnelMeta })
       setCurrentPage(2)
       return
     }
     if (currentPage === 2 && validatePage2()) {
+      trackBookingStepCompleted({ step_number: 2, ...funnelMeta })
       setCurrentPage(3)
       return
     }
     if (currentPage === 3 && validatePage3()) {
       setShowGlobalError(false)
+      trackBookingStepCompleted({ step_number: 3, ...funnelMeta })
       setCurrentPage(4)
       return
     }
@@ -820,6 +867,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
       if (gate === 'wait') {
         return
       }
+      trackBookingStepCompleted({ step_number: 4, ...funnelMeta })
       if (gate === 'account_step') {
         setCurrentPage(5)
         return
@@ -1118,6 +1166,10 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         }
         if (data.isDuplicate) {
           console.log('[BookingForm] Duplicate booking detected, redirecting to confirmation')
+          trackBookingCompleted({
+            ...funnelMeta,
+            service_type: formData.serviceType || undefined,
+          })
           submitGuardRef.current.finish()
           router.push('/booking-confirmation')
           return
@@ -1135,6 +1187,18 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
         booking_request_id: data.bookingRequestId,
         conversation_id: data.conversationId,
         service_type: formData.serviceType,
+      })
+
+      if (
+        currentPage === 5 ||
+        shouldShowAccountStep({ userLoading, currentUser })
+      ) {
+        trackBookingStepCompleted({ step_number: 5, ...funnelMeta })
+      }
+      trackBookingCompleted({
+        ...funnelMeta,
+        service_type: formData.serviceType || undefined,
+        booking_request_id: data.bookingRequestId,
       })
 
       submitGuardRef.current.finish()
@@ -1191,6 +1255,7 @@ export default function BookingForm({ chef, chefName, menus }: BookingFormProps)
     if (!loginPassword) loginErrors.loginPassword = t('booking.errors.passwordRequired')
     if (Object.keys(loginErrors).length > 0) {
       setErrors(prev => ({ ...prev, ...loginErrors }))
+      trackStepValidationFailure(5, Object.keys(loginErrors))
       return
     }
     setLoginLoading(true)

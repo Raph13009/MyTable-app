@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import LocaleProvider from '@/components/LocaleProvider'
+import GoogleTagManager from '@/components/analytics/GoogleTagManager'
 
 export const metadata: Metadata = {
   title: 'MyTable - Chat + Booking',
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
+        <GoogleTagManager />
         <LocaleProvider />
         {children}
       </body>

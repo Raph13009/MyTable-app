@@ -1,0 +1,394 @@
+{
+  "exportFormatVersion": 2,
+  "exportTime": "2026-10-26 19:10:00",
+  "containerVersion": {
+    "path": "accounts/6306689374/containers/226464832/versions/0",
+    "accountId": "6306689374",
+    "containerId": "226464832",
+    "containerVersionId": "0",
+    "name": "Booking | Funnel Tracking",
+    "description": "Booking funnel dataLayer events from app.guidemytable.fr → GA4 G-CB834F9YGR. Do not publish without review.",
+    "container": {
+      "path": "accounts/6306689374/containers/226464832",
+      "accountId": "6306689374",
+      "containerId": "226464832",
+      "name": "www.guidemytable.fr",
+      "publicId": "GTM-W6XLJMD5",
+      "usageContext": ["WEB"],
+      "fingerprint": "0",
+      "tagManagerUrl": "https://tagmanager.google.com/#/container/accounts/6306689374/containers/226464832/workspaces"
+    },
+    "tag": [
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "tagId": "9001",
+        "name": "Booking | Form Started",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "eventName", "value": "booking_form_started" },
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-CB834F9YGR" },
+          {
+            "type": "LIST",
+            "key": "eventParameters",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "funnel_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.funnel_name}}" }
+                ]
+              }
+            ]
+          }
+        ],
+        "fingerprint": "0",
+        "firingTriggerId": ["9001"],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": { "type": "MAP" },
+        "consentSettings": { "consentStatus": "NOT_SET" }
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "tagId": "9002",
+        "name": "Booking | Step Viewed",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "eventName", "value": "booking_step_view" },
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-CB834F9YGR" },
+          {
+            "type": "LIST",
+            "key": "eventParameters",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "funnel_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.funnel_name}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_number" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_number}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_name}}" }
+                ]
+              }
+            ]
+          }
+        ],
+        "fingerprint": "0",
+        "firingTriggerId": ["9002"],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": { "type": "MAP" },
+        "consentSettings": { "consentStatus": "NOT_SET" }
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "tagId": "9003",
+        "name": "Booking | Step Completed",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "eventName", "value": "booking_step_completed" },
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-CB834F9YGR" },
+          {
+            "type": "LIST",
+            "key": "eventParameters",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "funnel_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.funnel_name}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_number" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_number}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_name}}" }
+                ]
+              }
+            ]
+          }
+        ],
+        "fingerprint": "0",
+        "firingTriggerId": ["9003"],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": { "type": "MAP" },
+        "consentSettings": { "consentStatus": "NOT_SET" }
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "tagId": "9004",
+        "name": "Booking | Validation Error",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "eventName", "value": "booking_validation_error" },
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-CB834F9YGR" },
+          {
+            "type": "LIST",
+            "key": "eventParameters",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "funnel_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.funnel_name}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_number" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_number}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "step_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.step_name}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "error_type" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.error_type}}" }
+                ]
+              }
+            ]
+          }
+        ],
+        "fingerprint": "0",
+        "firingTriggerId": ["9004"],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": { "type": "MAP" },
+        "consentSettings": { "consentStatus": "NOT_SET" }
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "tagId": "9005",
+        "name": "Booking | Confirmed",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "eventName", "value": "booking_completed" },
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-CB834F9YGR" },
+          {
+            "type": "LIST",
+            "key": "eventParameters",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "funnel_name" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.funnel_name}}" }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  { "type": "TEMPLATE", "key": "name", "value": "service_type" },
+                  { "type": "TEMPLATE", "key": "value", "value": "{{DLV - booking.service_type}}" }
+                ]
+              }
+            ]
+          }
+        ],
+        "fingerprint": "0",
+        "firingTriggerId": ["9005"],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": { "type": "MAP" },
+        "consentSettings": { "consentStatus": "NOT_SET" }
+      }
+    ],
+    "trigger": [
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "triggerId": "9001",
+        "name": "Booking | CE - Form Started",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "booking_form_started" }
+            ]
+          }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "triggerId": "9002",
+        "name": "Booking | CE - Step Viewed",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "booking_step_view" }
+            ]
+          }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "triggerId": "9003",
+        "name": "Booking | CE - Step Completed",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "booking_step_completed" }
+            ]
+          }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "triggerId": "9004",
+        "name": "Booking | CE - Validation Error",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "booking_validation_error" }
+            ]
+          }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "triggerId": "9005",
+        "name": "Booking | CE - Confirmed",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "booking_completed" }
+            ]
+          }
+        ],
+        "fingerprint": "0"
+      }
+    ],
+    "variable": [
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9001",
+        "name": "DLV - booking.step_number",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "step_number" }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9002",
+        "name": "DLV - booking.step_name",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "step_name" }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9003",
+        "name": "DLV - booking.funnel_name",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "funnel_name" }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9004",
+        "name": "DLV - booking.error_type",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "error_type" }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9005",
+        "name": "DLV - booking.service_type",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "service_type" }
+        ],
+        "fingerprint": "0"
+      },
+      {
+        "accountId": "6306689374",
+        "containerId": "226464832",
+        "variableId": "9006",
+        "name": "DLV - booking.chef_slug",
+        "type": "v",
+        "parameter": [
+          { "type": "INTEGER", "key": "dataLayerVersion", "value": "2" },
+          { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" },
+          { "type": "TEMPLATE", "key": "name", "value": "chef_slug" }
+        ],
+        "fingerprint": "0"
+      }
+    ],
+    "fingerprint": "0",
+    "tagManagerUrl": "https://tagmanager.google.com/#/versions/accounts/6306689374/containers/226464832/versions/0?apiLink=version"
+  }
+}
