@@ -29,7 +29,7 @@ Shell already created (auto-saves): [Booking funnel](https://analytics.google.co
 
 - Name: `Booking funnel`
 - Open funnel: **on**
-- Steps: still need replacing — template leftovers cleared down to one placeholder (`First open/visit`). Finish the 6 stages below in the UI (step editor is not automatable via the browser tool).
+- Steps: still need replacing — template leftovers cleared down to one placeholder (`First open/visit`). Finish the 6 stages below in the UI (Explore step editor cannot be completed via browser automation).
 
 ### Finish steps in UI
 
