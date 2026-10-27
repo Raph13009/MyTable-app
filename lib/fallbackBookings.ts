@@ -26,6 +26,95 @@ export const FALLBACK_MAX_ACCEPTED_CANDIDATES = 2
 
 export type FallbackDispatchResult = { bookingId: string; chefId: string }
 
+export type ExclusiveWindowBooking = {
+  id?: string
+  status?: string | null
+  fallback_timeout_at?: string | null
+  fallback_previous_booking_id?: string | null
+  request_sent_at?: string | null
+  created_at?: string | null
+}
+
+/** ISO timestamp when the primary chef's exclusive 3h window ends. */
+export function getPrimaryExclusiveTimeoutAt(nowMs: number = Date.now()): string {
+  return new Date(nowMs + FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS).toISOString()
+}
+
+/**
+ * Primary bookings always get a 3h exclusive window, even when the client did
+ * not opt into replacement chefs. Backup broadcast bookings have no timeout.
+ */
+export function isPrimaryExclusiveWindowExpired(
+  booking: ExclusiveWindowBooking,
+  now: Date = new Date()
+): boolean {
+  if (booking.status && booking.status !== 'pending') return false
+  if (booking.fallback_previous_booking_id) return false
+
+  if (booking.fallback_timeout_at) {
+    const timeoutAt = Date.parse(booking.fallback_timeout_at)
+    return Number.isFinite(timeoutAt) && timeoutAt <= now.getTime()
+  }
+
+  const sentAtRaw = booking.request_sent_at || booking.created_at
+  if (!sentAtRaw) return false
+  const sentAt = Date.parse(sentAtRaw)
+  if (!Number.isFinite(sentAt)) return false
+  return now.getTime() - sentAt >= FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS
+}
+
+/**
+ * Pending primaries whose exclusive window has elapsed:
+ * - explicit fallback_timeout_at in the past (with or without replacement chefs)
+ * - legacy primaries with no timeout set, sent more than 3h ago
+ */
+export async function fetchExpiredPrimaryExclusiveWindowBookings(
+  supabase: AdminClient,
+  now: Date = new Date(),
+  limit = 100
+): Promise<any[]> {
+  const nowIso = now.toISOString()
+  const cutoffIso = new Date(now.getTime() - FALLBACK_PRIMARY_EXCLUSIVE_WINDOW_MS).toISOString()
+
+  const { data: timedOutRows, error: timedOutError } = await supabase
+    .from('booking_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .not('fallback_timeout_at', 'is', null)
+    .lt('fallback_timeout_at', nowIso)
+    .limit(limit)
+
+  if (timedOutError) {
+    throw new Error(
+      `Erreur lors de la récupération des demandes timeout: ${timedOutError.message}`
+    )
+  }
+
+  const { data: legacyRows, error: legacyError } = await supabase
+    .from('booking_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .is('fallback_timeout_at', null)
+    .is('fallback_previous_booking_id', null)
+    .lt('request_sent_at', cutoffIso)
+    .limit(limit)
+
+  if (legacyError) {
+    throw new Error(
+      `Erreur lors de la récupération des demandes timeout sans fenêtre: ${legacyError.message}`
+    )
+  }
+
+  const byId = new Map<string, any>()
+  for (const row of [...(timedOutRows || []), ...(legacyRows || [])] as any[]) {
+    if (!row?.id || byId.has(row.id)) continue
+    if (!isPrimaryExclusiveWindowExpired(row, now)) continue
+    byId.set(row.id, row)
+  }
+
+  return Array.from(byId.values()).slice(0, limit)
+}
+
 function getFallbackQueue(booking: any): string[] {
   return Array.isArray(booking?.fallback_next_chef_ids)
     ? booking.fallback_next_chef_ids.filter((id: unknown) => typeof id === 'string')

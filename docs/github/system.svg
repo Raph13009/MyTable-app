@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" role="img" aria-label="Quatre surfaces produit">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#0B0B0B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="420" fill="#050505"/>
+
+  <!-- 01 -->
+  <g transform="translate(24 24)">
+    <rect width="368" height="372" rx="4" fill="url(#panel)" stroke="#FBCF03" stroke-opacity="0.18"/>
+    <text x="28" y="48" fill="#FBCF03" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.28em">01</text>
+    <text x="28" y="118" fill="#F7F4EC" font-size="34" font-family="Georgia, Times, serif">Explorer</text>
+    <text x="28" y="168" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">Carte Mapbox, fiches chefs,</text>
+    <text x="28" y="192" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">galerie, menus, recherche</text>
+    <text x="28" y="216" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">embarquée sur le site.</text>
+    <text x="28" y="332" fill="#F7F4EC" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.18em">/EXPLORE</text>
+  </g>
+
+  <!-- 02 -->
+  <g transform="translate(418 24)">
+    <rect width="368" height="372" rx="4" fill="url(#panel)" stroke="#F7F4EC" stroke-opacity="0.08"/>
+    <text x="28" y="48" fill="#FBCF03" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.28em">02</text>
+    <text x="28" y="118" fill="#F7F4EC" font-size="34" font-family="Georgia, Times, serif">Réserver</text>
+    <text x="28" y="168" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">Dîner à domicile, cours,</text>
+    <text x="28" y="192" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">événements  validation chef,</text>
+    <text x="28" y="216" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">emails, décisions sécurisées.</text>
+    <text x="28" y="332" fill="#F7F4EC" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.18em">/BOOK/[SLUG]</text>
+  </g>
+
+  <!-- 03 -->
+  <g transform="translate(812 24)">
+    <rect width="368" height="372" rx="4" fill="url(#panel)" stroke="#F7F4EC" stroke-opacity="0.08"/>
+    <text x="28" y="48" fill="#FBCF03" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.28em">03</text>
+    <text x="28" y="118" fill="#F7F4EC" font-size="34" font-family="Georgia, Times, serif">Parler</text>
+    <text x="28" y="168" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">Chat temps réel client ” chef,</text>
+    <text x="28" y="192" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">Supabase Realtime, historique,</text>
+    <text x="28" y="216" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">notifications email.</text>
+    <text x="28" y="332" fill="#F7F4EC" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.18em">/CHAT</text>
+  </g>
+
+  <!-- 04 -->
+  <g transform="translate(1206 24)">
+    <rect width="370" height="372" rx="4" fill="url(#panel)" stroke="#F7F4EC" stroke-opacity="0.08"/>
+    <text x="28" y="48" fill="#FBCF03" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.28em">04</text>
+    <text x="28" y="118" fill="#F7F4EC" font-size="34" font-family="Georgia, Times, serif">Opérer</text>
+    <text x="28" y="168" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">Admin, visibilité chefs,</text>
+    <text x="28" y="192" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">comptes, relances, FR / EN,</text>
+    <text x="28" y="216" fill="#9A958C" font-size="15" font-family="ui-sans-serif, system-ui, sans-serif">rôles client · chef · staff.</text>
+    <text x="28" y="332" fill="#F7F4EC" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="0.18em">/ADMIN</text>
+  </g>
+</svg>

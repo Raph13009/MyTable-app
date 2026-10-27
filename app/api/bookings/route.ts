@@ -8,7 +8,7 @@ import { sendEmail, emailTemplates, emailSubjects } from '@/lib/email'
 import { formatDateForDisplay, isValidDateString } from '@/lib/dateUtils'
 import { calculateBookingTotal } from '@/lib/bookingCalculations'
 import { BOOKING_FALLBACK_RADIUS_KM, haversineDistanceKm, parseClientCoord } from '@/lib/geo'
-import { FALLBACK_EXCLUSIVE_WINDOW_MS } from '@/lib/fallbackBookings'
+import { getPrimaryExclusiveTimeoutAt } from '@/lib/fallbackBookings'
 import { normalizeBookingAddressForDb } from '@/lib/bookingAddress'
 import { geocodeBookingAddress } from '@/lib/geocodeBookingAddress'
 import { notifyChefNewBookingWhatsApp } from '@/lib/whatsapp'
@@ -358,9 +358,9 @@ export async function POST(request: NextRequest) {
     }
 
     const fallbackEnabled = Boolean(fallbackEnabledRaw) && validFallbackChefIds.length > 0
-    const fallbackTimeoutAt = fallbackEnabled
-      ? new Date(Date.now() + FALLBACK_EXCLUSIVE_WINDOW_MS).toISOString()
-      : null
+    // Always give the primary chef a 3h exclusive window. After that, either
+    // backup chefs are contacted (if selected) or the client is emailed nearby suggestions.
+    const fallbackTimeoutAt = getPrimaryExclusiveTimeoutAt()
 
     // Vérifier l'idempotence AVANT de créer la conversation
     //
@@ -863,7 +863,7 @@ export async function POST(request: NextRequest) {
         acceptUrl,
         refuseUrl,
         baseUrl,
-        { showFallbackPriority: fallbackEnabled }
+        { showFallbackPriority: true }
       ),
     })
 
