@@ -48,7 +48,18 @@
     "guestsRange": "De {{min}} à {{max}} personnes",
     "guestsMinOnly": "À partir de {{min}} personnes",
     "guestsMaxOnly": "Jusqu'à {{max}} personnes",
-    "guestsNotSpecified": "Convives non précisés"
+    "guestsNotSpecified": "Convives non précisés",
+    "profile": {
+      "loading": "Chargement du profil…",
+      "loadError": "Impossible de charger le profil. Réessayez.",
+      "gallery": "Créations",
+      "portrait": "Portrait MyTable",
+      "menus": "Suggestions de menus",
+      "menusExpand": "Voir les {{count}} menus",
+      "menusCollapse": "Réduire les menus",
+      "contact": "Contacter le Chef",
+      "reassurance": "Sans engagement ni paiement — échangez d'abord avec le Chef, puis décidez."
+    }
   },
   "auth": {
     "login": "Se connecter",

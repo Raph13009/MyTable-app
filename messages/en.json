@@ -48,7 +48,18 @@
     "guestsRange": "From {{min}} to {{max}} people",
     "guestsMinOnly": "From {{min}} people",
     "guestsMaxOnly": "Up to {{max}} people",
-    "guestsNotSpecified": "Guests not specified"
+    "guestsNotSpecified": "Guests not specified",
+    "profile": {
+      "loading": "Loading profile…",
+      "loadError": "Could not load this profile. Please try again.",
+      "gallery": "Creations",
+      "portrait": "MyTable portrait",
+      "menus": "Menu suggestions",
+      "menusExpand": "See all {{count}} menus",
+      "menusCollapse": "Show fewer menus",
+      "contact": "Contact the Chef",
+      "reassurance": "No commitment and no payment — talk with the Chef first, then decide."
+    }
   },
   "auth": {
     "login": "Log in",

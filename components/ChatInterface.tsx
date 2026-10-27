@@ -1560,21 +1560,10 @@ export default function ChatInterface({
               )}
             </button>
 
-            {/* Right: Actions grouped — wrap on mobile so Finaliser never overflows off-screen */}
+            {/* Right: Actions grouped — wrap on mobile so they never overflow off-screen */}
             <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
               {bookingRequest && (
                 <>
-                  {/* Primary: Finaliser first (client uniquement, statut accepted) — always visible */}
-                  {isClient && bookingStatus === 'accepted' && (
-                    <button
-                      onClick={handleFinalizeBooking}
-                      disabled={processingAction}
-                      className="flex-shrink-0 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-black bg-[#FBCF03] hover:bg-[#FBCF03]/90 active:bg-[#FBCF03]/80 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processingAction ? '...' : t('booking.finalize')}
-                    </button>
-                  )}
-
                   {/* Menu button (chef only) - Yellow for contrast - Caché pour cours_cuisine et mise_en_demeure */}
                   {isChef && bookingRequest?.service_type !== 'cours_cuisine' && bookingRequest?.service_type !== 'mise_en_demeure' && (
                     <button

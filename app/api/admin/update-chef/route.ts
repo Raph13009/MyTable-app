@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { ensureUniqueChefSlug } from '@/lib/chef-slug'
+import { MAX_CHEF_DISH_PHOTOS } from '@/lib/chefProfile'
 import { normalizeChefPhoneForStorage } from '@/lib/chefPhone'
 
 const ADMIN_UID = '8d154623-1aba-475c-9a7b-9ab39f3f84d2'
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
       cuisine_style,
       cuisine_style_en,
       info_link_xx,
+      portrait_fr,
+      portrait_en,
       primary_dish_photo,
       availability_radius_km,
       dish_photos,
@@ -80,6 +83,8 @@ export async function POST(request: NextRequest) {
     const normalizedCuisineStyle = typeof cuisine_style === 'string' ? cuisine_style.trim() : ''
     const normalizedCuisineStyleEn = typeof cuisine_style_en === 'string' ? cuisine_style_en.trim() : ''
     const normalizedInfoLinkXx = typeof info_link_xx === 'string' ? info_link_xx.trim() : ''
+    const normalizedPortraitFr = typeof portrait_fr === 'string' ? portrait_fr.trim() : ''
+    const normalizedPortraitEn = typeof portrait_en === 'string' ? portrait_en.trim() : ''
     const normalizedPrimaryDishPhoto = typeof primary_dish_photo === 'string' ? primary_dish_photo.trim() : ''
     const normalizedLastName = typeof last_name === 'string' ? last_name.trim() : ''
     const normalizedAddress = typeof address === 'string' ? address.trim() : ''
@@ -97,7 +102,7 @@ export async function POST(request: NextRequest) {
       ? dish_photos
           .map((url: unknown) => (typeof url === 'string' ? url.trim() : ''))
           .filter((url: string) => url.length > 0)
-          .slice(0, 3)
+          .slice(0, MAX_CHEF_DISH_PHOTOS)
       : []
     const safePrimaryDishPhoto =
       normalizedPrimaryDishPhoto && normalizedDishPhotos.includes(normalizedPrimaryDishPhoto)
@@ -167,6 +172,8 @@ export async function POST(request: NextRequest) {
         cuisine_style: normalizedCuisineStyle || null,
         cuisine_style_en: normalizedCuisineStyleEn || null,
         info_link_xx: normalizedInfoLinkXx || null,
+        portrait_fr: normalizedPortraitFr || null,
+        portrait_en: normalizedPortraitEn || null,
         primary_dish_photo: safePrimaryDishPhoto,
         availability_radius_km: normalizedAvailabilityRadiusKm,
         dish_photos: normalizedDishPhotos,

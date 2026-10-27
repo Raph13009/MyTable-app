@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { ChefMapPopup } from './ChefMapPopup'
 import { ChefList } from './ChefList'
+import { ChefProfilePanel } from './ChefProfilePanel'
 import { ExploreMap } from './ExploreMap'
 import { LocationSearchBar } from './LocationSearchBar'
 import { ExploreChef } from './types'
@@ -68,6 +69,7 @@ export function ExploreLayout({
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
   const isMobile = useIsMobile()
   const [pinnedChefId, setPinnedChefId] = useState<string | null>(null)
+  const [profileChefId, setProfileChefId] = useState<string | null>(null)
   const [hoveredChefId, setHoveredChefId] = useState<string | null>(null)
   const [focusedRegionSlug, setFocusedRegionSlug] = useState<string | null>(
     initialLocation ? null : initialFocusedRegionSlug
@@ -119,6 +121,10 @@ export function ExploreLayout({
   const sortedChefs = useMemo(() => {
     return [...chefs].sort((a, b) => a.name.localeCompare(b.name, locale))
   }, [chefs, locale])
+
+  const profileChef = profileChefId
+    ? sortedChefs.find((chef) => chef.id === profileChefId) || null
+    : null
 
   const outOfRangeChefIdsSet = useMemo(() => {
     if (!searchPin) return new Set<string>()
@@ -249,9 +255,21 @@ export function ExploreLayout({
   const handleChefBubbleClick = useCallback((chefId: string) => {
     setPinnedChefId(chefId)
     setHoveredChefId(null)
+    setProfileChefId((openId) => (openId ? chefId : openId))
+  }, [])
+
+  const handleOpenProfile = useCallback((chefId: string) => {
+    setPinnedChefId(chefId)
+    setHoveredChefId(null)
+    setProfileChefId(chefId)
+  }, [])
+
+  const handleCloseProfile = useCallback(() => {
+    setProfileChefId(null)
   }, [])
 
   const handleSelectionClear = useCallback(() => {
+    setProfileChefId(null)
     setPinnedChefId(null)
     setHoveredChefId(null)
   }, [])
@@ -261,7 +279,13 @@ export function ExploreLayout({
   }, [])
 
   const handleChefNameToggle = useCallback((chefId: string) => {
-    setPinnedChefId((prev) => (prev === chefId ? null : chefId))
+    setPinnedChefId((prev) => {
+      if (prev === chefId) {
+        setProfileChefId(null)
+        return null
+      }
+      return chefId
+    })
     setHoveredChefId((prev) => (prev === chefId ? null : prev))
   }, [])
 
@@ -484,6 +508,8 @@ export function ExploreLayout({
               onChefClick={handleChefBubbleClick}
               onSelectionClear={handleSelectionClear}
               onVisibleChefIdsChange={setMapVisibleChefIds}
+              onOpenProfile={handleOpenProfile}
+              profileOpen={!!profileChef}
               initialRegionBBox={initialRegionBBox}
               focusedRegionSlug={focusedRegionSlug}
               searchViewport={searchViewport}
@@ -493,7 +519,15 @@ export function ExploreLayout({
             />
 
             <div
-              className={`absolute left-4 right-4 top-4 z-30 flex w-[calc(100%-2rem)] items-center gap-2 ${useExplore2MobileLayout ? '' : 'md:hidden'}`}
+              className={`absolute left-4 right-4 top-4 flex w-[calc(100%-2rem)] items-center gap-2 ${
+                useExplore2MobileLayout ? '' : 'md:hidden'
+              } ${
+                profileChef && useExplore2MobileLayout
+                  ? 'z-[55]'
+                  : profileChef
+                    ? 'pointer-events-none invisible'
+                    : 'z-30'
+              }`}
             >
               <LocationSearchBar
                 query={searchQuery}
@@ -548,24 +582,41 @@ export function ExploreLayout({
                       onChefNameClick={handleChefNameToggle}
                       forceMobileCardStyle
                       compact
-                      breakOutOfIframe={embedded}
+                      onOpenProfile={handleOpenProfile}
                     />
                     <div className="h-[42vh]" aria-hidden />
                   </div>
                 </div>
               </aside>
             )}
-            {useBottomCardOnMobile && pinnedChefId && (() => {
+            {useBottomCardOnMobile && pinnedChefId && !profileChef && (() => {
               const chef = mapDataChefs.find((c) => c.id === pinnedChefId)
               if (!chef) return null
               return (
                 <ChefMapPopup
                   chef={chef}
                   onRequestClose={() => setPinnedChefId(null)}
+                  onOpenProfile={handleOpenProfile}
                   bottomSheet
                 />
               )
             })()}
+            {profileChef && (
+              <>
+                <button
+                  type="button"
+                  className="absolute inset-0 z-40 bg-black/20"
+                  aria-label={t('common.close')}
+                  onClick={handleCloseProfile}
+                />
+                <ChefProfilePanel
+                  chef={profileChef}
+                  variant="sheet"
+                  onClose={handleCloseProfile}
+                  sitBelowOverlay={useExplore2MobileLayout}
+                />
+              </>
+            )}
           </div>
         ) : (
           <div className="w-full overflow-hidden h-[calc(100dvh-64px)] lg:h-[calc(100dvh-84px)]">
@@ -591,7 +642,7 @@ export function ExploreLayout({
                     onChefMountRef={handleChefMountRef}
                     onChefNameClick={handleChefNameToggle}
                     horizontal
-                    breakOutOfIframe={embedded}
+                    onOpenProfile={handleOpenProfile}
                   />
                 </div>
               </div>
@@ -638,6 +689,8 @@ export function ExploreLayout({
                       onChefClick={handleChefBubbleClick}
                       onSelectionClear={handleSelectionClear}
                       onVisibleChefIdsChange={setMapVisibleChefIds}
+                      onOpenProfile={handleOpenProfile}
+                      profileOpen={!!profileChef}
                       initialRegionBBox={initialRegionBBox}
                       focusedRegionSlug={focusedRegionSlug}
                       searchViewport={searchViewport}
@@ -646,6 +699,9 @@ export function ExploreLayout({
                       locale={locale}
                     />
                   </div>
+                  {profileChef && (
+                    <ChefProfilePanel chef={profileChef} variant="drawer" onClose={handleCloseProfile} />
+                  )}
                 </div>
               </div>
             </div>

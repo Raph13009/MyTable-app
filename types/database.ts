@@ -32,6 +32,8 @@ export interface Database {
           min_guests: number | null
           max_guests: number | null
           is_publicly_visible: boolean
+          portrait_fr: string | null
+          portrait_en: string | null
           created_at: string
           updated_at: string
         }
@@ -57,6 +59,8 @@ export interface Database {
           min_guests?: number | null
           max_guests?: number | null
           is_publicly_visible?: boolean
+          portrait_fr?: string | null
+          portrait_en?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -82,6 +86,8 @@ export interface Database {
           min_guests?: number | null
           max_guests?: number | null
           is_publicly_visible?: boolean
+          portrait_fr?: string | null
+          portrait_en?: string | null
           created_at?: string
           updated_at?: string
         }

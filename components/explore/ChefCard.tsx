@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useProfileNavigation } from '@/hooks/useProfileNavigation'
-import { trackEvent } from '@/lib/analytics/track'
+import { prefetchChefProfile } from '@/lib/chefProfile'
 import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
 
 interface ChefCardProps {
@@ -17,10 +16,9 @@ interface ChefCardProps {
   forceMobileStyle?: boolean
   /** Version compacte (drawer tablette) pour afficher 2 cards à mi-hauteur */
   compact?: boolean
-  /** When true, profile links break out of iframe (window.top) for full-screen navigation */
-  breakOutOfIframe?: boolean
   /** Horizontal card layout for desktop list mode */
   horizontal?: boolean
+  onOpenProfile?: (chefId: string) => void
 }
 
 function formatPrice(price: number | null): string {
@@ -60,10 +58,9 @@ export function ChefCard({
   onChefNameClick,
   forceMobileStyle = false,
   compact = false,
-  breakOutOfIframe = false,
   horizontal = false,
+  onOpenProfile,
 }: ChefCardProps) {
-  const navigateToProfile = useProfileNavigation(breakOutOfIframe)
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
@@ -74,10 +71,14 @@ export function ChefCard({
       ? `${t('explore.from')} ${formatPrice(chef.minPrice)}${locale === 'en' ? '/guest' : '/pers'}`
       : formatPrice(chef.minPrice)
   const guestsLabel = formatGuestsRange(chef.minGuests, chef.maxGuests, locale)
-  const infoHref = chef.infoLinkXx
   const mobileHeroImage = chef.heroImage || chef.image
   const mobileAvatarImage = chef.avatarImage || chef.image || chef.heroImage
   const displayChefName = formatChefNameWithPrefix(chef.name)
+
+  const openProfile = (event: MouseEvent) => {
+    event.stopPropagation()
+    onOpenProfile?.(chef.id)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -201,19 +202,14 @@ export function ChefCard({
               <p className="text-[15px] font-semibold text-[#111111]">{priceLabel}</p>
               <p className="mt-0.5 text-[12px] text-[#7A7A7A]">{guestsLabel}</p>
             </div>
-            {infoHref ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'list' })
-                  navigateToProfile(infoHref)
-                }}
-                className="shrink-0 rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_4px_10px_rgba(251,207,3,0.30)] transition hover:brightness-[1.03]"
-              >
-                {t('explore.viewProfile')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={openProfile}
+              onMouseEnter={() => prefetchChefProfile(chef.slug)}
+              className="shrink-0 rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_4px_10px_rgba(251,207,3,0.30)] transition hover:brightness-[1.03]"
+            >
+              {t('explore.viewProfile')}
+            </button>
           </div>
         </div>
       </article>
@@ -310,19 +306,14 @@ export function ChefCard({
             >
               {displayChefName}
             </button>
-            {infoHref ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'list' })
-                  navigateToProfile(infoHref)
-                }}
-                className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
-              >
-                {t('explore.viewProfile')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={openProfile}
+              onMouseEnter={() => prefetchChefProfile(chef.slug)}
+              className="shrink-0 rounded-full bg-[#FBCF03] px-3 py-1.5 text-xs font-semibold text-[#1C1C1C]"
+            >
+              {t('explore.viewProfile')}
+            </button>
           </div>
           <div className={`flex items-center gap-1.5 ${compact ? 'mt-1.5' : 'mt-2'}`}>
             <span className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#4E4E4E]">
@@ -412,19 +403,14 @@ export function ChefCard({
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
               <p className="mt-0.5 text-[11px] text-[#555555]">{guestsLabel}</p>
             </div>
-            {infoHref ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'map' })
-                  navigateToProfile(infoHref)
-                }}
-                className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
-              >
-                {t('explore.viewProfile')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={openProfile}
+              onMouseEnter={() => prefetchChefProfile(chef.slug)}
+              className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
+            >
+              {t('explore.viewProfile')}
+            </button>
           </div>
         </div>
       </div>

@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ExploreChef } from './types'
 import { useTranslation } from '@/hooks/useTranslation'
-import { trackEvent } from '@/lib/analytics/track'
+import { prefetchChefProfile } from '@/lib/chefProfile'
 import { getOptimizedSupabaseImageUrl } from '@/lib/image-utils'
-import { resolveFullUrl } from '@/lib/navigation'
 
 interface ChefMapPopupProps {
   chef: ExploreChef
@@ -15,6 +14,7 @@ interface ChefMapPopupProps {
   onMouseLeave?: () => void
   /** Mode bottom sheet mobile/tablet : full width, image brut, pas d'encadré blanc */
   bottomSheet?: boolean
+  onOpenProfile?: (chefId: string) => void
 }
 
 function formatPrice(price: number | null): string {
@@ -52,13 +52,13 @@ export function ChefMapPopup({
   onMouseEnter,
   onMouseLeave,
   bottomSheet = false,
+  onOpenProfile,
 }: ChefMapPopupProps) {
   const [isDarkBackground, setIsDarkBackground] = useState(false)
   const { t, locale } = useTranslation()
   const displayedCuisine =
     (locale === 'en' ? chef.cuisineTypeEn || chef.cuisineType : chef.cuisineType || chef.cuisineTypeEn) ||
     t('explore.signatureCuisine')
-  const infoHref = chef.infoLinkXx
   const displayChefName = formatChefNameWithPrefix(chef.name)
   const backgroundImage = chef.heroImage || chef.image
   const avatarImage = chef.avatarImage || chef.image || chef.heroImage
@@ -126,11 +126,10 @@ export function ChefMapPopup({
         ? `${t('explore.from')} ${Math.round(chef.minPrice)}€${locale === 'en' ? '/guest' : '/pers'}`
         : formatPrice(chef.minPrice)
     const guestsLabel = formatGuestsRange(chef.minGuests, chef.maxGuests, locale)
-    const dishPhotos = chef.dishPhotos ?? []
-    const nonPpUrls = dishPhotos.filter((url) => url && url !== chef.image)
-    const image1 = backgroundImage
-    const image2 = nonPpUrls.find((url) => url !== chef.heroImage) ?? nonPpUrls[0] ?? backgroundImage
-    const image3 = nonPpUrls.find((url) => url !== image1 && url !== image2) ?? image2
+    const compactImages = [chef.heroImage, chef.image].filter((url, index, list): url is string => {
+      return typeof url === 'string' && url.trim().length > 0 && list.indexOf(url) === index
+    })
+    const image1 = compactImages[0] || backgroundImage
 
     const renderImage = (url: string | null, alt: string) => {
       if (!url) {
@@ -164,15 +163,22 @@ export function ChefMapPopup({
         }}
       >
         <div className="relative flex w-full overflow-hidden">
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden bg-[#F0F0F0]">
-            {renderImage(image1, displayChefName)}
-          </div>
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
-            {renderImage(image2, displayChefName)}
-          </div>
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
-            {renderImage(image3, displayChefName)}
-          </div>
+          {compactImages.length <= 1 ? (
+            <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#F0F0F0]">
+              {renderImage(image1, displayChefName)}
+            </div>
+          ) : (
+            compactImages.slice(0, 3).map((url, index) => (
+              <div
+                key={`${url}-${index}`}
+                className={`relative aspect-square overflow-hidden bg-[#F0F0F0] ${
+                  compactImages.length === 2 ? 'w-1/2' : 'w-1/3'
+                } ${index > 0 ? 'border-l border-white/20' : ''}`}
+              >
+                {renderImage(url, displayChefName)}
+              </div>
+            ))
+          )}
           <button
             type="button"
             onClick={(event) => {
@@ -197,19 +203,17 @@ export function ChefMapPopup({
                 {displayedCuisine}
               </span>
             </div>
-            {infoHref ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'popup' })
-                  window.open(resolveFullUrl(infoHref), '_blank', 'noopener,noreferrer')
-                }}
-                className="mt-0.5 h-8 shrink-0 rounded-full bg-[#FBCF03] px-4 text-[13px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-9 md:px-5 md:text-[14px]"
-              >
-                {t('explore.viewProfile')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenProfile?.(chef.id)
+              }}
+              onMouseEnter={() => prefetchChefProfile(chef.slug)}
+              className="mt-0.5 h-8 shrink-0 rounded-full bg-[#FBCF03] px-4 text-[13px] font-semibold text-[#1C1C1C] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:scale-[1.02] active:scale-[0.98] md:h-9 md:px-5 md:text-[14px]"
+            >
+              {t('explore.viewProfile')}
+            </button>
           </div>
           <p className="text-[13px] text-[#525252] md:text-[14px]">
             <span className="font-semibold text-[#111111]">{priceLabel}</span>
@@ -328,19 +332,17 @@ export function ChefMapPopup({
               <p className="text-[10px] uppercase tracking-[0.07em] text-[#555555]">{t('explore.from')}</p>
               <p className="text-[16px] font-semibold leading-tight text-[#111111]">{formatPrice(chef.minPrice)}</p>
             </div>
-            {infoHref ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  trackEvent('profile_view', { chef_id: chef.id, chef_slug: chef.slug, source: 'map_bubble' })
-                  window.open(resolveFullUrl(infoHref), '_blank', 'noopener,noreferrer')
-                }}
-                className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
-              >
-                {t('explore.viewProfile')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenProfile?.(chef.id)
+              }}
+              onMouseEnter={() => prefetchChefProfile(chef.slug)}
+              className="inline-flex items-center rounded-full bg-gradient-to-r from-[#FCD93A] via-[#FBCF03] to-[#EFB500] px-4 py-2 text-xs font-semibold text-[#1C1C1C] shadow-[0_6px_14px_rgba(251,207,3,0.35)] transition hover:brightness-[1.02]"
+            >
+              {t('explore.viewProfile')}
+            </button>
           </div>
         </div>
       </div>
