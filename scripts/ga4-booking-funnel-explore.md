@@ -28,8 +28,9 @@ Property: **Guide MyTable** (`G-CB834F9YGR`)
 Shell already created (auto-saves): [Booking funnel](https://analytics.google.com/analytics/web/#/analysis/a378846450p517840919/edit/o-n_jeDASLSCu8j90WhzDg)
 
 - Name: `Booking funnel`
-- Open funnel: **on**
+- Open funnel: **off** (closed funnel)
 - Steps: still need replacing — template leftovers cleared down to one placeholder (`First open/visit`). Finish the 6 stages below in the UI (Explore step editor cannot be completed via browser automation).
+- Closed funnel toggle already set.
 
 ### Finish steps in UI
 
