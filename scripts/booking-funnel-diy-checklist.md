@@ -1,58 +1,49 @@
-# Booking funnel — remaining human gate (diagnosed)
+# Booking Funnel — status checklist
 
-Agent has completed app code, tests, build, import JSON, Explore shell, and rollback docs.
-GTM/GA4 write access is blocked by **account permission + OAuth client policy**, not by missing recipes.
+Updated: 2026-10-27 (agent session after Raphael Admin grant)
 
-## Root cause (evidence)
+## Done
 
-### GTM container `GTM-W6XLJMD5` users
+### App / branch
+- [x] Booking funnel `dataLayer` events implemented on `feature/booking-funnel-analytics`
+- [x] Unit tests + production build green
+- [x] Rollback doc: `scripts/booking-funnel-rollback.md`
+- [x] Branch pushed to origin (open PR via GitHub UI if `gh` broken locally)
 
-| Email | Permission |
-|---|---|
-| `contact@guidemytable.fr` | **Publish** |
-| `raphaellevy027@gmail.com` | **Read** |
+### GTM `GTM-W6XLJMD5`
+- [x] `raphaellevy027@gmail.com` elevated: Account **Administrator** + Container **Edit**
+- [x] Workspace **`Booking | Funnel Tracking`** created (workspace id `8`)
+- [x] 6 DLVs, 5 Custom Event triggers, 5 GA4 Event tags (`gaawe` → `G-CB834F9YGR`) created via authenticated GTM internal API
+- [x] Existing Google Ads tags **untouched** (still present alongside booking tags)
+- [x] **Not published** (awaiting explicit approval)
 
-- Browser automation session = `raphaellevy027@gmail.com` → Import UI: *“You do not have permission to import a container.”* (expected for Read).
-- CLI/API account = `contact.avenirea@gmail.com` → token has **no** Tag Manager scopes (only `cloud-platform` + email).
+Workspace inventory (pending changes, Added only):
+- Triggers: `Booking | CE - Form Started|Step Viewed|Step Completed|Validation Error|Confirmed`
+- Tags: `Booking | Form Started|Step Viewed|Step Completed|Validation Error|Confirmed`
+- Variables: `DLV - booking.{step_number,step_name,funnel_name,error_type,service_type,chef_slug}`
 
-### Why refreshing ADC scopes failed
+Open: https://tagmanager.google.com/#/container/accounts/6306689374/containers/226464832/workspaces/8
 
-`gcloud auth application-default login --scopes=...tagmanager.edit.containers...` → Google returns:
+### GA4 property `517840919`
+- [x] Custom dimensions exist (Event scope): Booking Step Number → `step_number`, Step Name, Funnel Name, Error Type
+- [x] Explore renamed to **Booking Funnel**; Open Funnel **ON**
+- [x] Booking Step Number added to Explore Variables (for step filters)
+- [ ] Six funnel steps still need manual step editor (automation cannot drive it)
 
-**`Error 401: disabled_client`** — “Sign in with Google temporarily disabled for this app” on the **default** gcloud OAuth client when requesting Tag Manager scopes.
+Explore: https://analytics.google.com/analytics/web/#/analysis/a378846450p517840919/edit/o-n_jeDASLSCu8j90WhzDg
 
-So the agent cannot mint a Tag Manager API token with the stock gcloud client. Options: custom OAuth client, or UI work as a user with **Edit** (or higher).
+## Remaining (human gates)
 
-## Smallest action for you (pick ONE)
+1. **GTM Preview** — click **Preview** in workspace `Booking | Funnel Tracking`, connect to a build that includes the feature branch (prod does not emit `booking_*` yet).
+2. **Explore steps** (open funnel):
+   1. `booking_form_started`
+   2–5. `booking_step_view` + Booking Step Number exactly matches `2`/`3`/`4`/`5`
+   6. `booking_completed`
+3. **Approve GTM Publish** when Preview looks good (do not publish without OK).
+4. **Merge PR + deploy** so prod fires `booking_*` (then DebugView).
+5. Optional: create PR via https://github.com/Raph13009/MyTable-app/pull/new/feature/booking-funnel-analytics
 
-### Option A — preferred (30 seconds)
-
-Signed in as **`contact@guidemytable.fr`** in Tag Manager:
-
-1. Admin → User Management (container `GTM-W6XLJMD5`)
-2. Set **`raphaellevy027@gmail.com`** from **Read → Edit** (or **Publish**)
-3. Reply here: “Edit granted”
-
-Agent will then: create workspace `Booking | Funnel Tracking`, create tags/triggers/vars from `scripts/gtm-booking-funnel-import.json` (no whole-container overwrite; Ads untouched), Preview, finish Explore funnel, re-validate.
-
-### Option B
-
-Sign the IDE/browser into Tag Manager as **`contact@guidemytable.fr`** (Publish) and tell the agent — same follow-up work.
-
-### Option C (API path)
-
-Provide a **verified** GCP OAuth client JSON that allows Tag Manager scopes, then agent runs `scripts/gtm-booking-funnel-setup.mjs`.
-
-## After GTM is live (agent + you)
-
-1. Agent: Preview booking demo (no Publish without your OK)
-2. You approve Publish / merge / deploy when ready
-3. Star `booking_completed` as key event once it appears in Recent events
-
-## Already done (no action)
-
-- App dataLayer funnel + mount `booking_form_started` + dedupe
-- Unit tests 42/42, production build pass
-- GTM JSON (`G-CB834F9YGR`, `gaawe` only, consent `NOT_SET`)
-- Explore shell [Booking funnel](https://analytics.google.com/analytics/web/#/analysis/a378846450p517840919/edit/o-n_jeDASLSCu8j90WhzDg) (open funnel on; steps still need UI)
-- Rollback: `scripts/booking-funnel-rollback.md`
+## Risks to existing tracking
+- Workspace-only changes; live container unchanged until Publish.
+- Ads tags not modified.
+- Rollback: discard workspace 8 or revert published version per `booking-funnel-rollback.md`.
