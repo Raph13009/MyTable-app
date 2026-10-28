@@ -28,6 +28,27 @@ function fingerprint(payload: DataLayerEvent): string {
   return keys.map((k) => `${k}:${JSON.stringify(payload[k])}`).join('|')
 }
 
+/** GA4 web stream used by booking funnel tags (G-CB834F9YGR). */
+const GA4_MEASUREMENT_ID = 'G-CB834F9YGR'
+
+/**
+ * Also send via gtag so GA4 receives event params reliably.
+ * (GTM GA4 Event tags were resolving DLV/CJS params to boolean false.)
+ * Uses send_to so the hit goes to GA4 even without a dedicated config tag.
+ */
+function sendGtagEvent(payload: DataLayerEvent): void {
+  if (typeof window.gtag !== 'function') return
+  const { event, ...rest } = payload
+  if (!event) return
+  const params: Record<string, unknown> = { send_to: GA4_MEASUREMENT_ID }
+  for (const [k, v] of Object.entries(rest)) {
+    if (v === undefined || v === null) continue
+    // GA4 Explore step filters expect text; stringify primitives.
+    params[k] = typeof v === 'number' || typeof v === 'boolean' ? String(v) : v
+  }
+  window.gtag('event', event, params)
+}
+
 /**
  * Push to dataLayer. Skips identical payloads within a short window
  * (React Strict Mode remounts / double effects).
@@ -46,6 +67,7 @@ export function pushDataLayer(payload: DataLayerEvent): boolean {
 
   window.dataLayer = window.dataLayer || []
   window.dataLayer.push(payload)
+  sendGtagEvent(payload)
   return true
 }
 
