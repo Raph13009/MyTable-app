@@ -130,8 +130,7 @@ export function ChefMapPopup({
     const nonPpUrls = dishPhotos.filter((url) => url && url !== chef.image)
     const image1 = backgroundImage
     const image2 = nonPpUrls.find((url) => url !== chef.heroImage) ?? nonPpUrls[0] ?? backgroundImage
-    // Always show the chef portrait in the third frame when available.
-    const image3 = chef.image || nonPpUrls.find((url) => url !== image1 && url !== image2) || image2
+    const image3 = nonPpUrls.find((url) => url !== image1 && url !== image2) ?? image2
 
     const renderImage = (url: string | null, alt: string) => {
       if (!url) {
@@ -164,31 +163,56 @@ export function ChefMapPopup({
           onCardClick?.()
         }}
       >
-        <div className="relative flex w-full overflow-hidden">
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden bg-[#F0F0F0]">
-            {renderImage(image1, displayChefName)}
+        <div className="relative">
+          <div className="relative flex w-full overflow-hidden">
+            <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden bg-[#F0F0F0]">
+              {renderImage(image1, displayChefName)}
+            </div>
+            <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
+              {renderImage(image2, displayChefName)}
+            </div>
+            <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
+              {renderImage(image3, displayChefName)}
+            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRequestClose?.()
+              }}
+              className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white transition hover:bg-black/40 md:left-4 md:top-4 md:h-9 md:w-9"
+              aria-label={locale === 'en' ? 'Close card' : 'Fermer la fiche'}
+            >
+              <svg className="h-3.5 w-3.5 md:h-4 md:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
-            {renderImage(image2, displayChefName)}
+          <div className="absolute bottom-[-18px] left-5 z-10 h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-[#F3F3F3] shadow-[0_3px_8px_rgba(0,0,0,0.12)] md:bottom-[-20px] md:left-8 md:h-12 md:w-12">
+            {avatarImage ? (
+              (() => {
+                const isSupabase = avatarImage.includes('supabase.co/storage')
+                const src = getOptimizedSupabaseImageUrl(avatarImage, 400) ?? avatarImage
+                const src300 = isSupabase ? getOptimizedSupabaseImageUrl(avatarImage, 300) : null
+                return (
+                  <img
+                    src={src}
+                    srcSet={src300 ? `${src300} 300w, ${src} 400w` : undefined}
+                    sizes="44px"
+                    alt={displayChefName}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                )
+              })()
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[#727272]">
+                {displayChefName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
           </div>
-          <div className="relative aspect-square w-1/3 shrink-0 overflow-hidden border-l border-white/20 bg-[#F0F0F0]">
-            {renderImage(image3, displayChefName)}
-          </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onRequestClose?.()
-            }}
-            className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white transition hover:bg-black/40 md:left-4 md:top-4 md:h-9 md:w-9"
-            aria-label={locale === 'en' ? 'Close card' : 'Fermer la fiche'}
-          >
-            <svg className="h-3.5 w-3.5 md:h-4 md:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
-          </button>
         </div>
-        <div className="space-y-2 px-5 pb-4 pt-3 md:space-y-3 md:px-8 md:pb-6 md:pt-4">
+        <div className="space-y-2 px-5 pb-4 pt-6 md:space-y-3 md:px-8 md:pb-6 md:pt-7">
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="space-y-0.5">
               <h3 className="truncate text-[17px] font-semibold leading-tight text-[#111111] md:text-[21px]">
