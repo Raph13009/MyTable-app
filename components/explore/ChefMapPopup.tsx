@@ -130,11 +130,8 @@ export function ChefMapPopup({
     const nonPpUrls = dishPhotos.filter((url) => url && url !== chef.image)
     const image1 = backgroundImage
     const image2 = nonPpUrls.find((url) => url !== chef.heroImage) ?? nonPpUrls[0] ?? backgroundImage
-    // Keep 3 frames: third dish when available, otherwise the chef portrait.
-    const image3 =
-      nonPpUrls.find((url) => url !== image1 && url !== image2) ||
-      (chef.image && chef.image !== image1 && chef.image !== image2 ? chef.image : null) ||
-      image2
+    // Always show the chef portrait in the third frame when available.
+    const image3 = chef.image || nonPpUrls.find((url) => url !== image1 && url !== image2) || image2
 
     const renderImage = (url: string | null, alt: string) => {
       if (!url) {
