@@ -1170,7 +1170,7 @@ export default function ChefFormPage() {
                       placeholder="https://..."
                       className="h-11 w-full rounded-[10px] border border-[#EAEAEA] bg-white px-3 text-sm outline-none transition focus:border-black"
                     />
-                    <p className="mt-1.5 text-xs text-[#6B7280]">Page Chef WordPress. N’est plus utilisée par la carte ; le profil in-map lit les champs ci-dessous.</p>
+                    <p className="mt-1.5 text-xs text-[#6B7280]">Page Chef WordPress. Le bouton « Voir le profil » de la carte ouvre ce lien.</p>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Portrait MyTable (FR)</label>

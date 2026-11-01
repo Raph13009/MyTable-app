@@ -2,7 +2,7 @@ export const MAX_CHEF_DISH_PHOTOS = 12
 
 /** Lean map/list payload — no portraits, galleries, or menu descriptions. */
 export const EXPLORE_CHEFS_SELECT =
-  'id, slug, name, city, profile_picture, primary_dish_photo, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(name,price)'
+  'id, slug, name, info_link_xx, city, profile_picture, dish_photos, primary_dish_photo, cuisine_style, cuisine_style_en, availability_radius_km, min_guests, max_guests, latitude, longitude, menus(name,price)'
 
 export type ChefProfileMenu = {
   id: string

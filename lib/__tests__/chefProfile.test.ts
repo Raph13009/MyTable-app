@@ -30,8 +30,8 @@ describe('chef profile helpers', () => {
   it('keeps the explore payload lean', () => {
     assert.equal(MAX_CHEF_DISH_PHOTOS, 12)
     assert.equal(EXPLORE_CHEFS_SELECT.includes('portrait_fr'), false)
-    assert.equal(EXPLORE_CHEFS_SELECT.includes('dish_photos'), false)
-    assert.equal(EXPLORE_CHEFS_SELECT.includes('info_link_xx'), false)
+    assert.equal(EXPLORE_CHEFS_SELECT.includes('dish_photos'), true)
+    assert.equal(EXPLORE_CHEFS_SELECT.includes('info_link_xx'), true)
     assert.equal(EXPLORE_CHEFS_SELECT.includes('primary_dish_photo'), true)
     assert.equal(EXPLORE_CHEFS_SELECT.includes('menus(name,price)'), true)
     assert.equal(EXPLORE_CHEFS_SELECT.includes('description'), false)
@@ -39,14 +39,16 @@ describe('chef profile helpers', () => {
 })
 
 describe('mapExploreChefRow', () => {
-  it('maps a lean chef row without gallery or wordpress fields', () => {
+  it('maps a lean chef row with the WordPress profile link and dish photos', () => {
     const chef = mapExploreChefRow({
       id: 'abc',
       slug: 'chef-demo',
       name: 'Camille',
+      info_link_xx: ' https://guidemytable.fr/chef-demo ',
       city: 'Paris',
       profile_picture: 'https://img/avatar.jpg',
       primary_dish_photo: 'https://img/hero.jpg',
+      dish_photos: ['https://img/hero.jpg', 'https://img/dish-2.jpg', 'https://img/avatar.jpg'],
       cuisine_style: 'Français',
       cuisine_style_en: 'French',
       availability_radius_km: 25,
@@ -60,7 +62,7 @@ describe('mapExploreChefRow', () => {
     assert.equal(chef.heroImage, 'https://img/hero.jpg')
     assert.equal(chef.minPrice, 80)
     assert.equal(chef.city, 'Paris')
-    assert.equal('infoLinkXx' in chef, false)
-    assert.equal('dishPhotos' in chef, false)
+    assert.equal(chef.infoLinkXx, 'https://guidemytable.fr/chef-demo')
+    assert.deepEqual(chef.dishPhotos, ['https://img/hero.jpg', 'https://img/dish-2.jpg'])
   })
 })

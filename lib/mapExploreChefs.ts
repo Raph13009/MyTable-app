@@ -30,6 +30,9 @@ export function mapExploreChefRow(row: any): ExploreChef {
     },
     null as { name: string; price: number } | null
   )
+  const dishPhotos = Array.isArray(row.dish_photos)
+    ? row.dish_photos.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
+    : []
   const primaryDishPhoto =
     typeof row.primary_dish_photo === 'string' && row.primary_dish_photo.trim()
       ? row.primary_dish_photo.trim()
@@ -41,10 +44,16 @@ export function mapExploreChefRow(row: any): ExploreChef {
     id: String(row.id),
     slug: String(row.slug || row.id),
     name: row.name || 'Chef',
+    infoLinkXx: typeof row.info_link_xx === 'string' && row.info_link_xx.trim() ? row.info_link_xx.trim() : null,
     city: typeof row.city === 'string' && row.city.trim() ? row.city.trim() : null,
     image: profilePicture,
-    heroImage: primaryDishPhoto || profilePicture,
+    heroImage:
+      (primaryDishPhoto && dishPhotos.includes(primaryDishPhoto) ? primaryDishPhoto : null) ||
+      dishPhotos[0] ||
+      profilePicture ||
+      null,
     avatarImage: profilePicture,
+    dishPhotos: dishPhotos.filter((url: string) => url !== profilePicture),
     cuisineType: row.cuisine_style || null,
     cuisineTypeEn: row.cuisine_style_en || null,
     availabilityRadiusKm:

@@ -2,10 +2,13 @@ export interface ExploreChef {
   id: string
   slug: string
   name: string
+  infoLinkXx: string | null
   city: string | null
   image: string | null
   heroImage: string | null
   avatarImage: string | null
+  /** Dish photos (excluding profile picture) for the mobile map card strip */
+  dishPhotos?: string[]
   cuisineType: string | null
   cuisineTypeEn: string | null
   availabilityRadiusKm: number | null

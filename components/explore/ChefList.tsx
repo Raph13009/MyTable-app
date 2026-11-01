@@ -14,9 +14,10 @@ interface ChefListProps {
   forceMobileCardStyle?: boolean
   /** Cards plus compactes (drawer tablette) pour afficher 2 cards entières à mi-hauteur */
   compact?: boolean
+  /** When true, profile links break out of iframe for full-screen navigation */
+  breakOutOfIframe?: boolean
   /** Horizontal card layout for desktop list mode */
   horizontal?: boolean
-  onOpenProfile?: (chefId: string) => void
 }
 
 export function ChefList({
@@ -28,8 +29,8 @@ export function ChefList({
   onChefNameClick,
   forceMobileCardStyle = false,
   compact = false,
+  breakOutOfIframe = false,
   horizontal = false,
-  onOpenProfile,
 }: ChefListProps) {
   const { t } = useTranslation()
 
@@ -60,8 +61,8 @@ export function ChefList({
               onChefNameClick={onChefNameClick}
               forceMobileStyle={forceMobileCardStyle}
               compact={compact}
+              breakOutOfIframe={breakOutOfIframe}
               horizontal={horizontal}
-              onOpenProfile={onOpenProfile}
             />
           ))
         )}
