@@ -3,8 +3,8 @@ import { resolveGtmId } from '@/lib/analytics/gtm-config'
 
 /**
  * Loads the shared GTM container (same as guidemytable.fr WordPress).
- * Analytics Consent Mode is granted by default so booking_* events reach GA4
- * for every visitor on app.guidemytable.fr (no cookie gate).
+ * All Consent Mode signals are granted up front — no cookie / banner gate.
+ * Intended for internal product testing so every visitor is tracked.
  */
 export default function GoogleTagManager() {
   const gtmId = resolveGtmId()
@@ -20,9 +20,9 @@ export default function GoogleTagManager() {
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('consent', 'default', {
-  ad_personalization: 'denied',
-  ad_storage: 'denied',
-  ad_user_data: 'denied',
+  ad_personalization: 'granted',
+  ad_storage: 'granted',
+  ad_user_data: 'granted',
   analytics_storage: 'granted',
   functionality_storage: 'granted',
   personalization_storage: 'granted',
