@@ -3,8 +3,8 @@ import { resolveGtmId } from '@/lib/analytics/gtm-config'
 
 /**
  * Loads the shared GTM container (same as guidemytable.fr WordPress).
- * Consent Mode defaults match Site Kit on the marketing site (denied until updated).
- * Analytics is granted when wp_consent_* cookies are shared from guidemytable.fr.
+ * Analytics Consent Mode is granted by default so booking_* events reach GA4
+ * for every visitor on app.guidemytable.fr (no cookie gate).
  */
 export default function GoogleTagManager() {
   const gtmId = resolveGtmId()
@@ -23,31 +23,11 @@ gtag('consent', 'default', {
   ad_personalization: 'denied',
   ad_storage: 'denied',
   ad_user_data: 'denied',
-  analytics_storage: 'denied',
-  functionality_storage: 'denied',
-  personalization_storage: 'denied',
-  security_storage: 'granted',
-  wait_for_update: 500
+  analytics_storage: 'granted',
+  functionality_storage: 'granted',
+  personalization_storage: 'granted',
+  security_storage: 'granted'
 });
-(function(){
-  try {
-    var c = document.cookie || '';
-    function allowed(name) {
-      var m = c.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-      return m && decodeURIComponent(m[1]) === 'allow';
-    }
-    var analytics = allowed('wp_consent_statistics') ? 'granted' : 'denied';
-    var ads = (allowed('wp_consent_marketing') || allowed('wp_consent_statistics')) ? 'granted' : 'denied';
-    if (analytics === 'granted' || ads === 'granted') {
-      gtag('consent', 'update', {
-        analytics_storage: analytics,
-        ad_storage: ads,
-        ad_user_data: ads,
-        ad_personalization: ads
-      });
-    }
-  } catch (e) {}
-})();
           `.trim(),
         }}
       />
