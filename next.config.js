@@ -8,6 +8,11 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           {
+            // Keep Google from indexing the booking app (crawl still allowed).
+            key: 'X-Robots-Tag',
+            value: 'noindex, follow',
+          },
+          {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains; preload',
           },

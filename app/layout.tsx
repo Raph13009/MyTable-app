@@ -6,6 +6,11 @@ import GoogleTagManager from '@/components/analytics/GoogleTagManager'
 export const metadata: Metadata = {
   title: 'MyTable - Chat + Booking',
   description: 'Plateforme de réservation et chat avec les chefs',
+  // Booking app must stay out of Google; marketing site guidemytable.fr is separate.
+  robots: {
+    index: false,
+    follow: true,
+  },
   icons: {
     icon: '/logo-cercle.ico',
     shortcut: '/logo-cercle.ico',

@@ -4,9 +4,10 @@ import { parseEmbedSearchLocale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'Recherche de lieu | Guide My Table',
+  // Inherit app-wide noindex; keep follow consistent with root layout.
   robots: {
     index: false,
-    follow: false,
+    follow: true,
   },
 }
 
